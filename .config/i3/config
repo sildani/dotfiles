@@ -189,10 +189,14 @@ bindsym XF86Sleep exec $HOME/bin/block && echo mem > /sys/power/state
 bindsym $mod+o exec --no-startup-id $HOME/bin/block
 # >> ~/.config/i3/config
 
-# Screen shot controls
-bindsym --release Print exec scrot -e 'mv $f ~/Pictures/shots/ && feh ~/Pictures/shots/$f'
-bindsym --release $mod+Print exec scrot -u -e 'mv $f ~/Pictures/shots/ && feh ~/Pictures/shots/$f'
-bindsym --release $mod+Shift+Print exec scrot -s -e 'mv $f ~/Pictures/shots/ && eog ~/Pictures/shots/$f'
+# Screen shot controls via scrot
+#bindsym --release Print exec scrot -e 'mv $f ~/Pictures/shots/ && feh ~/Pictures/shots/$f'
+#bindsym --release $mod+Print exec scrot -u -e 'mv $f ~/Pictures/shots/ && feh ~/Pictures/shots/$f'
+#bindsym --release $mod+Shift+Print exec scrot -s -e 'mv $f ~/Pictures/shots/ && eog ~/Pictures/shots/$f'
+
+# Screen shot controls via flameshot
+exec --no-startup-id flameshot
+bindsym --release Print exec flameshot gui
 
 #-------------------------------------------------------------------------
 #                         focus, movement, modes                         |
