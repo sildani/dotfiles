@@ -1,3 +1,10 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
@@ -101,13 +108,11 @@ source $ZSH/oh-my-zsh.sh
 # put ~/bin on PATH
 export PATH=~/bin:/usr/local/share/kotlinc/bin:/usr/local/share/gradle-6.2.2/bin:$PATH
 
-# powerline plugin
-powerline-daemon -q
-source /usr/lib/python3.8/site-packages/powerline/bindings/zsh/powerline.zsh
-
-# powerlevel9k theme
-source /usr/share/zsh-theme-powerlevel9k/powerlevel9k.zsh-theme
-POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=()
+# powerlevel10k theme
+source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
+POWERLEVEL10K_RIGHT_PROMPT_ELEMENTS=()
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # git aliases
 alias gst="git status"
