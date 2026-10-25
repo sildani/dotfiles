@@ -10,13 +10,7 @@ CONFIGS=nvim/lua/configs
 errors=0
 err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 
-if command -v shellcheck >/dev/null; then
-  shellcheck -x install.sh doctor.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
-elif [[ -n "${CI:-}" ]]; then
-  err "shellcheck not installed"
-else
-  echo "lint: shellcheck not installed, skipping shellcheck (brew install shellcheck)" >&2
-fi
+shellcheck -x install.sh doctor.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
 
 if command -v zsh >/dev/null; then
   zsh -n zsh/* || err "zsh syntax check failed"
