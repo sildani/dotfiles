@@ -66,9 +66,10 @@ Before installing on a machine that already has its own config, see what
 ```
 
 Also read-only. For each config file that isn't linked yet it prints the diff
-from this machine's copy (`-`) to the repo's (`+`), then the originals in
-`~/.dotfiles-backup/` that differ from the repo: settings you may want to move
-into the per-machine files below.
+from this machine's copy (`-`) to the repo's (`+`); on a machine that's set up,
+that's all ✓. It then counts the originals in `~/.dotfiles-backup/` that differ
+from the repo. Those never come to match; `--diff --backups` shows their diffs,
+for settings you may want to move into the per-machine files below.
 
 ## Languages (Java, Python, Go)
 
