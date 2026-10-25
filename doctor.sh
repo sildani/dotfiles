@@ -105,6 +105,7 @@ check_links() {
   for local_file in "${LOCAL_FILES[@]}"; do
     [[ -e "$local_file" ]] && info "per-machine override in use: ${local_file/#$HOME/~}"
   done
+  extras_cue
 
   # Opt-in snippets from tmux/extras/ that ~/.tmux.local.conf sources.
   local tmux_local="$HOME/.tmux.local.conf" extra

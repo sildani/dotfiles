@@ -78,9 +78,10 @@ Optional, not in git, ignored if missing:
 ### Optional extras
 
 Snippets that are in the repo but off by default. Turn one on for a machine by
-sourcing it from that machine's override file; `doctor.sh` lists the ones in use.
+adding its line to that machine's per-machine file; `doctor.sh` lists the tmux
+extras in use.
 
-| Extra                         | What it does                                   | Turn on in `~/.tmux.local.conf`                           |
+| Extra                         | What it does                                   | Add to `~/.tmux.local.conf`                               |
 | ----------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
 | `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file ~/code/dotfiles/tmux/extras/agy-ctrl-k.conf` |
 

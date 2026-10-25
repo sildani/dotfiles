@@ -93,6 +93,7 @@ echo "$second" >>"$LOG"
 # These are install.sh's messages for each change it makes; keep them in sync.
 changes="$(grep -E 'moved |cloned |copied |✓ [^ ]+ -> ' <<<"$second" || true)"
 [[ -z "$changes" ]] || die "second run changed something: $changes"
+grep -q 'optional extras' <<<"$second" || die "install.sh didn't point to the optional extras"
 [[ "$(stat -f %i "$HOME/.oh-my-zsh")" == "$omz_inode" ]] || die "second run replaced ~/.oh-my-zsh"
 [[ "$(cat "$HOME/.zshrc.local")" == "$zshrc_local" ]] || die "second run changed ~/.zshrc.local"
 
@@ -109,6 +110,7 @@ echo "source-file $REPO_DIR/tmux/extras/agy-ctrl-k.conf" >"$HOME/.tmux.local.con
 doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a tmux extra on"; }
 echo "$doctor_out" >>"$LOG"
 grep -q 'tmux extra on: agy-ctrl-k.conf' <<<"$doctor_out" || die "doctor.sh didn't list the tmux extra"
+grep -q 'optional extras' <<<"$doctor_out" || die "doctor.sh didn't point to the optional extras"
 tmux -L "$TMUX_SOCKET" -f "$HOME/.tmux.conf" new-session -d >>"$LOG" 2>&1 || die "tmux didn't start with the extra on"
 tmux -L "$TMUX_SOCKET" list-keys -T prefix C-k 2>>"$LOG" | grep -q 'send-keys C-k' ||
   die "the extra didn't bind prefix C-k"

@@ -214,6 +214,7 @@ next_steps() {
   local f files=""
   for f in "${LOCAL_FILES[@]}"; do files+="${files:+, }${f/#$HOME/~}"; done
   info "per-machine tweaks (not in git): $files"
+  extras_cue
   printf '\n  %sLanguage support (Java, Python, Go) is NOT installed on purpose.%s\n' "$C_BOLD" "$C_OFF"
   hint "when you need one, follow $REPO_DIR/LANGUAGES.md"
   hint "doctor.sh shows which languages are set up and what's missing"
