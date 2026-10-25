@@ -26,6 +26,12 @@ plugin not installed yet): guard the load and print a one-line hint naming the f
 orders its steps so that a failure leaves the old config in place rather than a link to a config
 that can't load yet.
 
+## Messages the tests match are marked
+
+A script message that `test/fresh-home.sh` greps for carries a `# fresh-home.sh greps for "<text>"`
+comment on its line, as in `install.sh`, so whoever rewords it updates the test too. A new grep in
+the test adds the marker to the message it matches.
+
 ## One change per PR, described as it is
 
 A PR's description matches its diff: each behaviour it claims is in the code, and each change in

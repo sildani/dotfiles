@@ -117,7 +117,7 @@ check_links() {
     [[ -f "$file" ]] || continue
     while read -r extra; do
       if [[ -f "$REPO_DIR/$extra" ]]; then
-        info "$tool extra on: ${extra##*/}"
+        info "$tool extra on: ${extra##*/}"  # fresh-home.sh greps for "<tool> extra on: <name>"
       else
         broken "${file/#$HOME/~} sources $extra, which isn't in the repo"
         hint "pick one from $REPO_DIR/$tool/extras/ or remove the line"
@@ -198,29 +198,29 @@ diff_configs() {
   for entry in "${LINKS[@]}"; do
     src="$REPO_DIR/${entry%%:*}" dest="${entry#*:}"
     if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-      ok "${dest/#$HOME/~} already links to the repo"
+      ok "${dest/#$HOME/~} already links to the repo"  # fresh-home.sh greps for "already links to the repo"
       continue
     elif [[ -L "$dest" && ! -e "$dest" ]]; then
-      warn "${dest/#$HOME/~} is a broken link to $(readlink "$dest"); would be backed up and linked"
+      warn "${dest/#$HOME/~} is a broken link to $(readlink "$dest"); would be backed up and linked"  # fresh-home.sh greps for "would be "
     elif [[ -e "$dest" ]]; then
       what="is a file"
       [[ -d "$dest" ]] && what="is a directory"
       [[ -L "$dest" ]] && what="links to $(readlink "$dest")"
       if same_as_repo "$dest" "$src"; then
-        info "${dest/#$HOME/~} $what with the repo's content; would be backed up and linked"
+        info "${dest/#$HOME/~} $what with the repo's content; would be backed up and linked"  # fresh-home.sh greps for "would be "
       else
-        warn "${dest/#$HOME/~} $what; would be backed up and replaced:"
+        warn "${dest/#$HOME/~} $what; would be backed up and replaced:"  # fresh-home.sh greps for "would be "
         show_diff "$dest" "$src"
       fi
     else
-      info "${dest/#$HOME/~} missing, would be created"
+      info "${dest/#$HOME/~} missing, would be created"  # fresh-home.sh greps for "would be "
       continue
     fi
     if [[ "$dest" == "$HOME/.zshrc" && -f "$dest" ]]; then
       if [[ -e "$HOME/.zshrc.local" ]]; then
         hint "not copied to ~/.zshrc.local, which already exists; move what you need there by hand"
       else
-        hint "also would be copied to ~/.zshrc.local (its Oh My Zsh load commented out) so this machine's setup keeps working"
+        hint "${dest/#$HOME/~} would also be copied to ~/.zshrc.local (its Oh My Zsh load commented out) so this machine's setup keeps working"  # fresh-home.sh greps for "would also be copied to ~/.zshrc.local"
       fi
     fi
   done
@@ -228,7 +228,7 @@ diff_configs() {
   local f
   for f in "${GHOSTTY_LIBRARY_FILES[@]}"; do
     [[ -e "$f" ]] || continue
-    warn "${f/#$HOME/~} overrides the repo's Ghostty config; would be backed up and removed:"
+    warn "${f/#$HOME/~} overrides the repo's Ghostty config; would be backed up and removed:"  # fresh-home.sh greps for "would be "
     show_diff "$f" "$REPO_DIR/ghostty/config"
   done
 }

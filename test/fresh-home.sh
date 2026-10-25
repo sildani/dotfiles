@@ -92,7 +92,7 @@ grep -qxE "Only in $HOME/.config/nvim/lua: local.lua|--- old per-machine config"
   die "doctor.sh --diff hid the machine's own nvim lua/local.lua"
 grep -qF '.config/ghostty/config missing, would be created' <<<"$diff_out" ||
   die "doctor.sh --diff didn't say ~/.config/ghostty/config would be created"
-grep -qF 'would be copied to ~/.zshrc.local' <<<"$diff_out" ||
+grep -qF 'would also be copied to ~/.zshrc.local' <<<"$diff_out" ||
   die "doctor.sh --diff didn't say ~/.zshrc would be copied to ~/.zshrc.local"
 [[ "$(backups)" == 0 && ! -e "$HOME/.zshrc.local" && ! -L "$HOME/.zshrc" ]] || die "doctor.sh --diff changed something"
 
@@ -103,8 +103,27 @@ PATH="$SHIM_DIR:$PATH" "$REPO_DIR/install.sh" </dev/null >>"$LOG" 2>&1 &&
   die "a failed Oh My Zsh clone still replaced ~/.zshrc"
 [[ ! -e "$HOME/.zshrc.local" && "$(backups)" == 0 ]] || die "a failed Oh My Zsh clone still moved config"
 
-echo "install.sh, first run"
-"$REPO_DIR/install.sh" </dev/null >>"$LOG" 2>&1 || die "first install.sh run failed"
+echo "install.sh, first run (should do what doctor.sh --diff predicted)"
+first="$("$REPO_DIR/install.sh" </dev/null 2>&1)" || { echo "$first" >>"$LOG"; die "first install.sh run failed"; }
+echo "$first" >>"$LOG"
+# expect_predicted <what> <paths install.sh changed> <--diff lines predicting it>:
+# a predicting line for each path, and no more lines than paths.
+expect_predicted() {
+  local path
+  while IFS= read -r path; do
+    [[ -z "$path" ]] || grep -qF " $path " <<<"$3" ||
+      die "install.sh $1 $path, which doctor.sh --diff didn't predict"
+  done <<<"$2"
+  [[ "$(grep -c . <<<"$3")" == "$(grep -c . <<<"$2")" ]] ||
+    die "doctor.sh --diff predicted install.sh $1:"$'\n'"$3"$'\n'"but it $1:"$'\n'"$2"
+}
+expect_predicted "backed up" "$(sed -nE 's/^  • moved (.*) -> .*/\1/p' <<<"$first")" \
+  "$(grep 'would be backed up' <<<"$diff_out")"
+expect_predicted "linked" "$(sed -nE 's/^  ✓ (.*) -> .*/\1/p' <<<"$first")" \
+  "$(grep -E 'would be (created|backed up and (replaced|linked))' <<<"$diff_out")"
+# shellcheck disable=SC2088  # install.sh prints the ~ form
+expect_predicted "copied" "$(grep -q '^  • copied ~/.zshrc ' <<<"$first" && echo '~/.zshrc')" \
+  "$(grep 'would also be copied to ~/.zshrc.local' <<<"$diff_out")"
 [[ "$(backups)" == 1 ]] || die "expected 1 backup folder after the first run, found $(backups)"
 backup="$(find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1)"
 for f in .tmux.conf .zshrc .config/nvim/init.lua "Library/Application Support/com.mitchellh.ghostty/config.ghostty"; do
