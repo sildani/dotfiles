@@ -36,11 +36,17 @@ cd ~/code/dotfiles && git pull && ./install.sh
   | `ghostty/config` | `~/.config/ghostty/config`  |
 
   It also moves away Ghostty's `~/Library/Application Support/com.mitchellh.ghostty/config*`,
-  which would otherwise override the repo's file.
+  which would otherwise override the repo's file. A machine's own `~/.zshrc` is
+  backed up too, and copied to `~/.zshrc.local` (if that doesn't exist yet) so its
+  PATH and tool setup keep working; its Oh My Zsh load is commented out there.
 - installs Oh My Zsh, tmux plugins (TPM), nvim plugins at the versions in
   `nvim/lazy-lock.json`, and the treesitter parsers for the files in this repo.
 
 It never logs in to GitHub or changes git/gh config: each machine keeps its own account.
+
+To go back to a machine's own zsh config, replace the link with the backup and
+remove the copy: `mv ~/.dotfiles-backup/<time>/.zshrc ~/.zshrc && rm ~/.zshrc.local`
+(`~/.oh-my-zsh` can stay; nothing loads it unless your `~/.zshrc` does).
 
 ## Check a machine
 

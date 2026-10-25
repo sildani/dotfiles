@@ -58,10 +58,18 @@ check_tools() {
     info "gh account: ${account:-not logged in} (informational; this repo never changes it)"
   fi
 
-  if [[ "${SHELL:-}" == */zsh ]]; then
-    ok "login shell is zsh ($SHELL)"
+}
+
+# The account's login shell, not $SHELL, which a parent process can set.
+check_shell() {
+  section "Shell"
+  local shell
+  shell="$(dscl . -read "/Users/$(id -un)" UserShell 2>/dev/null | sed -n 's/^UserShell: //p')"
+  if [[ "$shell" == */zsh ]]; then
+    ok "login shell is zsh ($shell)"
   else
-    info "login shell is ${SHELL:-unknown} (not zsh; run: chsh -s /bin/zsh if desired)"
+    warn "login shell is ${shell:-unknown}, so ~/.zshrc isn't used"
+    hint "chsh -s /bin/zsh"
   fi
 }
 
@@ -94,7 +102,7 @@ check_links() {
   done
 
   local local_file
-  for local_file in "$HOME/.zshrc.local" "$HOME/.tmux.local.conf" "$HOME/.config/ghostty/local" "$REPO_DIR/nvim/lua/local.lua"; do
+  for local_file in "${LOCAL_FILES[@]}"; do
     [[ -e "$local_file" ]] && info "per-machine override in use: ${local_file/#$HOME/~}"
   done
 }
@@ -104,7 +112,7 @@ check_plugins() {
   if [[ -d "$ZSH_DIR" ]]; then
     ok "Oh My Zsh"
   else
-    broken "Oh My Zsh not installed (~/.oh-my-zsh)"
+    broken "Oh My Zsh not installed (${ZSH_DIR/#$HOME/~})"
     hint "run ./install.sh"
   fi
 
@@ -190,6 +198,7 @@ check_languages() {
 }
 
 check_tools
+check_shell
 check_links
 check_plugins
 check_languages

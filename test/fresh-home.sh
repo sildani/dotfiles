@@ -45,7 +45,8 @@ mkdir -p "$ghostty_lib" "$HOME/.config/nvim"
 echo 'font-size = 20' >"$ghostty_lib/config.ghostty"
 echo '-- old config' >"$HOME/.config/nvim/init.lua"
 echo '# old tmux config' >"$HOME/.tmux.conf"
-echo '# old zsh config' >"$HOME/.zshrc"
+# shellcheck disable=SC2016  # a literal zshrc line, not expanded here
+printf '%s\n' '# old zsh config' 'source $ZSH/oh-my-zsh.sh' >"$HOME/.zshrc"
 
 backups() { find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -58,10 +59,20 @@ for f in .tmux.conf .zshrc .config/nvim/init.lua "Library/Application Support/co
   [[ -e "$backup/$f" ]] || die "seeded file was not backed up: $f"
 done
 [[ ! -e "$ghostty_lib/config.ghostty" ]] || die "Ghostty Library config still in place"
+grep -qx '# old zsh config' "$HOME/.zshrc.local" || die "old ~/.zshrc was not copied to ~/.zshrc.local"
+grep -q '^source' "$HOME/.zshrc.local" && die ".zshrc.local still loads Oh My Zsh itself"
+zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
+zshrc_local="$(cat "$HOME/.zshrc.local")"
+omz_inode="$(stat -f %i "$HOME/.oh-my-zsh")"
 
 echo "install.sh, second run (should change nothing)"
-"$REPO_DIR/install.sh" </dev/null >>"$LOG" 2>&1 || die "second install.sh run failed"
+second="$("$REPO_DIR/install.sh" </dev/null 2>&1)" || { echo "$second" >>"$LOG"; die "second install.sh run failed"; }
+echo "$second" >>"$LOG"
 [[ "$(backups)" == 1 ]] || die "second run created a new backup folder"
+changes="$(grep -E 'moved |cloned |copied |✓ [^ ]+ -> ' <<<"$second" || true)"
+[[ -z "$changes" ]] || die "second run changed something: $changes"
+[[ "$(stat -f %i "$HOME/.oh-my-zsh")" == "$omz_inode" ]] || die "second run replaced ~/.oh-my-zsh"
+[[ "$(cat "$HOME/.zshrc.local")" == "$zshrc_local" ]] || die "second run changed ~/.zshrc.local"
 
 echo "doctor.sh"
 "$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 || die "doctor.sh reported problems"

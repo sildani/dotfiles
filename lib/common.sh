@@ -28,6 +28,14 @@ LINKS=(
   "ghostty/config:$HOME/.config/ghostty/config"
 )
 
+# Per-machine overrides the shared configs load if present. Not in git.
+LOCAL_FILES=(
+  "$HOME/.zshrc.local"
+  "$HOME/.tmux.local.conf"
+  "$HOME/.config/ghostty/local"
+  "$REPO_DIR/nvim/lua/local.lua"
+)
+
 # brew formula : command : minimum version (empty = any)
 FORMULAE=(
   "git:git:"
