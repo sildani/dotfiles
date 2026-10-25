@@ -46,9 +46,22 @@ for f in "${LOCAL_FILES[@]}"; do
   done
 done
 
-# Every opt-in extra is in the README's extras table.
+# Every opt-in extra is in the README's extras table, and every extras folder
+# has a per-machine file to turn it on from, so doctor.sh can report it.
 for f in */extras/*; do
   grep -qF "\`$f\`" README.md || err "README.md extras table is missing \`$f\`"
+done
+for dir in */extras; do
+  [[ -d "$dir" ]] || continue
+  tool="${dir%%/*}" host=""
+  for pair in "${EXTRAS_HOSTS[@]}"; do
+    [[ "${pair%%:*}" == "$tool" ]] && host="${pair#*:}"
+  done
+  if [[ -z "$host" ]]; then
+    err "$dir has no entry in EXTRAS_HOSTS (lib/common.sh)"
+  elif [[ " ${LOCAL_FILES[*]} " != *" $host "* ]]; then
+    err "EXTRAS_HOSTS file for $tool isn't in LOCAL_FILES: $host"
+  fi
 done
 
 # Each [LANG] marker sits in all three nvim config files.

@@ -1,7 +1,9 @@
 name: check
 
+# Pushes to main, plus every PR: one run per change instead of one per event.
 on:
   push:
+    branches: [main]
   pull_request:
 
 env:
