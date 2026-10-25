@@ -109,7 +109,7 @@ check_links() {
 
   # Opt-in snippets from <tool>/extras/ that the tool's per-machine file sources.
   local pair tool file extra
-  for pair in "tmux:$HOME/.tmux.local.conf" "zsh:$HOME/.zshrc.local"; do
+  for pair in "${EXTRAS_HOSTS[@]}"; do
     tool="${pair%%:*}" file="${pair#*:}"
     [[ -f "$file" ]] || continue
     while read -r extra; do

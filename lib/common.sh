@@ -36,6 +36,14 @@ LOCAL_FILES=(
   "$REPO_DIR/nvim/lua/local.lua"
 )
 
+# <tool>/extras/ snippets are turned on from this per-machine file (one of
+# LOCAL_FILES). doctor.sh reports the ones in use; lint requires an entry
+# for every extras folder.
+EXTRAS_HOSTS=(
+  "tmux:$HOME/.tmux.local.conf"
+  "zsh:$HOME/.zshrc.local"
+)
+
 # brew formula : command : minimum version (empty = any)
 FORMULAE=(
   "git:git:"

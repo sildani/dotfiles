@@ -3,8 +3,8 @@
 # with the Oh My Zsh clone failing, then twice for real), then doctor.sh and an
 # interactive zsh. Passes when the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, the second changed nothing, doctor exits
-# 0, zsh starts without errors, and the tmux and zsh extras turn on (and doctor
-# flags a missing one). Set KEEP=1 to keep the temp HOME.
+# 0, zsh starts without errors, tmux loads its config and every extra without
+# errors, and the tmux and zsh extras turn on (and doctor flags a missing one). Set KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -105,13 +105,23 @@ echo "interactive zsh"
 zsh_out="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c exit 2>&1)"
 [[ -z "$zsh_out" ]] || die "an interactive zsh printed: $zsh_out"
 
+# Commands, not -f: a server started with -f exits 0 even when the file has
+# errors, while source-file as a command exits non-zero on any.
+echo "tmux config and every tmux extra load without errors"
+tmux -L "$TMUX_SOCKET" -f /dev/null new-session -d >>"$LOG" 2>&1 || die "tmux didn't start"
+for f in "$HOME/.tmux.conf" "$REPO_DIR"/tmux/extras/*; do
+  tmux -L "$TMUX_SOCKET" source-file "$f" >>"$LOG" 2>&1 || die "tmux reports errors in ${f/#$HOME/~}"
+done
+tmux -L "$TMUX_SOCKET" kill-server
+
 echo "tmux extra turned on"
 echo "source-file $REPO_DIR/tmux/extras/agy-ctrl-k.conf" >"$HOME/.tmux.local.conf"
 doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a tmux extra on"; }
 echo "$doctor_out" >>"$LOG"
 grep -q 'tmux extra on: agy-ctrl-k.conf' <<<"$doctor_out" || die "doctor.sh didn't list the tmux extra"
 grep -q 'optional extras' <<<"$doctor_out" || die "doctor.sh didn't point to the optional extras"
-tmux -L "$TMUX_SOCKET" -f "$HOME/.tmux.conf" new-session -d >>"$LOG" 2>&1 || die "tmux didn't start with the extra on"
+tmux -L "$TMUX_SOCKET" -f /dev/null new-session -d \; source-file "$HOME/.tmux.conf" >>"$LOG" 2>&1 ||
+  die "tmux reports errors with the extra on"
 tmux -L "$TMUX_SOCKET" list-keys -T prefix C-k 2>>"$LOG" | grep -q 'send-keys C-k' ||
   die "the extra didn't bind prefix C-k"
 
