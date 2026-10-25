@@ -2,6 +2,9 @@
 # Read-only health check: what's installed, what's linked, and which languages
 # are set up. Changes nothing. Exits non-zero if something is broken (✗);
 # warnings (!) and language status never fail it.
+# --diff instead shows how each config file differs from what install.sh
+# would put there, and which backed-up originals differ from the repo; it
+# exits non-zero only if a diff can't run.
 set -uo pipefail
 
 # shellcheck source=lib/common.sh
@@ -83,10 +86,10 @@ check_links() {
       ok "${dest/#$HOME/~}"
     elif [[ -L "$dest" ]]; then
       broken "${dest/#$HOME/~} links to $(readlink "$dest"), not this repo"
-      hint "run ./install.sh (it backs up the old target first)"
+      hint "run ./install.sh (it backs up the old target first); ./doctor.sh --diff shows what it would replace"
     elif [[ -e "$dest" ]]; then
       broken "${dest/#$HOME/~} is a regular file/dir, not a link to the repo"
-      hint "run ./install.sh (it backs up the old one first)"
+      hint "run ./install.sh (it backs up the old one first); ./doctor.sh --diff shows what it would replace"
     else
       broken "${dest/#$HOME/~} missing"
       hint "run ./install.sh"
@@ -171,6 +174,85 @@ check_plugins() {
   fi
 }
 
+# --diff: each config install.sh manages, compared with the repo copy that would
+# replace it. Diffs run machine -> repo, so + lines are what the repo installs.
+DIFF_FLAGS=(-ru)
+# Older macOS ships a diff without --color.
+[[ -t 1 ]] && diff --color=always /dev/null /dev/null >/dev/null 2>&1 && DIFF_FLAGS+=(--color=always)
+# Where install.sh's backups land, as repo path : machine path (LINKS plus
+# Ghostty's Library config).
+BACKUP_TARGETS=("${LINKS[@]}")
+for f in "${GHOSTTY_LIBRARY_FILES[@]}"; do BACKUP_TARGETS+=("ghostty/config:$f"); done
+
+same_as_repo() { diff -rq "$1" "$2" >/dev/null 2>&1; }
+
+# A diff that can't run (unreadable file, file vs directory) is a problem.
+show_diff() {
+  diff "${DIFF_FLAGS[@]}" "$1" "$2"
+  (($? < 2)) || broken "couldn't compare ${1/#$HOME/~} with ${2/#$HOME/~}"
+}
+
+diff_configs() {
+  section "What install.sh would replace (- this machine, + the repo)"
+  local entry src dest what
+  for entry in "${LINKS[@]}"; do
+    src="$REPO_DIR/${entry%%:*}" dest="${entry#*:}"
+    if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
+      ok "${dest/#$HOME/~} already links to the repo"
+      continue
+    elif [[ -L "$dest" && ! -e "$dest" ]]; then
+      warn "${dest/#$HOME/~} is a broken link to $(readlink "$dest"); would be backed up and linked"
+    elif [[ -e "$dest" ]]; then
+      what="is a file"
+      [[ -d "$dest" ]] && what="is a directory"
+      [[ -L "$dest" ]] && what="links to $(readlink "$dest")"
+      if same_as_repo "$dest" "$src"; then
+        info "${dest/#$HOME/~} $what with the repo's content; would be backed up and linked"
+      else
+        warn "${dest/#$HOME/~} $what; would be backed up and replaced:"
+        show_diff "$dest" "$src"
+      fi
+    else
+      info "${dest/#$HOME/~} missing, would be created"
+      continue
+    fi
+    if [[ "$dest" == "$HOME/.zshrc" && -f "$dest" ]]; then
+      if [[ -e "$HOME/.zshrc.local" ]]; then
+        hint "not copied to ~/.zshrc.local, which already exists; move what you need there by hand"
+      else
+        hint "also would be copied to ~/.zshrc.local (its Oh My Zsh load commented out) so this machine's setup keeps working"
+      fi
+    fi
+  done
+
+  local f
+  for f in "${GHOSTTY_LIBRARY_FILES[@]}"; do
+    [[ -e "$f" ]] || continue
+    warn "${f/#$HOME/~} overrides the repo's Ghostty config; would be backed up and removed:"
+    show_diff "$f" "$REPO_DIR/ghostty/config"
+  done
+}
+
+# Originals install.sh moved to ~/.dotfiles-backup/<time>/ that the repo's
+# config doesn't match: settings this machine may still want in its
+# per-machine files.
+diff_backups() {
+  section "Backed-up originals that differ from the repo"
+  local dir entry src saved found=false
+  for dir in "$HOME"/.dotfiles-backup/*/; do
+    [[ -d "$dir" ]] || continue
+    for entry in "${BACKUP_TARGETS[@]}"; do
+      src="$REPO_DIR/${entry%%:*}" saved="$dir${entry#*:"$HOME"/}"
+      [[ -e "$saved" ]] || continue
+      same_as_repo "$saved" "$src" && continue
+      found=true
+      warn "${saved/#$HOME/~}:"
+      show_diff "$saved" "$src"
+    done
+  done
+  $found || ok "none"
+}
+
 mason_has()   { [[ -d "$MASON_PKGS/$1" ]]; }
 parser_has()  { [[ -e "$TS_PARSERS/$1.so" ]]; }
 lsp_enabled() { grep -Eq "^[[:space:]]*\"$1\"," "$REPO_DIR/nvim/lua/configs/lspconfig.lua"; }
@@ -212,6 +294,19 @@ check_languages() {
   language_status Python python "$python" "python3 + node" python basedpyright basedpyright ruff
   language_status Go go "$go" "go" go gopls gopls goimports gofumpt
 }
+
+case "${1:-}" in
+  "") ;;
+  --diff)
+    diff_configs
+    diff_backups
+    exit $((failures > 0))
+    ;;
+  *)
+    echo "usage: doctor.sh [--diff]" >&2
+    exit 2
+    ;;
+esac
 
 check_tools
 check_shell
