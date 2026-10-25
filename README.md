@@ -72,6 +72,13 @@ Optional, not in git, ignored if missing:
 Edit on the personal laptop (the links mean you're editing the repo), commit and
 push. Work machines only pull.
 
+Checks (also run by CI on every push):
+
+- `test/lint.sh`: shellcheck, secret scan (gitleaks), and that the language
+  recipes agree across `doctor.sh`, the nvim config and `LANGUAGES.md`.
+  Runs before each commit once you enable the hook: `git config core.hooksPath hooks`
+- `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
+
 To update nvim plugins: `:Lazy update` on the laptop, test, then commit
 `nvim/lazy-lock.json`. Other machines get the same versions on their next
 `./install.sh`.
