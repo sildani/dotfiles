@@ -3,8 +3,9 @@
 # are set up. Changes nothing. Exits non-zero if something is broken (✗);
 # warnings (!) and language status never fail it.
 # --diff instead shows how each config file differs from what install.sh
-# would put there, and which backed-up originals differ from the repo; it
-# exits non-zero only if a diff can't run.
+# would put there, and how many backed-up originals differ from the repo
+# (--diff --backups shows those diffs too); it exits non-zero only if a diff
+# can't run.
 set -uo pipefail
 
 # shellcheck source=lib/common.sh
@@ -235,22 +236,32 @@ diff_configs() {
 
 # Originals install.sh moved to ~/.dotfiles-backup/<time>/ that the repo's
 # config doesn't match: settings this machine may still want in its
-# per-machine files.
+# per-machine files. They never come to match, so they're summed up in one
+# line unless $1 is true (--backups).
 diff_backups() {
+  local full="$1"
   section "Backed-up originals that differ from the repo"
-  local dir entry src saved found=false
+  local dir entry src saved count=0 newest=""
   for dir in "$HOME"/.dotfiles-backup/*/; do
     [[ -d "$dir" ]] || continue
     for entry in "${BACKUP_TARGETS[@]}"; do
       src="$REPO_DIR/${entry%%:*}" saved="$dir${entry#*:"$HOME"/}"
       [[ -e "$saved" ]] || continue
       same_as_repo "$saved" "$src" && continue
-      found=true
+      count=$((count + 1)) newest="${dir%/}"
+      $full || continue
       warn "${saved/#$HOME/~}:"
       show_diff "$saved" "$src"
     done
   done
-  $found || ok "none"
+  if ((count == 0)); then
+    ok "none"
+  elif ! $full; then
+    local differ="originals differ"
+    ((count == 1)) && differ="original differs"
+    info "$count backed-up $differ from the repo (newest: ${newest##*/})"  # fresh-home.sh greps for "backed-up originals differ from the repo (newest: "
+    hint "see the diffs: ./doctor.sh --diff --backups"
+  fi
 }
 
 mason_has()   { [[ -d "$MASON_PKGS/$1" ]]; }
@@ -295,15 +306,15 @@ check_languages() {
   language_status Go go "$go" "go" go gopls gopls goimports gofumpt
 }
 
-case "${1:-}" in
-  "") ;;
-  --diff)
+case "${1:-} ${2:-}" in
+  " ") ;;
+  "--diff " | "--diff --backups")
     diff_configs
-    diff_backups
+    diff_backups "$([[ "${2:-}" == --backups ]] && echo true || echo false)"
     exit $((failures > 0))
     ;;
   *)
-    echo "usage: doctor.sh [--diff]" >&2
+    echo "usage: doctor.sh [--diff [--backups]]" >&2
     exit 2
     ;;
 esac
