@@ -3,7 +3,8 @@
 # are set up. Changes nothing. Exits non-zero if something is broken (✗);
 # warnings (!) and language status never fail it.
 # --diff instead shows how each config file differs from what install.sh
-# would put there, and which backed-up originals differ from the repo.
+# would put there, and which backed-up originals differ from the repo; it
+# exits non-zero only if a diff can't run.
 set -uo pipefail
 
 # shellcheck source=lib/common.sh
@@ -175,14 +176,21 @@ check_plugins() {
 
 # --diff: each config install.sh manages, compared with the repo copy that would
 # replace it. Diffs run machine -> repo, so + lines are what the repo installs.
-# The repo's nvim/lua/local.lua is per-machine, so it's left out of the diff.
-DIFF_FLAGS=(-ru -x local.lua)
-[[ -t 1 ]] && DIFF_FLAGS+=(--color=always)
-# repo path : machine path, as in LINKS
-DIFF_TARGETS=("${LINKS[@]}")
-for f in "${GHOSTTY_LIBRARY_FILES[@]}"; do DIFF_TARGETS+=("ghostty/config:$f"); done
+DIFF_FLAGS=(-ru)
+# Older macOS ships a diff without --color.
+[[ -t 1 ]] && diff --color=always /dev/null /dev/null >/dev/null 2>&1 && DIFF_FLAGS+=(--color=always)
+# Where install.sh's backups land, as repo path : machine path (LINKS plus
+# Ghostty's Library config).
+BACKUP_TARGETS=("${LINKS[@]}")
+for f in "${GHOSTTY_LIBRARY_FILES[@]}"; do BACKUP_TARGETS+=("ghostty/config:$f"); done
 
-same_as_repo() { diff -rq -x local.lua "$1" "$2" >/dev/null 2>&1; }
+same_as_repo() { diff -rq "$1" "$2" >/dev/null 2>&1; }
+
+# A diff that can't run (unreadable file, file vs directory) is a problem.
+show_diff() {
+  diff "${DIFF_FLAGS[@]}" "$1" "$2"
+  (($? < 2)) || broken "couldn't compare ${1/#$HOME/~} with ${2/#$HOME/~}"
+}
 
 diff_configs() {
   section "What install.sh would replace (- this machine, + the repo)"
@@ -202,7 +210,7 @@ diff_configs() {
         info "${dest/#$HOME/~} $what with the repo's content; would be backed up and linked"
       else
         warn "${dest/#$HOME/~} $what; would be backed up and replaced:"
-        diff "${DIFF_FLAGS[@]}" "$dest" "$src"
+        show_diff "$dest" "$src"
       fi
     else
       info "${dest/#$HOME/~} missing, would be created"
@@ -212,7 +220,7 @@ diff_configs() {
       if [[ -e "$HOME/.zshrc.local" ]]; then
         hint "not copied to ~/.zshrc.local, which already exists; move what you need there by hand"
       else
-        hint "also would be copied to ~/.zshrc.local so this machine's setup keeps working"
+        hint "also would be copied to ~/.zshrc.local (its Oh My Zsh load commented out) so this machine's setup keeps working"
       fi
     fi
   done
@@ -221,7 +229,7 @@ diff_configs() {
   for f in "${GHOSTTY_LIBRARY_FILES[@]}"; do
     [[ -e "$f" ]] || continue
     warn "${f/#$HOME/~} overrides the repo's Ghostty config; would be backed up and removed:"
-    diff "${DIFF_FLAGS[@]}" "$f" "$REPO_DIR/ghostty/config"
+    show_diff "$f" "$REPO_DIR/ghostty/config"
   done
 }
 
@@ -233,13 +241,13 @@ diff_backups() {
   local dir entry src saved found=false
   for dir in "$HOME"/.dotfiles-backup/*/; do
     [[ -d "$dir" ]] || continue
-    for entry in "${DIFF_TARGETS[@]}"; do
+    for entry in "${BACKUP_TARGETS[@]}"; do
       src="$REPO_DIR/${entry%%:*}" saved="$dir${entry#*:"$HOME"/}"
       [[ -e "$saved" ]] || continue
       same_as_repo "$saved" "$src" && continue
       found=true
       warn "${saved/#$HOME/~}:"
-      diff "${DIFF_FLAGS[@]}" "$saved" "$src"
+      show_diff "$saved" "$src"
     done
   done
   $found || ok "none"
@@ -292,7 +300,7 @@ case "${1:-}" in
   --diff)
     diff_configs
     diff_backups
-    exit 0
+    exit $((failures > 0))
     ;;
   *)
     echo "usage: doctor.sh [--diff]" >&2
