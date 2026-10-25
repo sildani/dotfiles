@@ -3,7 +3,8 @@
 # with the Oh My Zsh clone failing, then twice for real), then doctor.sh and an
 # interactive zsh. Passes when the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, the second changed nothing, doctor exits
-# 0, and zsh starts without errors. Set KEEP=1 to keep the temp HOME.
+# 0, zsh starts without errors, and a tmux extra turns on (and doctor flags a
+# missing one). Set KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,8 +12,10 @@ REAL_HOME="$HOME"
 FAKE_HOME="$(mktemp -d)"
 LOG="$FAKE_HOME.log"
 SHIM_DIR="$FAKE_HOME.bin"
+TMUX_SOCKET="fresh-home-$$"
 
 cleanup() {
+  tmux -L "$TMUX_SOCKET" kill-server 2>/dev/null || true
   if [[ "${KEEP:-}" == 1 ]]; then
     echo "kept: $FAKE_HOME (log: $LOG)"
   else
@@ -100,5 +103,19 @@ echo "doctor.sh"
 echo "interactive zsh"
 zsh_out="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c exit 2>&1)"
 [[ -z "$zsh_out" ]] || die "an interactive zsh printed: $zsh_out"
+
+echo "tmux extra turned on"
+echo "source-file $REPO_DIR/tmux/extras/agy-ctrl-k.conf" >"$HOME/.tmux.local.conf"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a tmux extra on"; }
+echo "$doctor_out" >>"$LOG"
+grep -q 'tmux extra on: agy-ctrl-k.conf' <<<"$doctor_out" || die "doctor.sh didn't list the tmux extra"
+tmux -L "$TMUX_SOCKET" -f "$HOME/.tmux.conf" new-session -d >>"$LOG" 2>&1 || die "tmux didn't start with the extra on"
+tmux -L "$TMUX_SOCKET" list-keys -T prefix C-k 2>>"$LOG" | grep -q 'send-keys C-k' ||
+  die "the extra didn't bind prefix C-k"
+
+echo "tmux extra missing from the repo"
+echo "source-file $REPO_DIR/tmux/extras/no-such-extra.conf" >"$HOME/.tmux.local.conf"
+"$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 && die "doctor.sh passed with a missing tmux extra"
+rm "$HOME/.tmux.local.conf"
 
 echo "PASS"

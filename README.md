@@ -75,6 +75,15 @@ Optional, not in git, ignored if missing:
 | Ghostty | `~/.config/ghostty/local`                     |
 | nvim    | `~/code/dotfiles/nvim/lua/local.lua`          |
 
+### Optional extras
+
+Snippets that are in the repo but off by default. Turn one on for a machine by
+sourcing it from that machine's override file; `doctor.sh` lists the ones in use.
+
+| Extra                         | What it does                                   | Turn on in `~/.tmux.local.conf`                           |
+| ----------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
+| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file ~/code/dotfiles/tmux/extras/agy-ctrl-k.conf` |
+
 ## Changing config
 
 Edit on the personal laptop (the links mean you're editing the repo), commit and
@@ -82,8 +91,9 @@ push. Work machines only pull.
 
 Checks (also run by CI on every push):
 
-- `test/lint.sh`: shellcheck, secret scan (gitleaks), and that the language
-  recipes agree across `doctor.sh`, the nvim config and `LANGUAGES.md`.
+- `test/lint.sh`: shellcheck, secret scan (gitleaks), that the extras are
+  documented, and that the language recipes agree across `doctor.sh`, the nvim
+  config and `LANGUAGES.md`.
   Runs before each commit once you enable the hook: `git config core.hooksPath hooks`
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
 

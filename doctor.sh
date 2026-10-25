@@ -105,6 +105,18 @@ check_links() {
   for local_file in "${LOCAL_FILES[@]}"; do
     [[ -e "$local_file" ]] && info "per-machine override in use: ${local_file/#$HOME/~}"
   done
+
+  # Opt-in snippets from tmux/extras/ that ~/.tmux.local.conf sources.
+  local tmux_local="$HOME/.tmux.local.conf" extra
+  [[ -f "$tmux_local" ]] || return 0
+  while read -r extra; do
+    if [[ -f "$REPO_DIR/$extra" ]]; then
+      info "tmux extra on: ${extra##*/}"
+    else
+      broken "${tmux_local/#$HOME/~} sources $extra, which isn't in the repo"
+      hint "pick one from $REPO_DIR/tmux/extras/ or remove the line"
+    fi
+  done < <(grep -v '^[[:space:]]*#' "$tmux_local" | grep -oE 'tmux/extras/[^[:space:]"'\'']+')
 }
 
 check_plugins() {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
-# config link and override file, and that the language recipes agree
+# config link, override file and extra, and that the language recipes agree
 # across doctor.sh, the nvim config and LANGUAGES.md. Run by CI and the
 # pre-commit hook.
 set -euo pipefail
@@ -43,6 +43,11 @@ for f in "${LOCAL_FILES[@]}"; do
   for doc in README.md AGENTS.md; do
     grep -qF "$f" "$doc" || err "$doc doesn't mention $f (LOCAL_FILES in lib/common.sh)"
   done
+done
+
+# Every opt-in extra is in the README's extras table.
+for f in tmux/extras/*; do
+  grep -qF "\`$f\`" README.md || err "README.md extras table is missing \`$f\`"
 done
 
 # Each [LANG] marker sits in all three nvim config files.
