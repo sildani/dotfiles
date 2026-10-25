@@ -16,7 +16,7 @@ if command -v gitleaks >/dev/null; then
   # The pre-commit hook sets LINT_STAGED=1 to scan what's about to be committed.
   scope=()
   [[ -n "${LINT_STAGED:-}" ]] && scope=(--pre-commit --staged)
-  gitleaks git --redact --no-banner "${scope[@]}" . || err "gitleaks found a possible secret"
+  gitleaks git --redact --no-banner ${scope[@]+"${scope[@]}"} . || err "gitleaks found a possible secret"
 elif [[ -n "${CI:-}" ]]; then
   err "gitleaks not installed"
 else
