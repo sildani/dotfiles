@@ -59,6 +59,9 @@ warn()    { printf '  %s!%s %s\n' "$C_YELLOW" "$C_OFF" "$1"; }
 fail()    { printf '  %s✗%s %s\n' "$C_RED" "$C_OFF" "$1"; }
 hint()    { printf '    %s→ %s%s\n' "$C_DIM" "$1" "$C_OFF"; }
 
+# One line pointing at the opt-in extras (<tool>/extras/), without listing them.
+extras_cue() { info "optional extras you can turn on per machine: ${REPO_DIR/#$HOME/~}/README.md#optional-extras"; }
+
 # version_ge 3.5a 3.5 -> true. Compares the numeric dot-separated parts only.
 version_ge() {
   local IFS=.

@@ -46,7 +46,7 @@ for f in "${LOCAL_FILES[@]}"; do
 done
 
 # Every opt-in extra is in the README's extras table.
-for f in tmux/extras/*; do
+for f in */extras/*; do
   grep -qF "\`$f\`" README.md || err "README.md extras table is missing \`$f\`"
 done
 
