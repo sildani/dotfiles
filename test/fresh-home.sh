@@ -4,7 +4,8 @@
 # interactive zsh. Passes when the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, the second changed nothing, doctor exits
 # 0, zsh starts without errors, tmux loads its config and every extra without
-# errors, and the tmux and zsh extras turn on (and doctor flags a missing one). Set KEEP=1 to keep the temp HOME.
+# errors, and every extra turns on from its README line (and doctor flags a
+# missing one). Set KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -53,6 +54,18 @@ echo '-- old config' >"$HOME/.config/nvim/init.lua"
 echo '# old tmux config' >"$HOME/.tmux.conf"
 # shellcheck disable=SC2016  # a literal zshrc line, not expanded here
 printf '%s\n' '# old zsh config' 'source $ZSH/oh-my-zsh.sh' >"$HOME/.zshrc"
+
+# turn_on_extra <tool>/extras/<name>: appends the README's "Add this line" for
+# it to the file the row names, so the test runs what people paste.
+turn_on_extra() {
+  # shellcheck disable=SC2016  # literal backticks in a regex
+  local re='`([^`]+)` to `([^`]+)` *\|[[:space:]]*$' row line file
+  row="$(grep -F "| \`$1\` " "$REPO_DIR/README.md")" || die "README extras table has no row for $1"
+  [[ "$row" =~ $re ]] || die "README row for $1 doesn't end in \`<line>\` to \`<file>\`"
+  line="${BASH_REMATCH[1]//\~\/code\/dotfiles/$REPO_DIR}"
+  file="${BASH_REMATCH[2]/#\~/$HOME}"
+  echo "$line" >>"$file"
+}
 
 backups() { find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -114,31 +127,31 @@ for f in "$HOME/.tmux.conf" "$REPO_DIR"/tmux/extras/*; do
 done
 tmux -L "$TMUX_SOCKET" kill-server
 
-echo "tmux extra turned on"
-echo "source-file $REPO_DIR/tmux/extras/agy-ctrl-k.conf" >"$HOME/.tmux.local.conf"
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a tmux extra on"; }
+echo "every extra turned on with its README line"
+for f in "$REPO_DIR"/*/extras/*; do turn_on_extra "${f#"$REPO_DIR"/}"; done
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with every extra on"; }
 echo "$doctor_out" >>"$LOG"
-grep -q 'tmux extra on: agy-ctrl-k.conf' <<<"$doctor_out" || die "doctor.sh didn't list the tmux extra"
 grep -q 'optional extras' <<<"$doctor_out" || die "doctor.sh didn't point to the optional extras"
+for f in "$REPO_DIR"/*/extras/*; do
+  tool="${f#"$REPO_DIR"/}" tool="${tool%%/*}"
+  grep -qF "$tool extra on: ${f##*/}" <<<"$doctor_out" ||
+    die "doctor.sh didn't list ${f##*/}; does its README line point at it?"
+done
 tmux -L "$TMUX_SOCKET" -f /dev/null new-session -d \; source-file "$HOME/.tmux.conf" >>"$LOG" 2>&1 ||
-  die "tmux reports errors with the extra on"
+  die "tmux reports errors with the extras on"
 tmux -L "$TMUX_SOCKET" list-keys -T prefix C-k 2>>"$LOG" | grep -q 'send-keys C-k' ||
-  die "the extra didn't bind prefix C-k"
+  die "agy-ctrl-k.conf didn't bind prefix C-k"
+tmux -L "$TMUX_SOCKET" kill-server
+# shellcheck disable=SC2016  # $PROMPT is for the inner zsh
+prompt="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'print -P "$PROMPT"' 2>&1)"
+echo "prompt: $prompt" >>"$LOG"
+grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' <<<"$prompt" || die "utc-prompt.zsh's prompt has no timestamp: $prompt"
+rm "$HOME/.tmux.local.conf"
+printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 echo "tmux extra missing from the repo"
 echo "source-file $REPO_DIR/tmux/extras/no-such-extra.conf" >"$HOME/.tmux.local.conf"
 "$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 && die "doctor.sh passed with a missing tmux extra"
 rm "$HOME/.tmux.local.conf"
-
-echo "zsh extra turned on"
-echo "source $REPO_DIR/zsh/extras/utc-prompt.zsh" >>"$HOME/.zshrc.local"
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a zsh extra on"; }
-echo "$doctor_out" >>"$LOG"
-grep -q 'zsh extra on: utc-prompt.zsh' <<<"$doctor_out" || die "doctor.sh didn't list the zsh extra"
-# shellcheck disable=SC2016  # $PROMPT is for the inner zsh
-prompt="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'print -P "$PROMPT"' 2>&1)"
-echo "prompt: $prompt" >>"$LOG"
-grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' <<<"$prompt" || die "the zsh extra's prompt has no timestamp: $prompt"
-printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 echo "PASS"
