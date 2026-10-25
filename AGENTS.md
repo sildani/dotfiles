@@ -23,3 +23,20 @@ Default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-huma
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created only when first needed. See `docs/agents/domain.md`.
+
+### Writing code
+
+By default, suggest this flow before starting:
+
+1. Branch off `main`. `/implement` commits to the current branch, so branch first.
+2. The user runs `/mattpocock-skills:implement`, which builds with `tdd` and ends with `code-review`. It is user-invoked only, so suggest it rather than call it.
+3. Commit, push, and open a PR whose body follows the `mattpocock-skills:pr` skill.
+4. Watch CI; if it passes, merge the PR. If it fails, stop and report.
+
+### Handoffs
+
+`.scratch/` is gitignored local space. `/handoff` writes here, not to `$TMPDIR`:
+
+- Write to `.scratch/handoff/handoff.md`.
+- If it already exists, ask: update it in place, or move it to `.scratch/handoff/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
+- When a handoff is done, move it to `.scratch/handoff/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.

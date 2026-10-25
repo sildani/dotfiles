@@ -1,3 +1,6 @@
 # Per-machine nvim overrides (see README)
 nvim/lua/local.lua
 .DS_Store
+
+# Local scratch space: handoffs, idea logs (see AGENTS.md)
+.scratch/
