@@ -1,0 +1,5 @@
+font-family = "Hurmit Nerd Font Mono"
+
+# Per-machine overrides (not in the repo): ~/.config/ghostty/local
+# The leading ? makes it optional. Must stay the last line so it wins.
+config-file = ?local
