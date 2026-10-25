@@ -81,6 +81,8 @@ Snippets that are in the repo but off by default. Turn one on for a machine by
 adding its line to that machine's per-machine file; `doctor.sh` lists the ones
 in use.
 
+<!-- test/fresh-home.sh turns each extra on from its row: keep the last cell as `<line>` to `<file>`. -->
+
 | Extra                         | What it does                                   | Add this line                                                                     |
 | ----------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------- |
 | `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file ~/code/dotfiles/tmux/extras/agy-ctrl-k.conf` to `~/.tmux.local.conf` |
