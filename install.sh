@@ -16,7 +16,7 @@ backup() {
   dest="$BACKUP_DIR/${1#"$HOME"/}"
   mkdir -p "$(dirname "$dest")"
   mv "$1" "$dest"
-  info "moved ${1/#$HOME/~} -> ${dest/#$HOME/~}"
+  info "moved ${1/#$HOME/~} -> ${dest/#$HOME/~}"  # fresh-home.sh greps for "moved "
 }
 
 # Appends a command's output to a log; shows the tail of it if the command fails.
@@ -112,7 +112,7 @@ migrate_zshrc() {
     echo "# already loads Homebrew and Oh My Zsh; trim what it duplicates."
     sed -E 's/^([[:space:]]*(source|\.)[[:space:]].*oh-my-zsh\.sh.*)$/# \1  # loaded by the shared zshrc/' "$old"
   } >"$new"
-  info "copied ~/.zshrc to ~/.zshrc.local so this machine's shell setup keeps working"
+  info "copied ~/.zshrc to ~/.zshrc.local so this machine's shell setup keeps working"  # fresh-home.sh greps for "copied "
 }
 
 link_configs() {
@@ -132,7 +132,7 @@ link_configs() {
     fi
     mkdir -p "$(dirname "$dest")"
     ln -s "$src" "$dest"
-    ok "${dest/#$HOME/~} -> ${src/#$HOME/~}"
+    ok "${dest/#$HOME/~} -> ${src/#$HOME/~}"  # fresh-home.sh greps for " -> "
   done
 
   local f
@@ -169,7 +169,7 @@ install_oh_my_zsh() {
   section "Oh My Zsh"
   if [[ ! -d "$ZSH_DIR" ]]; then
     git clone --depth=1 --quiet https://github.com/ohmyzsh/ohmyzsh.git "$ZSH_DIR"
-    ok "cloned Oh My Zsh"
+    ok "cloned Oh My Zsh"  # fresh-home.sh greps for "cloned "
   else
     ok "Oh My Zsh ($ZSH_DIR)"
   fi
@@ -179,7 +179,7 @@ install_tmux_plugins() {
   section "tmux plugins (TPM)"
   if [[ ! -d "$TPM_DIR" ]]; then
     git clone --quiet https://github.com/tmux-plugins/tpm "$TPM_DIR"
-    ok "cloned TPM"
+    ok "cloned TPM"  # fresh-home.sh greps for "cloned "
   fi
   # Private tmux server so we neither touch nor read a running session (whose
   # environment would also leak TMUX_PLUGIN_MANAGER_PATH in).

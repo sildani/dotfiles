@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Fast checks: shellcheck, zsh syntax, secret scan, and that the language recipes agree
+# Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
+# config link and override file, and that the language recipes agree
 # across doctor.sh, the nvim config and LANGUAGES.md. Run by CI and the
 # pre-commit hook.
 set -euo pipefail
@@ -27,6 +28,22 @@ elif [[ -n "${CI:-}" ]]; then
 else
   echo "lint: gitleaks not installed, skipping secret scan (brew install gitleaks)" >&2
 fi
+
+# Every linked config and per-machine override file in lib/common.sh is
+# documented where people and agents look for it.
+# shellcheck source=lib/common.sh
+source lib/common.sh
+for entry in "${LINKS[@]}"; do
+  src="${entry%%:*}"
+  grep -Eq "\`$src/?\`" README.md || err "README.md link table is missing \`$src\` (LINKS in lib/common.sh)"
+done
+for f in "${LOCAL_FILES[@]}"; do
+  f="${f#"$REPO_DIR"/}"
+  f="${f/#$HOME/~}"
+  for doc in README.md AGENTS.md; do
+    grep -qF "$f" "$doc" || err "$doc doesn't mention $f (LOCAL_FILES in lib/common.sh)"
+  done
+done
 
 # Each [LANG] marker sits in all three nvim config files.
 for marker in JAVA PYTHON GO; do
