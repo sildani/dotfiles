@@ -58,6 +58,18 @@ Read-only. Shows tool versions and where they came from, whether the links point
 here, missing plugins/parsers, and which languages are set up, with a fix-it hint
 on every problem.
 
+Before installing on a machine that already has its own config, see what
+`install.sh` would replace:
+
+```sh
+~/code/dotfiles/doctor.sh --diff
+```
+
+Also read-only. For each config file that isn't linked yet it prints the diff
+from this machine's copy (`-`) to the repo's (`+`), then the originals in
+`~/.dotfiles-backup/` that differ from the repo: settings you may want to move
+into the per-machine files below.
+
 ## Languages (Java, Python, Go)
 
 **Not installed by the script, on purpose.** When you need one, follow

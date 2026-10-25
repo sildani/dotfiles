@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Simulates a new machine: runs install.sh against an empty, seeded HOME (once
 # with the Oh My Zsh clone failing, then twice for real), then doctor.sh and an
-# interactive zsh. Passes when the failed run left ~/.zshrc alone, the first
+# interactive zsh. Passes when doctor.sh --diff shows the seeded files before
+# the install and their backups after it, the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, the second changed nothing, doctor exits
 # 0, zsh starts without errors, tmux loads its config and every extra without
 # errors, and every extra turns on from its README line (and doctor flags a
@@ -78,6 +79,18 @@ printf '#!/bin/sh\ncase "$*" in *ohmyzsh*) echo "simulated clone failure" >&2; e
 chmod +x "$SHIM_DIR/git"
 zshrc_seed="$(cat "$HOME/.zshrc")"
 
+echo "doctor.sh --diff before install (should show the seeded files and change nothing)"
+diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed"; }
+echo "$diff_out" >>"$LOG"
+for line in '-# old tmux config' '-# old zsh config' '--- old config' '-font-size = 20'; do
+  grep -qxF -- "$line" <<<"$diff_out" || die "doctor.sh --diff didn't show seeded line: $line"
+done
+grep -qF '.config/ghostty/config missing, would be created' <<<"$diff_out" ||
+  die "doctor.sh --diff didn't say ~/.config/ghostty/config would be created"
+grep -qF 'would be copied to ~/.zshrc.local' <<<"$diff_out" ||
+  die "doctor.sh --diff didn't say ~/.zshrc would be copied to ~/.zshrc.local"
+[[ "$(backups)" == 0 && ! -e "$HOME/.zshrc.local" && ! -L "$HOME/.zshrc" ]] || die "doctor.sh --diff changed something"
+
 echo "install.sh with a failing Oh My Zsh clone (should leave ~/.zshrc alone)"
 PATH="$SHIM_DIR:$PATH" "$REPO_DIR/install.sh" </dev/null >>"$LOG" 2>&1 &&
   die "install.sh succeeded although the Oh My Zsh clone failed"
@@ -109,6 +122,16 @@ changes="$(grep -E 'moved |cloned |copied |✓ [^ ]+ -> ' <<<"$second" || true)"
 grep -q 'optional extras' <<<"$second" || die "install.sh didn't point to the optional extras"
 [[ "$(stat -f %i "$HOME/.oh-my-zsh")" == "$omz_inode" ]] || die "second run replaced ~/.oh-my-zsh"
 [[ "$(cat "$HOME/.zshrc.local")" == "$zshrc_local" ]] || die "second run changed ~/.zshrc.local"
+
+echo "doctor.sh --diff after install (links match, backed-up originals differ)"
+diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed after install"; }
+echo "$diff_out" >>"$LOG"
+[[ "$(grep -c 'already links to the repo' <<<"$diff_out")" == 4 ]] || die "doctor.sh --diff didn't find all 4 links"
+grep -q 'would be' <<<"$diff_out" && die "doctor.sh --diff says install would still change something"
+for f in .tmux.conf .zshrc .config/nvim "Library/Application Support/com.mitchellh.ghostty/config.ghostty"; do
+  grep -qF "${backup/#$HOME/~}/$f:" <<<"$diff_out" || die "doctor.sh --diff didn't show backed-up $f"
+done
+grep -qxF -- '-# old tmux config' <<<"$diff_out" || die "doctor.sh --diff didn't diff the backed-up ~/.tmux.conf"
 
 echo "doctor.sh"
 "$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 || die "doctor.sh reported problems"
