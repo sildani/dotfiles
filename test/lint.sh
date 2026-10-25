@@ -13,7 +13,10 @@ err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 shellcheck -x install.sh doctor.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
 
 if command -v gitleaks >/dev/null; then
-  gitleaks git --redact --no-banner . || err "gitleaks found a possible secret"
+  # The pre-commit hook sets LINT_STAGED=1 to scan what's about to be committed.
+  scope=()
+  [[ -n "${LINT_STAGED:-}" ]] && scope=(--pre-commit --staged)
+  gitleaks git --redact --no-banner "${scope[@]}" . || err "gitleaks found a possible secret"
 elif [[ -n "${CI:-}" ]]; then
   err "gitleaks not installed"
 else

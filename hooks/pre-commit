@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 # Enabled on the laptop with: git config core.hooksPath hooks
-exec "$(git rev-parse --show-toplevel)/test/lint.sh"
+LINT_STAGED=1 exec "$(git rev-parse --show-toplevel)/test/lint.sh"
