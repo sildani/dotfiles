@@ -107,17 +107,20 @@ check_links() {
   done
   extras_cue
 
-  # Opt-in snippets from tmux/extras/ that ~/.tmux.local.conf sources.
-  local tmux_local="$HOME/.tmux.local.conf" extra
-  [[ -f "$tmux_local" ]] || return 0
-  while read -r extra; do
-    if [[ -f "$REPO_DIR/$extra" ]]; then
-      info "tmux extra on: ${extra##*/}"
-    else
-      broken "${tmux_local/#$HOME/~} sources $extra, which isn't in the repo"
-      hint "pick one from $REPO_DIR/tmux/extras/ or remove the line"
-    fi
-  done < <(grep -v '^[[:space:]]*#' "$tmux_local" | grep -oE 'tmux/extras/[^[:space:]"'\'']+')
+  # Opt-in snippets from <tool>/extras/ that the tool's per-machine file sources.
+  local pair tool file extra
+  for pair in "tmux:$HOME/.tmux.local.conf" "zsh:$HOME/.zshrc.local"; do
+    tool="${pair%%:*}" file="${pair#*:}"
+    [[ -f "$file" ]] || continue
+    while read -r extra; do
+      if [[ -f "$REPO_DIR/$extra" ]]; then
+        info "$tool extra on: ${extra##*/}"
+      else
+        broken "${file/#$HOME/~} sources $extra, which isn't in the repo"
+        hint "pick one from $REPO_DIR/$tool/extras/ or remove the line"
+      fi
+    done < <(grep -v '^[[:space:]]*#' "$file" | grep -oE "$tool/extras/[^[:space:]\"']+")
+  done
 }
 
 check_plugins() {
