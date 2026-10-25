@@ -57,6 +57,12 @@ check_tools() {
     account="$(gh auth status --active 2>/dev/null | sed -nE 's/.*Logged in to ([^ ]+) account ([^ ]+).*/\2@\1/p' | head -1)"
     info "gh account: ${account:-not logged in} (informational; this repo never changes it)"
   fi
+
+  if [[ "${SHELL:-}" == */zsh ]]; then
+    ok "login shell is zsh ($SHELL)"
+  else
+    info "login shell is ${SHELL:-unknown} (not zsh; run: chsh -s /bin/zsh if desired)"
+  fi
 }
 
 check_links() {
@@ -88,13 +94,20 @@ check_links() {
   done
 
   local local_file
-  for local_file in "$HOME/.tmux.local.conf" "$HOME/.config/ghostty/local" "$REPO_DIR/nvim/lua/local.lua"; do
+  for local_file in "$HOME/.zshrc.local" "$HOME/.tmux.local.conf" "$HOME/.config/ghostty/local" "$REPO_DIR/nvim/lua/local.lua"; do
     [[ -e "$local_file" ]] && info "per-machine override in use: ${local_file/#$HOME/~}"
   done
 }
 
 check_plugins() {
   section "Plugins"
+  if [[ -d "$ZSH_DIR" ]]; then
+    ok "Oh My Zsh"
+  else
+    broken "Oh My Zsh not installed (~/.oh-my-zsh)"
+    hint "run ./install.sh"
+  fi
+
   if [[ -d "$TPM_DIR" ]]; then
     local name missing=()
     while read -r name; do

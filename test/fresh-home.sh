@@ -45,6 +45,7 @@ mkdir -p "$ghostty_lib" "$HOME/.config/nvim"
 echo 'font-size = 20' >"$ghostty_lib/config.ghostty"
 echo '-- old config' >"$HOME/.config/nvim/init.lua"
 echo '# old tmux config' >"$HOME/.tmux.conf"
+echo '# old zsh config' >"$HOME/.zshrc"
 
 backups() { find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -53,7 +54,7 @@ echo "install.sh, first run"
 "$REPO_DIR/install.sh" </dev/null >>"$LOG" 2>&1 || die "first install.sh run failed"
 [[ "$(backups)" == 1 ]] || die "expected 1 backup folder after the first run, found $(backups)"
 backup="$(find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1)"
-for f in .tmux.conf .config/nvim/init.lua "Library/Application Support/com.mitchellh.ghostty/config.ghostty"; do
+for f in .tmux.conf .zshrc .config/nvim/init.lua "Library/Application Support/com.mitchellh.ghostty/config.ghostty"; do
   [[ -e "$backup/$f" ]] || die "seeded file was not backed up: $f"
 done
 [[ ! -e "$ghostty_lib/config.ghostty" ]] || die "Ghostty Library config still in place"

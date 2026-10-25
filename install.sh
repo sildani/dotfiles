@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Sets up tmux, nvim and Ghostty from this repo. Safe to re-run; re-running
-# after `git pull` is also how you update. Never touches git/gh config or auth,
-# and never installs language support (see LANGUAGES.md).
+# Sets up zsh (Oh My Zsh), tmux, nvim and Ghostty from this repo. Safe to re-run;
+# re-running after `git pull` is also how you update. Never touches git/gh config or
+# auth, and never installs language support (see LANGUAGES.md).
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
@@ -150,6 +150,16 @@ maybe_reset_nvim_data() {
   fi
 }
 
+install_oh_my_zsh() {
+  section "Oh My Zsh"
+  if [[ ! -d "$ZSH_DIR" ]]; then
+    git clone --depth=1 --quiet https://github.com/ohmyzsh/ohmyzsh.git "$ZSH_DIR"
+    ok "cloned Oh My Zsh"
+  else
+    ok "Oh My Zsh ($ZSH_DIR)"
+  fi
+}
+
 install_tmux_plugins() {
   section "tmux plugins (TPM)"
   if [[ ! -d "$TPM_DIR" ]]; then
@@ -183,10 +193,10 @@ install_nvim_plugins() {
 
 next_steps() {
   section "Done. Next steps"
-  info "restart Ghostty and tmux (tmux kill-server) to pick everything up"
+  info "restart Ghostty, tmux (tmux kill-server), and open a new shell to pick everything up"
   info "check this machine anytime:   $REPO_DIR/doctor.sh"
   info "update later:                 cd $REPO_DIR && git pull && ./install.sh"
-  info "per-machine tweaks (not in git): ~/.tmux.local.conf, ~/.config/ghostty/local, nvim/lua/local.lua"
+  info "per-machine tweaks (not in git): ~/.zshrc.local, ~/.tmux.local.conf, ~/.config/ghostty/local, nvim/lua/local.lua"
   printf '\n  %sLanguage support (Java, Python, Go) is NOT installed on purpose.%s\n' "$C_BOLD" "$C_OFF"
   hint "when you need one, follow $REPO_DIR/LANGUAGES.md"
   hint "doctor.sh shows which languages are set up and what's missing"
@@ -197,6 +207,7 @@ next_steps() {
 check_prereqs
 install_tools
 link_configs
+install_oh_my_zsh
 maybe_reset_nvim_data
 install_tmux_plugins
 install_nvim_plugins
