@@ -1,7 +1,7 @@
 # dotfiles
 
-tmux, Neovim (NvChad) and Ghostty config for macOS, shared across machines.
-Nothing else (shell, git and gh config are left alone on purpose).
+zsh (Oh My Zsh), tmux, Neovim (NvChad) and Ghostty config for macOS, shared across machines.
+Nothing else (git and gh config are left alone on purpose).
 
 ## New machine
 
@@ -30,16 +30,23 @@ cd ~/code/dotfiles && git pull && ./install.sh
 
   | Repo             | Linked at                   |
   | ---------------- | --------------------------- |
+  | `zsh/zshrc`      | `~/.zshrc`                  |
   | `tmux/tmux.conf` | `~/.tmux.conf`              |
   | `nvim/`          | `~/.config/nvim`            |
   | `ghostty/config` | `~/.config/ghostty/config`  |
 
   It also moves away Ghostty's `~/Library/Application Support/com.mitchellh.ghostty/config*`,
-  which would otherwise override the repo's file.
-- installs tmux plugins (TPM), nvim plugins at the versions in
+  which would otherwise override the repo's file. A machine's own `~/.zshrc` is
+  backed up too, and copied to `~/.zshrc.local` (if that doesn't exist yet) so its
+  PATH and tool setup keep working; its Oh My Zsh load is commented out there.
+- installs Oh My Zsh, tmux plugins (TPM), nvim plugins at the versions in
   `nvim/lazy-lock.json`, and the treesitter parsers for the files in this repo.
 
 It never logs in to GitHub or changes git/gh config: each machine keeps its own account.
+
+To go back to a machine's own zsh config, replace the link with the backup and
+remove the copy: `mv ~/.dotfiles-backup/<time>/.zshrc ~/.zshrc && rm ~/.zshrc.local`
+(`~/.oh-my-zsh` can stay; nothing loads it unless your `~/.zshrc` does).
 
 ## Check a machine
 
@@ -63,6 +70,7 @@ Optional, not in git, ignored if missing:
 
 | Tool    | File                                          |
 | ------- | --------------------------------------------- |
+| zsh     | `~/.zshrc.local`                              |
 | tmux    | `~/.tmux.local.conf`                          |
 | Ghostty | `~/.config/ghostty/local`                     |
 | nvim    | `~/code/dotfiles/nvim/lua/local.lua`          |

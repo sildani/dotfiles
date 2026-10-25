@@ -1,0 +1,25 @@
+# Shared zsh config, linked to ~/.zshrc by install.sh. Machine-specific setup
+# (PATH, nvm, work tools) goes in ~/.zshrc.local, which is sourced last.
+
+# Homebrew: Apple Silicon or Intel prefix, whichever is installed.
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+export PATH=$HOME/bin:$HOME/.local/bin:$PATH
+
+# Oh My Zsh (https://github.com/ohmyzsh/ohmyzsh/wiki/Settings)
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="robbyrussell"
+DISABLE_UNTRACKED_FILES_DIRTY="true" # faster git status in big repos
+HIST_STAMPS="yyyy-mm-dd"
+plugins=(git tmux)
+
+if [[ -f $ZSH/oh-my-zsh.sh ]]; then
+  source $ZSH/oh-my-zsh.sh
+else
+  print -u2 "zshrc: Oh My Zsh not found at $ZSH; re-run install.sh from the dotfiles repo"
+fi
+
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local

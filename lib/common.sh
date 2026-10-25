@@ -14,6 +14,7 @@ NVIM_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/nvim"
 MASON_PKGS="$NVIM_DATA/mason/packages"
 TS_PARSERS="$NVIM_DATA/site/parser"
 TPM_DIR="$HOME/.tmux/plugins/tpm"
+ZSH_DIR="$HOME/.oh-my-zsh"
 
 # Ghostty on macOS also reads this directory, and it wins over ~/.config/ghostty.
 GHOSTTY_LIBRARY_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
@@ -21,9 +22,18 @@ GHOSTTY_LIBRARY_FILES=("$GHOSTTY_LIBRARY_DIR/config" "$GHOSTTY_LIBRARY_DIR/confi
 
 # repo path -> link location
 LINKS=(
+  "zsh/zshrc:$HOME/.zshrc"
   "tmux/tmux.conf:$HOME/.tmux.conf"
   "nvim:$HOME/.config/nvim"
   "ghostty/config:$HOME/.config/ghostty/config"
+)
+
+# Per-machine overrides the shared configs load if present. Not in git.
+LOCAL_FILES=(
+  "$HOME/.zshrc.local"
+  "$HOME/.tmux.local.conf"
+  "$HOME/.config/ghostty/local"
+  "$REPO_DIR/nvim/lua/local.lua"
 )
 
 # brew formula : command : minimum version (empty = any)

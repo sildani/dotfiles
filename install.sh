@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Sets up tmux, nvim and Ghostty from this repo. Safe to re-run; re-running
-# after `git pull` is also how you update. Never touches git/gh config or auth,
-# and never installs language support (see LANGUAGES.md).
+# Sets up zsh (Oh My Zsh), tmux, nvim and Ghostty from this repo. Safe to re-run;
+# re-running after `git pull` is also how you update. Never touches git/gh config or
+# auth, and never installs language support (see LANGUAGES.md).
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
@@ -101,6 +101,20 @@ install_tools() {
   fi
 }
 
+# A machine's own ~/.zshrc (PATH, nvm, ...) keeps working as ~/.zshrc.local,
+# which the shared zshrc sources last. Its own Oh My Zsh load is commented out
+# because the shared zshrc already does that. Skipped if ~/.zshrc.local exists.
+migrate_zshrc() {
+  local old="$HOME/.zshrc" new="$HOME/.zshrc.local"
+  [[ -f "$old" && ! -e "$new" ]] || return 0
+  {
+    echo "# Moved from ~/.zshrc by install.sh on $(date +%Y-%m-%d). The shared zshrc"
+    echo "# already loads Homebrew and Oh My Zsh; trim what it duplicates."
+    sed -E 's/^([[:space:]]*(source|\.)[[:space:]].*oh-my-zsh\.sh.*)$/# \1  # loaded by the shared zshrc/' "$old"
+  } >"$new"
+  info "copied ~/.zshrc to ~/.zshrc.local so this machine's shell setup keeps working"
+}
+
 link_configs() {
   section "Config links"
   local entry src dest
@@ -112,6 +126,7 @@ link_configs() {
       continue
     fi
     if [[ -e "$dest" || -L "$dest" ]]; then
+      [[ "$dest" == "$HOME/.zshrc" ]] && migrate_zshrc
       backup "$dest"
       [[ "$dest" == "$HOME/.config/nvim" ]] && nvim_config_replaced=true
     fi
@@ -150,6 +165,16 @@ maybe_reset_nvim_data() {
   fi
 }
 
+install_oh_my_zsh() {
+  section "Oh My Zsh"
+  if [[ ! -d "$ZSH_DIR" ]]; then
+    git clone --depth=1 --quiet https://github.com/ohmyzsh/ohmyzsh.git "$ZSH_DIR"
+    ok "cloned Oh My Zsh"
+  else
+    ok "Oh My Zsh ($ZSH_DIR)"
+  fi
+}
+
 install_tmux_plugins() {
   section "tmux plugins (TPM)"
   if [[ ! -d "$TPM_DIR" ]]; then
@@ -183,10 +208,12 @@ install_nvim_plugins() {
 
 next_steps() {
   section "Done. Next steps"
-  info "restart Ghostty and tmux (tmux kill-server) to pick everything up"
+  info "restart Ghostty, tmux (tmux kill-server), and open a new shell to pick everything up"
   info "check this machine anytime:   $REPO_DIR/doctor.sh"
   info "update later:                 cd $REPO_DIR && git pull && ./install.sh"
-  info "per-machine tweaks (not in git): ~/.tmux.local.conf, ~/.config/ghostty/local, nvim/lua/local.lua"
+  local f files=""
+  for f in "${LOCAL_FILES[@]}"; do files+="${files:+, }${f/#$HOME/~}"; done
+  info "per-machine tweaks (not in git): $files"
   printf '\n  %sLanguage support (Java, Python, Go) is NOT installed on purpose.%s\n' "$C_BOLD" "$C_OFF"
   hint "when you need one, follow $REPO_DIR/LANGUAGES.md"
   hint "doctor.sh shows which languages are set up and what's missing"
@@ -196,6 +223,7 @@ next_steps() {
 
 check_prereqs
 install_tools
+install_oh_my_zsh # before the zshrc link, so a failed clone leaves the old shell config in place
 link_configs
 maybe_reset_nvim_data
 install_tmux_plugins

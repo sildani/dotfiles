@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fast checks: shellcheck, secret scan, and that the language recipes agree
+# Fast checks: shellcheck, zsh syntax, secret scan, and that the language recipes agree
 # across doctor.sh, the nvim config and LANGUAGES.md. Run by CI and the
 # pre-commit hook.
 set -euo pipefail
@@ -11,6 +11,11 @@ errors=0
 err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 
 shellcheck -x install.sh doctor.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
+
+# One file per call: zsh -n treats any extra files as arguments to the first.
+for f in zsh/*; do
+  zsh -n "$f" || err "zsh syntax check failed: $f"
+done
 
 if command -v gitleaks >/dev/null; then
   # The pre-commit hook sets LINT_STAGED=1 to scan what's about to be committed.
