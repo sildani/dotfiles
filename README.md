@@ -78,12 +78,13 @@ Optional, not in git, ignored if missing:
 ### Optional extras
 
 Snippets that are in the repo but off by default. Turn one on for a machine by
-adding its line to that machine's per-machine file; `doctor.sh` lists the tmux
-extras in use.
+adding its line to that machine's per-machine file; `doctor.sh` lists the ones
+in use.
 
-| Extra                         | What it does                                   | Add to `~/.tmux.local.conf`                               |
-| ----------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
-| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file ~/code/dotfiles/tmux/extras/agy-ctrl-k.conf` |
+| Extra                         | What it does                                   | Add this line                                                                     |
+| ----------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------- |
+| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file ~/code/dotfiles/tmux/extras/agy-ctrl-k.conf` to `~/.tmux.local.conf` |
+| `zsh/extras/utc-prompt.zsh`   | Prompt starts with the current UTC time        | `source ~/code/dotfiles/zsh/extras/utc-prompt.zsh` to `~/.zshrc.local`            |
 
 ## Changing config
 

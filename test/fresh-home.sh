@@ -3,8 +3,8 @@
 # with the Oh My Zsh clone failing, then twice for real), then doctor.sh and an
 # interactive zsh. Passes when the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, the second changed nothing, doctor exits
-# 0, zsh starts without errors, and a tmux extra turns on (and doctor flags a
-# missing one). Set KEEP=1 to keep the temp HOME.
+# 0, zsh starts without errors, and the tmux and zsh extras turn on (and doctor
+# flags a missing one). Set KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -119,5 +119,16 @@ echo "tmux extra missing from the repo"
 echo "source-file $REPO_DIR/tmux/extras/no-such-extra.conf" >"$HOME/.tmux.local.conf"
 "$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 && die "doctor.sh passed with a missing tmux extra"
 rm "$HOME/.tmux.local.conf"
+
+echo "zsh extra turned on"
+echo "source $REPO_DIR/zsh/extras/utc-prompt.zsh" >>"$HOME/.zshrc.local"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a zsh extra on"; }
+echo "$doctor_out" >>"$LOG"
+grep -q 'zsh extra on: utc-prompt.zsh' <<<"$doctor_out" || die "doctor.sh didn't list the zsh extra"
+# shellcheck disable=SC2016  # $PROMPT is for the inner zsh
+prompt="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'print -P "$PROMPT"' 2>&1)"
+echo "prompt: $prompt" >>"$LOG"
+grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' <<<"$prompt" || die "the zsh extra's prompt has no timestamp: $prompt"
+printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 echo "PASS"
