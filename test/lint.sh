@@ -10,7 +10,17 @@ CONFIGS=nvim/lua/configs
 errors=0
 err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 
-shellcheck -x install.sh doctor.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
+if command -v shellcheck >/dev/null; then
+  shellcheck -x install.sh doctor.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
+elif [[ -n "${CI:-}" ]]; then
+  err "shellcheck not installed"
+else
+  echo "lint: shellcheck not installed, skipping shellcheck (brew install shellcheck)" >&2
+fi
+
+if command -v zsh >/dev/null; then
+  zsh -n zsh/* || err "zsh syntax check failed"
+fi
 
 if command -v gitleaks >/dev/null; then
   # The pre-commit hook sets LINT_STAGED=1 to scan what's about to be committed.

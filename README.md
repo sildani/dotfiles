@@ -88,4 +88,4 @@ To update nvim plugins: `:Lazy update` on the laptop, test, then commit
 ## Cheatsheets
 
 - tmux: <https://tmuxcheatsheet.com/>. Prefix here is **Ctrl-Space**
-  (not Ctrl-b); `prefix k` clears the screen and scrollback.
+  (not Ctrl-b); `prefix k` clears the screen and scrollback; `prefix Ctrl-k` sends literal Ctrl-k to the terminal.

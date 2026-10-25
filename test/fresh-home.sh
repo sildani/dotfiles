@@ -2,6 +2,7 @@
 # Simulates a new machine: runs install.sh twice against an empty, seeded HOME,
 # then doctor.sh. Passes when doctor exits 0, the first run backed up the seeded
 # files, and the second run changed nothing. Set KEEP=1 to keep the temp HOME.
+# Set FAST=1 to reuse local plugins/cache for sub-5s local iterations.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -38,6 +39,13 @@ mkdir -p "$HOME/Library/Fonts"
 for f in "$REAL_HOME"/Library/Fonts/HurmitNerdFont*; do
   [[ -e "$f" ]] && ln -s "$f" "$HOME/Library/Fonts/"
 done
+
+# When FAST=1, reuse existing plugins and OMZ from the host to avoid re-downloading
+if [[ "${FAST:-}" == 1 ]]; then
+  [[ -d "$REAL_HOME/.tmux/plugins" ]] && mkdir -p "$HOME/.tmux" && ln -s "$REAL_HOME/.tmux/plugins" "$HOME/.tmux/plugins"
+  [[ -d "$REAL_HOME/.oh-my-zsh" ]] && ln -s "$REAL_HOME/.oh-my-zsh" "$HOME/.oh-my-zsh"
+  [[ -d "$REAL_HOME/.local/share/nvim" ]] && mkdir -p "$HOME/.local/share" && ln -s "$REAL_HOME/.local/share/nvim" "$HOME/.local/share/nvim"
+fi
 
 # Pre-existing config the install must back up.
 ghostty_lib="$HOME/Library/Application Support/com.mitchellh.ghostty"
