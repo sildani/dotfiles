@@ -26,6 +26,8 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created only
 
 ### Writing code
 
+Never commit or push directly to `main`. Always create a branch off `main` and make modifications via a pull request.
+
 By default, suggest this flow before starting:
 
 1. Branch off `main`. `/implement` commits to the current branch, so branch first.
