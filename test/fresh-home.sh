@@ -161,6 +161,7 @@ echo "$second" >>"$LOG"
 changes="$(grep -E 'moved |cloned |copied |✓ [^ ]+ -> ' <<<"$second" || true)"
 [[ -z "$changes" ]] || die "second run changed something: $changes"
 grep -q 'optional extras' <<<"$second" || die "install.sh didn't point to the optional extras"
+grep -qF 'Press Space c h in nvim' <<<"$second" || die "install.sh didn't point to NvChad's cheatsheet"
 [[ "$(stat -f %i "$HOME/.oh-my-zsh")" == "$omz_inode" ]] || die "second run replaced ~/.oh-my-zsh"
 [[ "$(cat "$HOME/.zshrc.local")" == "$zshrc_local" ]] || die "second run changed ~/.zshrc.local"
 
