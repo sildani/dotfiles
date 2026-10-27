@@ -100,12 +100,12 @@ in use. tmux gets `$DOTFILES` from the shell that starts its server: if the
 server started before your shell had it (first install, or the update that
 added it), open a new shell and run `tmux kill-server` once.
 
-<!-- test/fresh-home.sh turns each extra on from its row: keep the last cell as `<line>` to `<file>`. -->
+<!-- test/fresh-home.sh turns each extra on from its row: keep the last two cells as `<line>` and `<file>`. -->
 
-| Extra                         | What it does                                   | Add this line                                                                 |
-| ----------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------- |
-| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file "$DOTFILES/tmux/extras/agy-ctrl-k.conf"` to `~/.tmux.local.conf` |
-| `zsh/extras/utc-prompt.zsh`   | Prompt starts with the current UTC time        | `source "$DOTFILES/zsh/extras/utc-prompt.zsh"` to `~/.zshrc.local`            |
+| Extra                         | What it does                                   | Command to copy                                       | Location             |
+| ----------------------------- | ---------------------------------------------- | ----------------------------------------------------- | -------------------- |
+| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file "$DOTFILES/tmux/extras/agy-ctrl-k.conf"` | `~/.tmux.local.conf` |
+| `zsh/extras/utc-prompt.zsh`   | Prompt starts with the current UTC time        | `source "$DOTFILES/zsh/extras/utc-prompt.zsh"`        | `~/.zshrc.local`     |
 
 ## Changing config
 
