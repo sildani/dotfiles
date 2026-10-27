@@ -211,7 +211,7 @@ next_steps() {
   info "restart Ghostty, tmux (tmux kill-server), and open a new shell to pick everything up"
   info "check this machine anytime:   $REPO_DIR/doctor.sh"
   info "update later:                 cd $REPO_DIR && git pull && ./install.sh"
-  info "nvim comes set up with NvChad. Press Space c h in nvim for a cheatsheet of the keyboard shortcuts."
+  info "nvim comes set up with NvChad. Press Space c h in nvim for a cheatsheet of the keyboard shortcuts."  # fresh-home.sh greps for "Press Space c h in nvim"
   local f files=""
   for f in "${LOCAL_FILES[@]}"; do files+="${files:+, }${f/#$HOME/~}"; done
   info "per-machine tweaks (not in git): $files"
