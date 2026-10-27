@@ -37,6 +37,8 @@ By default, suggest this flow before starting:
 5. Run `./prune-merged.sh`: it switches to `main`, pulls, and deletes every merged branch locally and on `origin`.
 6. The user runs `/mattpocock-skills:retro`. It is user-invoked only, so suggest it rather than call it.
 
+Several issues in one session: follow `docs/agents/batch.md`.
+
 ### Handoffs
 
 `.scratch/` is gitignored local space. `/handoff` writes here, not to `$TMPDIR`:
