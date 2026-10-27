@@ -127,6 +127,44 @@ check_links() {
   done
 }
 
+# tmux-continuum skips auto-save and auto-restore while another tmux server
+# runs (a test's or an agent's -L socket). A server detaches, so its parent is
+# PID 1; a client's isn't.
+stray_tmux_servers() {
+  local ppid args words word flags flag socket next strays=()
+  while read -r ppid args; do
+    [[ "$ppid" == 1 ]] || continue
+    read -r -a words <<<"$args"
+    [[ "${words[0]##*/}" == tmux ]] || continue
+    # tmux's own flags, as getopt reads them (-2L name, -Lname, -L name), up
+    # to the command; c f L S T take an argument.
+    socket=default next=""
+    for word in "${words[@]:1}"; do
+      if [[ -n "$next" ]]; then
+        [[ "$next" == [LS] ]] && socket="$word"
+        next=""
+        continue
+      fi
+      [[ "$word" == -?* ]] || break
+      flags="${word#-}"
+      while [[ -n "$flags" ]]; do
+        flag="${flags:0:1}" flags="${flags:1}"
+        [[ "$flag" == [cfLST] ]] || continue
+        if [[ -z "$flags" ]]; then
+          next="$flag"
+        elif [[ "$flag" == [LS] ]]; then
+          socket="$flags"
+        fi
+        break
+      done
+    done
+    [[ "${socket##*/}" == default ]] || strays+=("$socket")
+  done < <(ps -axo ppid=,args=)
+  ((${#strays[@]})) || return 0
+  warn "tmux servers besides the default one are running (${strays[*]}): continuum's auto-save and auto-restore are off"  # fresh-home.sh greps for "tmux servers besides the default one are running"
+  hint "stop each with: tmux -L <name> kill-server (tmux -S <path> kill-server for a path)"
+}
+
 check_plugins() {
   section "Plugins"
   if [[ -d "$ZSH_DIR" ]]; then
@@ -151,6 +189,7 @@ check_plugins() {
     broken "TPM not installed"
     hint "run ./install.sh"
   fi
+  stray_tmux_servers
 
   local missing=()
   while read -r name; do
