@@ -72,6 +72,17 @@ while IFS= read -r hit; do
   [[ "$hit" == "README.md:DOTFILES=$clone_path "* ]] || err "hard-coded clone path, use \$DOTFILES: $hit"
 done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . | sed 's|^\./||')
 
+# tmux-continuum auto-saves from a hook it adds to status-right when TPM loads
+# it, so status-left/right must be set before TPM's run line, not after.
+tpm_line="$(grep -n "^run '~/.tmux/plugins/tpm/tpm'" tmux/tmux.conf | cut -d: -f1)"
+if [[ -z "$tpm_line" || "$tpm_line" == *$'\n'* ]]; then
+  err "tmux/tmux.conf needs exactly one TPM run line"
+else
+  while IFS=: read -r n line; do
+    ((n < tpm_line)) || err "tmux/tmux.conf:$n sets the status bar after TPM's run line, wiping continuum's auto-save: $line"
+  done < <(grep -nE '^set(-option)? .*status-(left|right) ' tmux/tmux.conf)
+fi
+
 # Each [LANG] marker sits in all three nvim config files.
 for marker in JAVA PYTHON GO; do
   for f in treesitter.lua lspconfig.lua conform.lua; do
