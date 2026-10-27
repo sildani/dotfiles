@@ -180,6 +180,9 @@ tmux -L "$TMUX_SOCKET" -f /dev/null new-session -d >>"$LOG" 2>&1 || die "tmux di
 for f in "$HOME/.tmux.conf" "$REPO_DIR"/tmux/extras/*; do
   tmux -L "$TMUX_SOCKET" source-file "$f" >>"$LOG" 2>&1 || die "tmux reports errors in ${f/#$HOME/~}"
 done
+for opt in set-clipboard allow-passthrough; do
+  [[ "$(tmux -L "$TMUX_SOCKET" show -gv "$opt" 2>>"$LOG")" == on ]] || die "tmux config or an extra left $opt off"
+done
 tmux -L "$TMUX_SOCKET" kill-server
 
 echo "every extra turned on with its README line"
