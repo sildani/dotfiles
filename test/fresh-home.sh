@@ -8,7 +8,8 @@
 # 0 and warns about a stray tmux server only while one runs, zsh starts without
 # errors and exports DOTFILES as the repo, tmux loads its config and every extra
 # without errors, and every extra turns on from its README line, pasted as is
-# (and doctor flags a missing one). Set KEEP=1 to keep the temp HOME.
+# (and doctor flags a missing one), and the real repo's working tree is as it
+# was. Set KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -59,6 +60,18 @@ mkdir -p "$REPO_DIR"
     if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
   done | tar --null -T - -cf -
 ) | tar -xf - -C "$REPO_DIR"
+
+# The real repo's working tree, which a run must leave as it found it: each
+# changed or untracked path's status line and content hash, so a rewrite of an
+# already-changed file (nvim/lazy-lock.json) shows too.
+repo_state() {
+  local line path
+  git -C "$REAL_REPO_DIR" status --porcelain --untracked-files=all | while IFS= read -r line; do
+    path="${line:3}" path="${path##* -> }"
+    printf '%s\t%s\n' "$line" "$(git -C "$REAL_REPO_DIR" hash-object -- "$path" 2>/dev/null || echo -)"
+  done
+}
+repo_before="$(repo_state)"
 
 # Reuse the real font when present so brew isn't needed for it locally.
 mkdir -p "$HOME/Library/Fonts"
@@ -247,5 +260,9 @@ echo "tmux extra missing from the repo"
 echo 'source-file "$DOTFILES/tmux/extras/no-such-extra.conf"' >"$HOME/.tmux.local.conf"
 "$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 && die "doctor.sh passed with a missing tmux extra"
 rm "$HOME/.tmux.local.conf"
+
+echo "real repo's working tree unchanged"
+changed="$(comm -3 <(sort <<<"$repo_before") <(repo_state | sort) | sed -E 's/^[[:space:]]*.. //; s/\t.*//' | sort -u)"
+[[ -z "$changed" ]] || die "the run changed the real repo at $REAL_REPO_DIR:"$'\n'"$changed"
 
 echo "PASS"
