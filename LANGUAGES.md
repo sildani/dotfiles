@@ -10,7 +10,7 @@ hand, per machine, when you actually need it. Each language takes three edits in
 | `lspconfig.lua`  | the language server(s)                      |
 | `conform.lua`    | the formatter(s)                            |
 
-Find them all with: `rg -n '\[JAVA\]|\[PYTHON\]|\[GO\]' ~/code/dotfiles/nvim`
+Find them all with: `rg -n '\[JAVA\]|\[PYTHON\]|\[GO\]' "$DOTFILES/nvim"`
 
 These files live in the repo, so uncommenting is a repo change. On a work
 machine (pull-only), either make the change on the personal laptop and
