@@ -102,7 +102,7 @@ added it), open a new shell and run `tmux kill-server` once.
 
 <!-- test/fresh-home.sh turns each extra on from its row: keep the last two cells as `<line>` and `<file>`. -->
 
-| Extra                         | What it does                                   | Command to copy                                       | Location             |
+| Extra                         | What it does                                   | Line to add                                           | Per-machine file     |
 | ----------------------------- | ---------------------------------------------- | ----------------------------------------------------- | -------------------- |
 | `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file "$DOTFILES/tmux/extras/agy-ctrl-k.conf"` | `~/.tmux.local.conf` |
 | `zsh/extras/utc-prompt.zsh`   | Prompt starts with the current UTC time        | `source "$DOTFILES/zsh/extras/utc-prompt.zsh"`        | `~/.zshrc.local`     |

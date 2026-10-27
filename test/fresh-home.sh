@@ -92,8 +92,8 @@ echo '# old tmux config' >"$HOME/.tmux.conf"
 # shellcheck disable=SC2016  # a literal zshrc line, not expanded here
 printf '%s\n' '# old zsh config' 'source $ZSH/oh-my-zsh.sh' >"$HOME/.zshrc"
 
-# turn_on_extra <tool>/extras/<name>: appends the README's "Command to copy"
-# for it to its "Location", so the test runs what people paste.
+# turn_on_extra <tool>/extras/<name>: appends the README's "Line to add" for
+# it to its "Per-machine file", so the test runs what people paste.
 turn_on_extra() {
   # shellcheck disable=SC2016  # literal backticks in a regex
   local re='\| *`([^`]+)` *\| *`([^`]+)` *\|[[:space:]]*$' row line file
