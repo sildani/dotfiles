@@ -31,6 +31,8 @@ die() {
   echo "FAIL: $1" >&2
   echo "--- last lines of $LOG" >&2
   tail -30 "$LOG" >&2
+  # Again last, so a tail of this script's output shows it.
+  echo "FAIL: $1" >&2
   exit 1
 }
 
