@@ -33,6 +33,12 @@ A script message that `test/fresh-home.sh` greps for carries a `# fresh-home.sh 
 comment on its line, as in `install.sh`, so whoever rewords it updates the test too. A new grep in
 the test adds the marker to the message it matches.
 
+## Text people read uses the glossary's terms
+
+README text, script messages, comments and PR descriptions use the `GLOSSARY.md` terms
+(installer, shared config, per-machine file, extra), not the words it lists under _Avoid_. A new
+term goes into the glossary first, then into the text.
+
 ## One change per PR, described as it is
 
 A PR's description matches its diff: each behaviour it claims is in the code, and each change in
