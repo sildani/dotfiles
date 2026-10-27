@@ -18,7 +18,10 @@ Saves live in `${XDG_DATA_HOME:-~/.local/share}/tmux/resurrect/` (or
 `~/.tmux/resurrect/` if that folder exists); `last` points to the newest one.
 
 Auto-save and auto-restore stay off on a tmux server started while another tmux
-server is running, so a second server can't overwrite your saves.
+server is running, so a second server can't overwrite your saves. If tmux
+doesn't restore on its own, look for a stray server (a test or `-L` socket):
+`ps -Ao pid,command | grep -E '^ *[0-9]+ tmux'`. Stop it with
+`tmux -L <name> kill-server`. The save keys work either way.
 
 ## What comes back
 
