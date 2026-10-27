@@ -100,7 +100,7 @@ in use. tmux gets `$DOTFILES` from the shell that starts its server: if the
 server started before your shell had it (first install, or the update that
 added it), open a new shell and run `tmux kill-server` once.
 
-<!-- test/fresh-home.sh turns each extra on from its row: keep the last two cells as `<line>` and `<file>`. -->
+<!-- test/lint.sh checks each row and test/fresh-home.sh turns each extra on from it (EXTRAS_ROW_RE in lib/common.sh): keep the last two cells as `<line>` and `<file>`. -->
 
 | Extra                         | What it does                                   | Line to add                                           | Per-machine file     |
 | ----------------------------- | ---------------------------------------------- | ----------------------------------------------------- | -------------------- |

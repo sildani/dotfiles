@@ -46,10 +46,14 @@ for f in "${LOCAL_FILES[@]}"; do
   done
 done
 
-# Every opt-in extra is in the README's extras table, and every extras folder
-# has a per-machine file to turn it on from, so doctor.sh can report it.
+# Every opt-in extra has a row in the README's extras table that ends in its
+# line and per-machine file (fresh-home.sh turns it on from them), and every
+# extras folder has a per-machine file to turn it on from, so doctor.sh can
+# report it.
 for f in */extras/*; do
-  grep -qF "\`$f\`" README.md || err "README.md extras table is missing \`$f\`"
+  row="$(grep -F "| \`$f\` " README.md)" || { err "README.md extras table is missing \`$f\`"; continue; }
+  [[ "$row" =~ $EXTRAS_ROW_RE ]] ||
+    err "README.md extras row for $f doesn't end in | \`<line>\` | \`<file>\` | (EXTRAS_ROW_RE in lib/common.sh)"
 done
 for dir in */extras; do
   [[ -d "$dir" ]] || continue
