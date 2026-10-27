@@ -131,21 +131,32 @@ check_links() {
 # runs (a test's or an agent's -L socket). A server detaches, so its parent is
 # PID 1; a client's isn't.
 stray_tmux_servers() {
-  local ppid args words word socket next strays=()
+  local ppid args words word flags flag socket next strays=()
   while read -r ppid args; do
     [[ "$ppid" == 1 ]] || continue
     read -r -a words <<<"$args"
     [[ "${words[0]##*/}" == tmux ]] || continue
+    # tmux's own flags, as getopt reads them (-2L name, -Lname, -L name), up
+    # to the command; c f L S T take an argument.
     socket=default next=""
     for word in "${words[@]:1}"; do
       if [[ -n "$next" ]]; then
-        socket="$word" next=""
-      else
-        case "$word" in
-          -L | -S) next=1 ;;
-          -L?* | -S?*) socket="${word:2}" ;;
-        esac
+        [[ "$next" == [LS] ]] && socket="$word"
+        next=""
+        continue
       fi
+      [[ "$word" == -?* ]] || break
+      flags="${word#-}"
+      while [[ -n "$flags" ]]; do
+        flag="${flags:0:1}" flags="${flags:1}"
+        [[ "$flag" == [cfLST] ]] || continue
+        if [[ -z "$flags" ]]; then
+          next="$flag"
+        elif [[ "$flag" == [LS] ]]; then
+          socket="$flags"
+        fi
+        break
+      done
     done
     [[ "${socket##*/}" == default ]] || strays+=("$socket")
   done < <(ps -axo ppid=,args=)
