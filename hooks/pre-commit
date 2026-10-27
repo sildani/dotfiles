@@ -1,3 +1,8 @@
 #!/usr/bin/env bash
 # Enabled on the laptop with: git config core.hooksPath hooks
+# main only moves by merging a PR, so commits go on a branch.
+if [[ "$(git symbolic-ref --short -q HEAD)" == main ]]; then
+  echo "pre-commit: refusing to commit on main; branch first: git switch -c <name>" >&2
+  exit 1
+fi
 LINT_STAGED=1 exec "$(git rev-parse --show-toplevel)/test/lint.sh"

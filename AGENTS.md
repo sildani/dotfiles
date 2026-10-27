@@ -26,7 +26,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created only
 
 ### Writing code
 
-Never commit or push directly to `main`. Always create a branch off `main` and make modifications via a pull request.
+Every change reaches `main` through a pull request; `hooks/pre-commit` refuses commits on `main`.
 
 By default, suggest this flow before starting:
 
@@ -34,7 +34,8 @@ By default, suggest this flow before starting:
 2. The user runs `/mattpocock-skills:implement`, which builds with `tdd` and ends with `code-review`. It is user-invoked only, so suggest it rather than call it.
 3. Commit, push, and open a PR whose body follows the `mattpocock-skills:pr` skill.
 4. Watch CI; if it passes, merge the PR. If it fails, stop and report.
-5. Before the retro, clean up branches: switch to `main`, pull, `git fetch --prune`, then delete every branch merged into `main` locally and on `origin`.
+5. Run `./prune-merged.sh`: it switches to `main`, pulls, and deletes every merged branch locally and on `origin`.
+6. The user runs `/mattpocock-skills:retro`. It is user-invoked only, so suggest it rather than call it.
 
 ### Handoffs
 
