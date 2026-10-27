@@ -74,6 +74,9 @@ mkdir -p "$REPO_DIR"
     if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
   done | tar --null -T - -cf -
 ) | tar -xf - -C "$REPO_DIR"
+# The copy's, so its REPO_DIR is the copy too. For EXTRAS_ROW_RE.
+# shellcheck source=lib/common.sh
+source "$REPO_DIR/lib/common.sh"
 
 # Reuse the real font when present so brew isn't needed for it locally.
 mkdir -p "$HOME/Library/Fonts"
@@ -95,10 +98,9 @@ printf '%s\n' '# old zsh config' 'source $ZSH/oh-my-zsh.sh' >"$HOME/.zshrc"
 # turn_on_extra <tool>/extras/<name>: appends the README's "Line to add" for
 # it to its "Per-machine file", so the test runs what people paste.
 turn_on_extra() {
-  # shellcheck disable=SC2016  # literal backticks in a regex
-  local re='\| *`([^`]+)` *\| *`([^`]+)` *\|[[:space:]]*$' row line file
+  local row line file
   row="$(grep -F "| \`$1\` " "$REPO_DIR/README.md")" || die "README extras table has no row for $1"
-  [[ "$row" =~ $re ]] || die "README row for $1 doesn't end in | \`<line>\` | \`<file>\` |"
+  [[ "$row" =~ $EXTRAS_ROW_RE ]] || die "README row for $1 doesn't end in | \`<line>\` | \`<file>\` |"
   line="${BASH_REMATCH[1]}"
   file="${BASH_REMATCH[2]/#\~/$HOME}"
   echo "$line" >>"$file"

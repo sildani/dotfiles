@@ -1,4 +1,4 @@
-# Shared by install.sh and doctor.sh. Source it; don't run it.
+# Shared by install.sh, doctor.sh and the tests. Source it; don't run it.
 # shellcheck shell=bash
 # shellcheck disable=SC2034  # variables are used by the scripts that source this
 
@@ -43,6 +43,12 @@ EXTRAS_HOSTS=(
   "tmux:$HOME/.tmux.local.conf"
   "zsh:$HOME/.zshrc.local"
 )
+
+# An extra's row in the README "Optional extras" table ends in its "Line to
+# add" and "Per-machine file" cells: | `<line>` | `<file>` |. lint checks every
+# row; test/fresh-home.sh turns each extra on from them.
+# shellcheck disable=SC2016  # literal backticks in a regex
+EXTRAS_ROW_RE='\| *`([^`]+)` *\| *`([^`]+)` *\|[[:space:]]*$'
 
 # brew formula : command : minimum version (empty = any)
 FORMULAE=(
