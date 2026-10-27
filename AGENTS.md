@@ -34,6 +34,7 @@ By default, suggest this flow before starting:
 2. The user runs `/mattpocock-skills:implement`, which builds with `tdd` and ends with `code-review`. It is user-invoked only, so suggest it rather than call it.
 3. Commit, push, and open a PR whose body follows the `mattpocock-skills:pr` skill.
 4. Watch CI; if it passes, merge the PR. If it fails, stop and report.
+5. Before the retro, clean up branches: switch to `main`, pull, `git fetch --prune`, then delete every branch merged into `main` locally and on `origin`.
 
 ### Handoffs
 
