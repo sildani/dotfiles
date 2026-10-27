@@ -9,6 +9,10 @@ elif [[ -x /usr/local/bin/brew ]]; then
 fi
 export PATH=$HOME/bin:$HOME/.local/bin:$PATH
 
+# The repo root, wherever it was cloned: this file with symlinks resolved (:A),
+# two levels up. Docs and extras lines use it; tmux inherits it.
+export DOTFILES="${${(%):-%x}:A:h:h}"
+
 # Oh My Zsh (https://github.com/ohmyzsh/ohmyzsh/wiki/Settings)
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"

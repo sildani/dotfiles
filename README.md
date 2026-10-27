@@ -6,10 +6,14 @@ Nothing else (git and gh config are left alone on purpose).
 ## New machine
 
 ```sh
-git clone https://github.com/sildani/dotfiles ~/code/dotfiles
-~/code/dotfiles/install.sh
-~/code/dotfiles/doctor.sh
+DOTFILES=~/code/dotfiles  # an example: clone it anywhere
+git clone https://github.com/sildani/dotfiles "$DOTFILES"
+"$DOTFILES/install.sh"
+"$DOTFILES/doctor.sh"
 ```
+
+From then on the shared zshrc exports `DOTFILES`, the repo root, worked out from
+where `~/.zshrc` links to. The commands below and the extras lines use it.
 
 Needs macOS with Homebrew. If the Xcode Command Line Tools are missing, the
 first `git` command offers to install them.
@@ -17,7 +21,7 @@ first `git` command offers to install them.
 ## Update
 
 ```sh
-cd ~/code/dotfiles && git pull && ./install.sh
+cd "$DOTFILES" && git pull && ./install.sh
 ```
 
 `install.sh` is safe to re-run. It:
@@ -51,7 +55,7 @@ remove the copy: `mv ~/.dotfiles-backup/<time>/.zshrc ~/.zshrc && rm ~/.zshrc.lo
 ## Check a machine
 
 ```sh
-~/code/dotfiles/doctor.sh
+"$DOTFILES/doctor.sh"
 ```
 
 Read-only. Shows tool versions and where they came from, whether the links point
@@ -62,7 +66,7 @@ Before installing on a machine that already has its own config, see what
 `install.sh` would replace:
 
 ```sh
-~/code/dotfiles/doctor.sh --diff
+"$DOTFILES/doctor.sh" --diff
 ```
 
 Also read-only. For each config file that isn't linked yet it prints the diff
@@ -81,25 +85,27 @@ and `[GO]` in `nvim/lua/configs/`.
 
 Optional, not in git, ignored if missing:
 
-| Tool    | File                                          |
-| ------- | --------------------------------------------- |
-| zsh     | `~/.zshrc.local`                              |
-| tmux    | `~/.tmux.local.conf`                          |
-| Ghostty | `~/.config/ghostty/local`                     |
-| nvim    | `~/code/dotfiles/nvim/lua/local.lua`          |
+| Tool    | File                           |
+| ------- | ------------------------------ |
+| zsh     | `~/.zshrc.local`               |
+| tmux    | `~/.tmux.local.conf`           |
+| Ghostty | `~/.config/ghostty/local`      |
+| nvim    | `$DOTFILES/nvim/lua/local.lua` |
 
 ### Optional extras
 
 Snippets that are in the repo but off by default. Turn one on for a machine by
 adding its line to that machine's per-machine file; `doctor.sh` lists the ones
-in use.
+in use. tmux gets `$DOTFILES` from the shell that starts its server: if the
+server started before your shell had it (first install, or the update that
+added it), open a new shell and run `tmux kill-server` once.
 
 <!-- test/fresh-home.sh turns each extra on from its row: keep the last cell as `<line>` to `<file>`. -->
 
-| Extra                         | What it does                                   | Add this line                                                                     |
-| ----------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------- |
-| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file ~/code/dotfiles/tmux/extras/agy-ctrl-k.conf` to `~/.tmux.local.conf` |
-| `zsh/extras/utc-prompt.zsh`   | Prompt starts with the current UTC time        | `source ~/code/dotfiles/zsh/extras/utc-prompt.zsh` to `~/.zshrc.local`            |
+| Extra                         | What it does                                   | Add this line                                                                 |
+| ----------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file "$DOTFILES/tmux/extras/agy-ctrl-k.conf"` to `~/.tmux.local.conf` |
+| `zsh/extras/utc-prompt.zsh`   | Prompt starts with the current UTC time        | `source "$DOTFILES/zsh/extras/utc-prompt.zsh"` to `~/.zshrc.local`            |
 
 ## Changing config
 

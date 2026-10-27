@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Simulates a new machine: runs install.sh against an empty, seeded HOME (once
-# with the Oh My Zsh clone failing, then twice for real), then doctor.sh and an
-# interactive zsh. Passes when doctor.sh --diff shows the seeded files before
+# Simulates a new machine: copies the repo to ~/src/dotfiles in an empty, seeded
+# HOME and runs its install.sh (once with the Oh My Zsh clone failing, then twice
+# for real), then doctor.sh and an interactive zsh. Passes when doctor.sh --diff shows the seeded files before
 # the install and sums up their backups after it (--backups diffs them), the
 # failed run left ~/.zshrc alone, the first real run backed up the seeded
 # files, the second changed nothing, doctor exits 0, zsh starts without
-# errors, tmux loads its config and every extra without errors, and every
-# extra turns on from its README line (and doctor flags a missing one). Set
+# errors and exports DOTFILES as the repo, tmux loads its config and every extra
+# without errors, and every extra turns on from its README line, pasted as is
+# (and doctor flags a missing one). Set
 # KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
@@ -42,7 +43,20 @@ die() {
 # - Running inside tmux leaks TMUX_PLUGIN_MANAGER_PATH, which sends TPM's
 #   installs to the real ~/.tmux/plugins.
 export HOME="$FAKE_HOME" GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0
-unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME
+unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME DOTFILES
+
+# The working tree (tracked and untracked, not ignored files), copied outside
+# ~/code since an installer can clone it anywhere. The install's writes to the
+# repo (nvim/lazy-lock.json) land in the copy.
+SRC_DIR="$REPO_DIR"
+REPO_DIR="$HOME/src/dotfiles"
+mkdir -p "$REPO_DIR"
+(
+  cd "$SRC_DIR"
+  git ls-files -z -co --exclude-standard | while IFS= read -r -d '' f; do
+    if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
+  done | tar --null -T - -cf -
+) | tar -xf - -C "$REPO_DIR"
 
 # Reuse the real font when present so brew isn't needed for it locally.
 mkdir -p "$HOME/Library/Fonts"
@@ -68,7 +82,7 @@ turn_on_extra() {
   local re='`([^`]+)` to `([^`]+)` *\|[[:space:]]*$' row line file
   row="$(grep -F "| \`$1\` " "$REPO_DIR/README.md")" || die "README extras table has no row for $1"
   [[ "$row" =~ $re ]] || die "README row for $1 doesn't end in \`<line>\` to \`<file>\`"
-  line="${BASH_REMATCH[1]//\~\/code\/dotfiles/$REPO_DIR}"
+  line="${BASH_REMATCH[1]}"
   file="${BASH_REMATCH[2]/#\~/$HOME}"
   echo "$line" >>"$file"
 }
@@ -90,8 +104,8 @@ echo "$diff_out" >>"$LOG"
 for line in '-# old tmux config' '-# old zsh config' '--- old config' '-font-size = 20'; do
   grep -qxF -- "$line" <<<"$diff_out" || die "doctor.sh --diff didn't show seeded line: $line"
 done
-# "Only in" here; a content diff where the repo has its own (gitignored) local.lua.
-grep -qxE "Only in $HOME/.config/nvim/lua: local.lua|--- old per-machine config" <<<"$diff_out" ||
+# "Only in": the copy leaves out the repo's own (gitignored) local.lua.
+grep -qxF "Only in $HOME/.config/nvim/lua: local.lua" <<<"$diff_out" ||
   die "doctor.sh --diff hid the machine's own nvim lua/local.lua"
 grep -qF '.config/ghostty/config missing, would be created' <<<"$diff_out" ||
   die "doctor.sh --diff didn't say ~/.config/ghostty/config would be created"
@@ -174,6 +188,8 @@ echo "doctor.sh"
 echo "interactive zsh"
 zsh_out="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c exit 2>&1)"
 [[ -z "$zsh_out" ]] || die "an interactive zsh printed: $zsh_out"
+dotfiles="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'printenv DOTFILES' 2>&1)" || true
+[[ "$dotfiles" == "$(cd "$REPO_DIR" && pwd -P)" ]] || die "zsh exported DOTFILES='$dotfiles', not the repo at $REPO_DIR"
 
 # Commands, not -f: a server started with -f exits 0 even when the file has
 # errors, while source-file as a command exits non-zero on any.
@@ -197,8 +213,11 @@ for f in "$REPO_DIR"/*/extras/*; do
   grep -qF "$tool extra on: ${f##*/}" <<<"$doctor_out" ||
     die "doctor.sh didn't list ${f##*/}; does its README line point at it?"
 done
-tmux -L "$TMUX_SOCKET" -f /dev/null new-session -d \; source-file "$HOME/.tmux.conf" >>"$LOG" 2>&1 ||
-  die "tmux reports errors with the extras on"
+# Started from zsh, as people do, so the server has DOTFILES for the extras lines.
+# shellcheck disable=SC2016  # $TMUX_SOCKET is for the inner zsh
+env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color TMUX_SOCKET="$TMUX_SOCKET" \
+  zsh -i -c 'tmux -L "$TMUX_SOCKET" -f /dev/null new-session -d \; source-file ~/.tmux.conf' >>"$LOG" 2>&1 ||
+  die "tmux started from zsh reports errors with the extras on"
 tmux -L "$TMUX_SOCKET" list-keys -T prefix C-k 2>>"$LOG" | grep -q 'send-keys C-k' ||
   die "agy-ctrl-k.conf didn't bind prefix C-k"
 tmux -L "$TMUX_SOCKET" kill-server
@@ -210,7 +229,8 @@ rm "$HOME/.tmux.local.conf"
 printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 echo "tmux extra missing from the repo"
-echo "source-file $REPO_DIR/tmux/extras/no-such-extra.conf" >"$HOME/.tmux.local.conf"
+# shellcheck disable=SC2016  # a literal tmux line
+echo 'source-file "$DOTFILES/tmux/extras/no-such-extra.conf"' >"$HOME/.tmux.local.conf"
 "$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 && die "doctor.sh passed with a missing tmux extra"
 rm "$HOME/.tmux.local.conf"
 
