@@ -1,7 +1,8 @@
 # Coding standards
 
 Judgement calls for reviewing changes to this repo. `test/lint.sh` enforces the mechanical rules
-(shellcheck, zsh syntax, secrets, docs listing every link and override file, language recipes),
+(shellcheck, zsh syntax, secrets, docs listing every link and override file, language recipes,
+the `# fresh-home.sh greps for "<text>"` markers on messages the test matches),
 so they aren't repeated here.
 
 ## Tests stay inside their temp HOME
@@ -26,12 +27,6 @@ A linked config still loads when something it depends on is missing (Oh My Zsh n
 plugin not installed yet): guard the load and print a one-line hint naming the fix. `install.sh`
 orders its steps so that a failure leaves the old config in place rather than a link to a config
 that can't load yet.
-
-## Messages the tests match are marked
-
-A script message that `test/fresh-home.sh` greps for carries a `# fresh-home.sh greps for "<text>"`
-comment on its line, as in `install.sh`, so whoever rewords it updates the test too. A new grep in
-the test adds the marker to the message it matches.
 
 ## Text people read uses the glossary's terms
 

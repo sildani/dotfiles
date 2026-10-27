@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
-# config link, override file and extra, and that the language recipes agree
-# across doctor.sh, the nvim config and LANGUAGES.md. Run by CI and the
-# pre-commit hook.
+# config link, override file and extra, that the messages fresh-home.sh greps
+# for are marked, and that the language recipes agree across doctor.sh, the
+# nvim config and LANGUAGES.md. Run by CI and the pre-commit hook.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -71,6 +71,52 @@ clone_path='~/code''/dotfiles'
 while IFS= read -r hit; do
   [[ "$hit" == "README.md:DOTFILES=$clone_path "* ]] || err "hard-coded clone path, use \$DOTFILES: $hit"
 done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . | sed 's|^\./||')
+
+# Messages test/fresh-home.sh greps for carry a `# fresh-home.sh greps for
+# "<text>"` marker where they're printed, so whoever rewords one updates the
+# test. Each marker's text (with <placeholders> as gaps) is still in the test,
+# and each text the test greps script output for contains a marker's text or
+# is part of one: each top-level alternative of a single-quoted pattern, and
+# each part of a double-quoted one between its $variables. Markers are matched
+# by text, so of several with the same text, removing one goes unnoticed. A
+# grep on something else (diff's own output, a seeded file) ends in
+# `# not a script message`.
+markers=()
+while IFS= read -r m; do markers+=("$m"); done < <(
+  sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' install.sh doctor.sh lib/common.sh)
+for m in ${markers[@]+"${markers[@]}"}; do
+  while IFS= read -r piece; do
+    [[ -z "$piece" ]] || grep -qF -- "$piece" test/fresh-home.sh ||
+      err "marker \"$m\" (install.sh, doctor.sh or lib/common.sh): test/fresh-home.sh no longer greps for it"
+  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$m")
+done
+# grep_texts <grep arguments>: the texts it matches, one per line.
+grep_texts() {
+  { grep -oE "'[^']*'" <<<"$1" || true; } | awk '{
+    s = ""; depth = 0
+    for (i = 2; i < length($0); i++) {
+      c = substr($0, i, 1)
+      if (c == "(") depth++
+      if (c == ")") depth--
+      if (c == "|" && depth == 0) { print s; s = "" } else s = s c
+    }
+    print s
+  }'
+  { grep -oE '"[^"]*"' <<<"$1" || true; } | sed -E 's/^"//; s/"$//; s/\$\{[^}]*\}|\$[A-Za-z_][A-Za-z_0-9]*/\n/g'
+}
+# shellcheck disable=SC2016  # a literal $ in the pattern
+while IFS=: read -r n line; do
+  [[ "$line" == *"# not a script message"* ]] && continue
+  args="${line#*grep }" args="${args%%<<<*}"
+  while IFS= read -r text; do
+    ((${#text} > 2)) || continue
+    marked=false
+    for m in ${markers[@]+"${markers[@]}"}; do
+      [[ "$text" == *"$m"* || "$m" == *"$text"* ]] && marked=true
+    done
+    $marked || err "test/fresh-home.sh:$n greps script output for '$text', but no script marks a message with it (# fresh-home.sh greps for \"...\")"
+  done < <(grep_texts "$args")
+done < <(grep -nE 'grep .*<<<"\$(first|second|diff_out|doctor_out)"' test/fresh-home.sh)
 
 # tmux-continuum auto-saves from a hook it adds to status-right when TPM loads
 # it, so status-left/right must be set before TPM's run line, not after.
