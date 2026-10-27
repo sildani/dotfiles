@@ -11,7 +11,7 @@ CONFIGS=nvim/lua/configs
 errors=0
 err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 
-shellcheck -x install.sh doctor.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
+shellcheck -x install.sh doctor.sh prune-merged.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
 
 # One file per call: zsh -n treats any extra files as arguments to the first.
 for f in zsh/* zsh/extras/*; do
