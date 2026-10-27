@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Simulates a new machine: copies the repo to ~/src/dotfiles in an empty, seeded
-# HOME and runs its install.sh (once with the Oh My Zsh clone failing, then twice
-# for real), then doctor.sh and an interactive zsh. Passes when doctor.sh --diff shows the seeded files before
-# the install and sums up their backups after it (--backups diffs them), the
-# failed run left ~/.zshrc alone, the first real run backed up the seeded
-# files, the second changed nothing, doctor exits 0, zsh starts without
-# errors and exports DOTFILES as the repo, tmux loads its config and every extra
-# without errors, and every extra turns on from its README line, pasted as is
-# (and doctor flags a missing one). Set
-# KEEP=1 to keep the temp HOME.
+# HOME and runs its install.sh (once with the Oh My Zsh clone failing, then
+# twice for real), then doctor.sh and an interactive zsh. Passes when doctor.sh
+# --diff shows the seeded files before the install and sums up their backups
+# after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
+# real run backed up the seeded files, the second changed nothing, doctor exits
+# 0, zsh starts without errors and exports DOTFILES as the repo, tmux loads its
+# config and every extra without errors, and every extra turns on from its
+# README line, pasted as is (and doctor flags a missing one). Set KEEP=1 to keep
+# the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -48,11 +48,11 @@ unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_
 # The working tree (tracked and untracked, not ignored files), copied outside
 # ~/code since an installer can clone it anywhere. The install's writes to the
 # repo (nvim/lazy-lock.json) land in the copy.
-SRC_DIR="$REPO_DIR"
+REAL_REPO_DIR="$REPO_DIR"
 REPO_DIR="$HOME/src/dotfiles"
 mkdir -p "$REPO_DIR"
 (
-  cd "$SRC_DIR"
+  cd "$REAL_REPO_DIR"
   git ls-files -z -co --exclude-standard | while IFS= read -r -d '' f; do
     if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
   done | tar --null -T - -cf -
@@ -188,8 +188,8 @@ echo "doctor.sh"
 echo "interactive zsh"
 zsh_out="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c exit 2>&1)"
 [[ -z "$zsh_out" ]] || die "an interactive zsh printed: $zsh_out"
-dotfiles="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'printenv DOTFILES' 2>&1)" || true
-[[ "$dotfiles" == "$(cd "$REPO_DIR" && pwd -P)" ]] || die "zsh exported DOTFILES='$dotfiles', not the repo at $REPO_DIR"
+zsh_dotfiles="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'printenv DOTFILES' 2>&1)" || true
+[[ "$zsh_dotfiles" == "$(cd "$REPO_DIR" && pwd -P)" ]] || die "zsh exported DOTFILES='$zsh_dotfiles', not the repo at $REPO_DIR"
 
 # Commands, not -f: a server started with -f exits 0 even when the file has
 # errors, while source-file as a command exits non-zero on any.
