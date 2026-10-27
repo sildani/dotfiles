@@ -74,23 +74,28 @@ done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . |
 
 # Messages test/fresh-home.sh greps for carry a `# fresh-home.sh greps for
 # "<text>"` marker where they're printed, so whoever rewords one updates the
-# test. Each marker's text (with <placeholders> as gaps) is still in the test,
-# and each text the test greps script output for contains a marker's text or
-# is part of one: each top-level alternative of a single-quoted pattern, and
-# each part of a double-quoted one between its $variables. Markers are matched
-# by text, so of several with the same text, removing one goes unnoticed. A
-# grep on something else (diff's own output, a seeded file) ends in
-# `# not a script message`.
+# test: each marker is still in the test, each script line with a marker's
+# text carries one, and each grep on script output is covered by a marker.
+marker_files=(install.sh doctor.sh lib/common.sh)
 markers=()
-while IFS= read -r m; do markers+=("$m"); done < <(
-  sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' install.sh doctor.sh lib/common.sh)
-for m in ${markers[@]+"${markers[@]}"}; do
+while IFS= read -r marker; do markers+=("$marker"); done < <(
+  sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' "${marker_files[@]}" | sort -u)
+for marker in ${markers[@]+"${markers[@]}"}; do
+  # <placeholders> are gaps: each fixed piece must appear.
   while IFS= read -r piece; do
-    [[ -z "$piece" ]] || grep -qF -- "$piece" test/fresh-home.sh ||
-      err "marker \"$m\" (install.sh, doctor.sh or lib/common.sh): test/fresh-home.sh no longer greps for it"
-  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$m")
+    [[ -z "$piece" ]] && continue
+    grep -qF -- "$piece" test/fresh-home.sh ||
+      err "marker \"$marker\" (${marker_files[*]}): test/fresh-home.sh no longer greps for it"
+    while IFS=: read -r file n code; do
+      [[ "$code" == *"# fresh-home.sh greps for"* || "$code" == *"# fresh-home.sh doesn't grep for this"* ]] ||
+        err "$file:$n prints \"$piece\" without its marker: # fresh-home.sh greps for \"$marker\""
+    done < <(grep -nF -- "$piece" "${marker_files[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
 done
-# grep_texts <grep arguments>: the texts it matches, one per line.
+
+# grep_texts <grep arguments>: the texts the grep matches, one per line: each
+# top-level alternative of a single-quoted pattern, and each piece of a
+# double-quoted one between its $variables.
 grep_texts() {
   { grep -oE "'[^']*'" <<<"$1" || true; } | awk '{
     s = ""; depth = 0
@@ -104,18 +109,22 @@ grep_texts() {
   }'
   { grep -oE '"[^"]*"' <<<"$1" || true; } | sed -E 's/^"//; s/"$//; s/\$\{[^}]*\}|\$[A-Za-z_][A-Za-z_0-9]*/\n/g'
 }
+# Only one-line greps on these four outputs are scanned. Texts of 2 characters
+# or fewer (left between $variables) are skipped. A grep on something else
+# (diff's own output, a seeded line) ends in `# not a script message`.
 # shellcheck disable=SC2016  # a literal $ in the pattern
 while IFS=: read -r n line; do
   [[ "$line" == *"# not a script message"* ]] && continue
-  args="${line#*grep }" args="${args%%<<<*}"
+  grep_args="${line#*grep }"
+  grep_args="${grep_args%%<<<*}"
   while IFS= read -r text; do
     ((${#text} > 2)) || continue
-    marked=false
-    for m in ${markers[@]+"${markers[@]}"}; do
-      [[ "$text" == *"$m"* || "$m" == *"$text"* ]] && marked=true
+    covered=false
+    for marker in ${markers[@]+"${markers[@]}"}; do
+      [[ "$text" == *"$marker"* || "$marker" == *"$text"* ]] && covered=true
     done
-    $marked || err "test/fresh-home.sh:$n greps script output for '$text', but no script marks a message with it (# fresh-home.sh greps for \"...\")"
-  done < <(grep_texts "$args")
+    $covered || err "test/fresh-home.sh:$n greps script output for '$text', but no script marks a message with it (# fresh-home.sh greps for \"...\")"
+  done < <(grep_texts "$grep_args")
 done < <(grep -nE 'grep .*<<<"\$(first|second|diff_out|doctor_out)"' test/fresh-home.sh)
 
 # tmux-continuum auto-saves from a hook it adds to status-right when TPM loads
