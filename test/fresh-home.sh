@@ -75,13 +75,13 @@ echo '# old tmux config' >"$HOME/.tmux.conf"
 # shellcheck disable=SC2016  # a literal zshrc line, not expanded here
 printf '%s\n' '# old zsh config' 'source $ZSH/oh-my-zsh.sh' >"$HOME/.zshrc"
 
-# turn_on_extra <tool>/extras/<name>: appends the README's "Add this line" for
-# it to the file the row names, so the test runs what people paste.
+# turn_on_extra <tool>/extras/<name>: appends the README's "Command to copy"
+# for it to its "Location", so the test runs what people paste.
 turn_on_extra() {
   # shellcheck disable=SC2016  # literal backticks in a regex
-  local re='`([^`]+)` to `([^`]+)` *\|[[:space:]]*$' row line file
+  local re='\| *`([^`]+)` *\| *`([^`]+)` *\|[[:space:]]*$' row line file
   row="$(grep -F "| \`$1\` " "$REPO_DIR/README.md")" || die "README extras table has no row for $1"
-  [[ "$row" =~ $re ]] || die "README row for $1 doesn't end in \`<line>\` to \`<file>\`"
+  [[ "$row" =~ $re ]] || die "README row for $1 doesn't end in | \`<line>\` | \`<file>\` |"
   line="${BASH_REMATCH[1]}"
   file="${BASH_REMATCH[2]/#\~/$HOME}"
   echo "$line" >>"$file"
