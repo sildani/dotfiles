@@ -5,10 +5,10 @@
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, the second changed nothing, doctor exits
-# 0, zsh starts without errors and exports DOTFILES as the repo, tmux loads its
-# config and every extra without errors, and every extra turns on from its
-# README line, pasted as is (and doctor flags a missing one). Set KEEP=1 to keep
-# the temp HOME.
+# 0 and warns about a stray tmux server only while one runs, zsh starts without
+# errors and exports DOTFILES as the repo, tmux loads its config and every extra
+# without errors, and every extra turns on from its README line, pasted as is
+# (and doctor flags a missing one). Set KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,9 +17,11 @@ FAKE_HOME="$(mktemp -d)"
 LOG="$FAKE_HOME.log"
 SHIM_DIR="$FAKE_HOME.bin"
 TMUX_SOCKET="fresh-home-$$"
+STRAY_SOCKET="fresh-home-stray-$$"
 
 cleanup() {
   tmux -L "$TMUX_SOCKET" kill-server 2>/dev/null || true
+  tmux -L "$STRAY_SOCKET" kill-server 2>/dev/null || true
   if [[ "${KEEP:-}" == 1 ]]; then
     echo "kept: $FAKE_HOME (log: $LOG)"
   else
@@ -183,7 +185,18 @@ done
 grep -qxF -- '-# old tmux config' <<<"$diff_out" || die "doctor.sh --diff --backups didn't diff the backed-up ~/.tmux.conf"
 
 echo "doctor.sh"
-"$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 || die "doctor.sh reported problems"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh reported problems"; }
+echo "$doctor_out" >>"$LOG"
+grep -qF 'tmux servers besides the default one are running' <<<"$doctor_out" &&
+  die "doctor.sh warned about stray tmux servers with none running (stop any left over and rerun)"
+
+echo "doctor.sh with a stray tmux server (should warn, naming it, and still pass)"
+tmux -L "$STRAY_SOCKET" -f /dev/null new-session -d >>"$LOG" 2>&1 || die "tmux didn't start"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a stray tmux server"; }
+tmux -L "$STRAY_SOCKET" kill-server
+echo "$doctor_out" >>"$LOG"
+grep 'tmux servers besides the default one are running' <<<"$doctor_out" | grep -qF "$STRAY_SOCKET" ||
+  die "doctor.sh didn't warn about the stray tmux server $STRAY_SOCKET"
 
 # A clean environment, so the real shell's ZDOTDIR or ZSH can't leak in.
 echo "interactive zsh"
