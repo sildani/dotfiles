@@ -48,10 +48,24 @@ die() {
 export HOME="$FAKE_HOME" GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0
 unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME DOTFILES
 
+# The real repo's working tree, which a run must leave as it found it: each
+# changed or untracked path with its status and content hash, so a rewrite of
+# an already-changed file (nvim/lazy-lock.json) shows too.
+repo_state() {
+  local line path
+  git -C "$REAL_REPO_DIR" status --porcelain -z --untracked-files=all |
+    while IFS= read -r -d '' line; do
+      path="${line:3}"
+      [[ "${line:0:1}" == [RC] ]] && IFS= read -r -d '' _  # a rename's old path follows
+      printf '%s\t%s\t%s\n' "$path" "${line:0:2}" "$(git -C "$REAL_REPO_DIR" hash-object -- "$path" 2>/dev/null || echo -)"
+    done
+}
+
 # The working tree (tracked and untracked, not ignored files), copied outside
 # ~/code since an installer can clone it anywhere. The install's writes to the
 # repo (nvim/lazy-lock.json) land in the copy.
 REAL_REPO_DIR="$REPO_DIR"
+repo_before="$(repo_state)"
 REPO_DIR="$HOME/src/dotfiles"
 mkdir -p "$REPO_DIR"
 (
@@ -60,18 +74,6 @@ mkdir -p "$REPO_DIR"
     if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
   done | tar --null -T - -cf -
 ) | tar -xf - -C "$REPO_DIR"
-
-# The real repo's working tree, which a run must leave as it found it: each
-# changed or untracked path's status line and content hash, so a rewrite of an
-# already-changed file (nvim/lazy-lock.json) shows too.
-repo_state() {
-  local line path
-  git -C "$REAL_REPO_DIR" status --porcelain --untracked-files=all | while IFS= read -r line; do
-    path="${line:3}" path="${path##* -> }"
-    printf '%s\t%s\n' "$line" "$(git -C "$REAL_REPO_DIR" hash-object -- "$path" 2>/dev/null || echo -)"
-  done
-}
-repo_before="$(repo_state)"
 
 # Reuse the real font when present so brew isn't needed for it locally.
 mkdir -p "$HOME/Library/Fonts"
@@ -262,7 +264,8 @@ echo 'source-file "$DOTFILES/tmux/extras/no-such-extra.conf"' >"$HOME/.tmux.loca
 rm "$HOME/.tmux.local.conf"
 
 echo "real repo's working tree unchanged"
-changed="$(comm -3 <(sort <<<"$repo_before") <(repo_state | sort) | sed -E 's/^[[:space:]]*.. //; s/\t.*//' | sort -u)"
+repo_after="$(repo_state)"
+changed="$(comm -3 <(sort <<<"$repo_before") <(sort <<<"$repo_after") | sed -e '/^$/d' -e $'s/^\t//' | cut -f1 | sort -u)"
 [[ -z "$changed" ]] || die "the run changed the real repo at $REAL_REPO_DIR:"$'\n'"$changed"
 
 echo "PASS"

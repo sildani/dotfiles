@@ -11,7 +11,6 @@ sets up lets `install.sh`, a plugin manager or nvim write there, or into the rea
 tree (the test installs from a copy). A symlink from the temp HOME to a real plugin, data or config
 directory, or into the real repo, breaks this: the install writes through it into the real
 machine. A test that reuses real state for speed no longer tests a fresh install either.
-`test/fresh-home.sh` fails if the real repo's working tree changed during the run.
 
 ## A user's existing config is migrated, not just moved
 
