@@ -122,7 +122,7 @@ link_configs() {
     src="$REPO_DIR/${entry%%:*}"
     dest="${entry#*:}"
     if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
-      ok "${dest/#$HOME/~} already links to the repo"
+      ok "${dest/#$HOME/~} already links to the repo"  # fresh-home.sh doesn't grep for this
       continue
     fi
     if [[ -e "$dest" || -L "$dest" ]]; then

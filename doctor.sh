@@ -258,7 +258,7 @@ diff_configs() {
     fi
     if [[ "$dest" == "$HOME/.zshrc" && -f "$dest" ]]; then
       if [[ -e "$HOME/.zshrc.local" ]]; then
-        hint "not copied to ~/.zshrc.local, which already exists; move what you need there by hand"
+        hint "not copied to ~/.zshrc.local, which already exists; move what you need there by hand"  # fresh-home.sh doesn't grep for this
       else
         hint "${dest/#$HOME/~} would also be copied to ~/.zshrc.local (its Oh My Zsh load commented out) so this machine's setup keeps working"  # fresh-home.sh greps for "would also be copied to ~/.zshrc.local"
       fi

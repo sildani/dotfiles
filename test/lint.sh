@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
-# config link, override file and extra, and that the language recipes agree
-# across doctor.sh, the nvim config and LANGUAGES.md. Run by CI and the
-# pre-commit hook.
+# config link, override file and extra, that the messages fresh-home.sh greps
+# for are marked, and that the language recipes agree across doctor.sh, the
+# nvim config and LANGUAGES.md. Run by CI and the pre-commit hook.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -71,6 +71,61 @@ clone_path='~/code''/dotfiles'
 while IFS= read -r hit; do
   [[ "$hit" == "README.md:DOTFILES=$clone_path "* ]] || err "hard-coded clone path, use \$DOTFILES: $hit"
 done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . | sed 's|^\./||')
+
+# Messages test/fresh-home.sh greps for carry a `# fresh-home.sh greps for
+# "<text>"` marker where they're printed, so whoever rewords one updates the
+# test: each marker is still in the test, each script line with a marker's
+# text carries one, and each grep on script output is covered by a marker.
+marker_files=(install.sh doctor.sh lib/common.sh)
+markers=()
+while IFS= read -r marker; do markers+=("$marker"); done < <(
+  sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' "${marker_files[@]}" | sort -u)
+for marker in ${markers[@]+"${markers[@]}"}; do
+  # <placeholders> are gaps: each fixed piece must appear.
+  while IFS= read -r piece; do
+    [[ -z "$piece" ]] && continue
+    grep -qF -- "$piece" test/fresh-home.sh ||
+      err "marker \"$marker\" (${marker_files[*]}): test/fresh-home.sh no longer greps for it"
+    while IFS=: read -r file n code; do
+      [[ "$code" == *"# fresh-home.sh greps for"* || "$code" == *"# fresh-home.sh doesn't grep for this"* ]] ||
+        err "$file:$n prints \"$piece\" without its marker: # fresh-home.sh greps for \"$marker\""
+    done < <(grep -nF -- "$piece" "${marker_files[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
+done
+
+# grep_texts <grep arguments>: the texts the grep matches, one per line: each
+# top-level alternative of a single-quoted pattern, and each piece of a
+# double-quoted one between its $variables.
+grep_texts() {
+  { grep -oE "'[^']*'" <<<"$1" || true; } | awk '{
+    s = ""; depth = 0
+    for (i = 2; i < length($0); i++) {
+      c = substr($0, i, 1)
+      if (c == "(") depth++
+      if (c == ")") depth--
+      if (c == "|" && depth == 0) { print s; s = "" } else s = s c
+    }
+    print s
+  }'
+  { grep -oE '"[^"]*"' <<<"$1" || true; } | sed -E 's/^"//; s/"$//; s/\$\{[^}]*\}|\$[A-Za-z_][A-Za-z_0-9]*/\n/g'
+}
+# Only one-line greps on these four outputs are scanned. Texts of 2 characters
+# or fewer (left between $variables) are skipped. A grep on something else
+# (diff's own output, a seeded line) ends in `# not a script message`.
+# shellcheck disable=SC2016  # a literal $ in the pattern
+while IFS=: read -r n line; do
+  [[ "$line" == *"# not a script message"* ]] && continue
+  grep_args="${line#*grep }"
+  grep_args="${grep_args%%<<<*}"
+  while IFS= read -r text; do
+    ((${#text} > 2)) || continue
+    covered=false
+    for marker in ${markers[@]+"${markers[@]}"}; do
+      [[ "$text" == *"$marker"* || "$marker" == *"$text"* ]] && covered=true
+    done
+    $covered || err "test/fresh-home.sh:$n greps script output for '$text', but no script marks a message with it (# fresh-home.sh greps for \"...\")"
+  done < <(grep_texts "$grep_args")
+done < <(grep -nE 'grep .*<<<"\$(first|second|diff_out|doctor_out)"' test/fresh-home.sh)
 
 # tmux-continuum auto-saves from a hook it adds to status-right when TPM loads
 # it, so status-left/right must be set before TPM's run line, not after.

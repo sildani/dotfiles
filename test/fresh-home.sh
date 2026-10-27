@@ -122,7 +122,7 @@ for line in '-# old tmux config' '-# old zsh config' '--- old config' '-font-siz
   grep -qxF -- "$line" <<<"$diff_out" || die "doctor.sh --diff didn't show seeded line: $line"
 done
 # "Only in": the copy leaves out the repo's own (gitignored) local.lua.
-grep -qxF "Only in $HOME/.config/nvim/lua: local.lua" <<<"$diff_out" ||
+grep -qxF "Only in $HOME/.config/nvim/lua: local.lua" <<<"$diff_out" ||  # not a script message: diff's own output
   die "doctor.sh --diff hid the machine's own nvim lua/local.lua"
 grep -qF '.config/ghostty/config missing, would be created' <<<"$diff_out" ||
   die "doctor.sh --diff didn't say ~/.config/ghostty/config would be created"
@@ -189,7 +189,8 @@ echo "$diff_out" >>"$LOG"
 grep -q 'would be' <<<"$diff_out" && die "doctor.sh --diff says install would still change something"
 grep -qF "4 backed-up originals differ from the repo (newest: ${backup##*/})" <<<"$diff_out" ||
   die "doctor.sh --diff didn't sum up the 4 backed-up originals"
-grep -qE '^(---|\+\+\+|Only in) ' <<<"$diff_out" && die "doctor.sh --diff printed diffs on an installed machine"
+grep -qE '^(---|\+\+\+|Only in) ' <<<"$diff_out" &&  # not a script message: diff's own output
+  die "doctor.sh --diff printed diffs on an installed machine"
 
 echo "doctor.sh --diff --backups (diffs each backed-up original)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff --backups 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff --backups failed"; }
@@ -197,7 +198,8 @@ echo "$diff_out" >>"$LOG"
 for f in .tmux.conf .zshrc .config/nvim "Library/Application Support/com.mitchellh.ghostty/config.ghostty"; do
   grep -qF "${backup/#$HOME/~}/$f:" <<<"$diff_out" || die "doctor.sh --diff --backups didn't show backed-up $f"
 done
-grep -qxF -- '-# old tmux config' <<<"$diff_out" || die "doctor.sh --diff --backups didn't diff the backed-up ~/.tmux.conf"
+grep -qxF -- '-# old tmux config' <<<"$diff_out" ||  # not a script message: a seeded line
+  die "doctor.sh --diff --backups didn't diff the backed-up ~/.tmux.conf"
 
 echo "doctor.sh"
 doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh reported problems"; }
