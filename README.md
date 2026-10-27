@@ -132,3 +132,5 @@ To update nvim plugins: `:Lazy update` on the laptop, test, then commit
 
 - tmux: <https://tmuxcheatsheet.com/>. Prefix here is **Ctrl-Space**
   (not Ctrl-b); `prefix k` clears the screen and scrollback.
+- nvim comes set up with NvChad. Press **Space c h** in nvim for a cheatsheet
+  of the keyboard shortcuts.
