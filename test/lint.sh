@@ -75,8 +75,8 @@ done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . |
 # tmux-continuum auto-saves from a hook it adds to status-right when TPM loads
 # it, so status-left/right must be set before TPM's run line, not after.
 tpm_line="$(grep -n "^run '~/.tmux/plugins/tpm/tpm'" tmux/tmux.conf | cut -d: -f1)"
-if [[ -z "$tpm_line" ]]; then
-  err "tmux/tmux.conf has no TPM run line"
+if [[ -z "$tpm_line" || "$tpm_line" == *$'\n'* ]]; then
+  err "tmux/tmux.conf needs exactly one TPM run line"
 else
   while IFS=: read -r n line; do
     ((n < tpm_line)) || err "tmux/tmux.conf:$n sets the status bar after TPM's run line, wiping continuum's auto-save: $line"

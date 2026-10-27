@@ -14,8 +14,8 @@ runs them for you.
 - **By hand**: `prefix Ctrl-s` saves now, `prefix Ctrl-r` restores the last
   save. The prefix here is Ctrl-Space.
 
-Saves live in `~/.local/share/tmux/resurrect/` (or `~/.tmux/resurrect/` if
-that folder exists); `last` points to the newest one.
+Saves live in `${XDG_DATA_HOME:-~/.local/share}/tmux/resurrect/` (or
+`~/.tmux/resurrect/` if that folder exists); `last` points to the newest one.
 
 Auto-save and auto-restore stay off on a tmux server started while another tmux
 server is running, so a second server can't overwrite your saves.
@@ -49,15 +49,11 @@ Without step 2, step 4 brings back the last auto-save, up to 15 minutes old.
 
 ## On one machine
 
-In `~/.tmux.local.conf`:
-
 - Turn auto-restore off (the save keys and auto-save still work):
-
-  ```tmux
-  set -g @continuum-restore 'off'
-  ```
-
-- Don't set `status-right` there: continuum's auto-save hooks into the
-  `status-right` that the shared config sets, and replacing it stops
-  auto-save. (`test/lint.sh` keeps the shared config's status bar lines above
-  TPM's `run` line for the same reason.)
+  `touch ~/tmux_no_auto_restore`. Delete the file to turn it back on.
+  This is continuum's own switch. Setting `@continuum-restore 'off'` in the
+  per-machine file `~/.tmux.local.conf` isn't reliable: that file loads after
+  the plugins, and continuum may already have checked the option.
+- Don't set `status-right` in `~/.tmux.local.conf`: continuum's auto-save hooks
+  into the `status-right` that the shared config sets (see `tmux/tmux.conf`),
+  and replacing it stops auto-save.
