@@ -136,6 +136,26 @@ load_brew() {
   return 1
 }
 
+# copy_worktree <repo> <dest>: the tests' copy of a repo's working tree
+# (tracked and untracked, not ignored files), committed in <dest> as one
+# snapshot so it's a checkout, as a clone would be (doctor.sh reads its git
+# status). The repo is an argument: test/fresh-home.sh points REPO_DIR at its
+# copy. The commit ignores the caller's gitconfig, which may be the real one.
+copy_worktree() {
+  local repo="$1" dest="$2"
+  mkdir -p "$dest"
+  (
+    cd "$repo" || exit
+    git ls-files -z -co --exclude-standard | while IFS= read -r -d '' f; do
+      if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
+    done | tar --null -T - -cf -
+  ) | tar -xf - -C "$dest"
+  git -C "$dest" init -q
+  git -C "$dest" add -A
+  git -C "$dest" -c user.name=copy_worktree -c user.email=copy_worktree@localhost -c commit.gpgsign=false \
+    commit -q --no-verify -m snapshot
+}
+
 # Uncommented "name", entries from the nvim treesitter parser list.
 wanted_parsers() {
   sed -nE 's/^[[:space:]]*"([a-z_]+)",.*/\1/p' "$REPO_DIR/nvim/lua/configs/treesitter.lua"

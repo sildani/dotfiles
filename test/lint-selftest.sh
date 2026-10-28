@@ -7,20 +7,15 @@
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 COPY="$(mktemp -d)"
 trap 'rm -rf "$COPY"' EXIT
 
-# The working tree (tracked and untracked, not ignored files), as fresh-home.sh
-# copies it. Mutations are made here only.
-(
-  cd "$REPO_DIR"
-  git ls-files -z -co --exclude-standard | while IFS= read -r -d '' f; do
-    if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
-  done | tar --null -T - -cf -
-) | tar -xf - -C "$COPY"
+# The working tree, as fresh-home.sh copies it. Mutations are made here only.
+copy_worktree "$REPO_DIR" "$COPY"
 
-# The copy has no history to scan.
+# The copy has only a snapshot commit to scan; lint scans the real repo.
 lint() { (cd "$COPY" && LINT_SKIP_SECRETS=1 test/lint.sh 2>&1); }
 
 lint >/dev/null || { lint >&2 || true; echo "FAIL: lint fails on the unmutated copy" >&2; exit 1; }

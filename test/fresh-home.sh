@@ -63,23 +63,15 @@ repo_state() {
     done
 }
 
-# The working tree (tracked and untracked, not ignored files), copied outside
-# ~/code since an installer can clone it anywhere. The install's writes to the
-# repo (nvim/lazy-lock.json) land in the copy.
+# The working tree, copied outside ~/code since an installer can clone it
+# anywhere. The install's writes to the repo (nvim/lazy-lock.json) land in the
+# copy.
 REAL_REPO_DIR="$REPO_DIR"
 repo_before="$(repo_state)"
+# shellcheck source=lib/common.sh
+source "$REAL_REPO_DIR/lib/common.sh"
 REPO_DIR="$HOME/src/dotfiles"
-mkdir -p "$REPO_DIR"
-(
-  cd "$REAL_REPO_DIR"
-  git ls-files -z -co --exclude-standard | while IFS= read -r -d '' f; do
-    if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
-  done | tar --null -T - -cf -
-) | tar -xf - -C "$REPO_DIR"
-# A checkout, as a clone would be, so doctor.sh can check it for changes.
-git -C "$REPO_DIR" init -q
-git -C "$REPO_DIR" add -A
-git -C "$REPO_DIR" -c user.name=fresh-home -c user.email=fresh-home@localhost commit -qm snapshot
+copy_worktree "$REAL_REPO_DIR" "$REPO_DIR"
 # The copy's, so its REPO_DIR is the copy too. For EXTRAS_ROW_RE.
 # shellcheck source=lib/common.sh
 source "$REPO_DIR/lib/common.sh"
