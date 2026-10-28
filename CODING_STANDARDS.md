@@ -5,8 +5,10 @@ Judgement calls for reviewing changes to this repo. `test/lint.sh` enforces the 
 the `# fresh-home.sh greps for "<text>"` markers on messages the test matches),
 so they aren't repeated here.
 
-An issue's triage comment outranks these standards: a diff doing what triage decided follows them.
-Where a decision looks like it conflicts with one, report it as a question for the spec.
+Triage's decisions outrank these standards. Read them before calling something a violation: the
+issue's comments (`gh issue view <n> --json comments`, with `#n` from the commits) and, in a batch,
+`.scratch/handoff/handoff.md`. A diff doing what triage decided isn't a violation; where a decision
+looks like it conflicts with a standard, report that as a question for the spec.
 
 ## Tests stay inside their temp HOME
 
