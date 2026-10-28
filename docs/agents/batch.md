@@ -6,7 +6,7 @@ The user runs `/mattpocock-skills:implement <n> <n> …` once. Apply it per issu
 
 1. Branch off the updated `main`.
 2. `tdd` at the seam the handoff pre-agreed: red, then green. Stop and ask only when a seam doesn't work.
-3. Commit and `code-review` as AGENTS.md "Writing code" step 2 says.
+3. Commit and `code-review` as AGENTS.md "Writing code" says.
 4. Push and open a PR whose body follows `mattpocock-skills:pr` and ends `Closes #N`.
 5. Watch CI by run ID. Green: merge. Red: stop and report.
 6. Run `./prune-merged.sh`.
