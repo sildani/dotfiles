@@ -95,12 +95,14 @@ echo '-- old config' >"$HOME/.config/nvim/init.lua"
 mkdir -p "$HOME/.config/nvim/lua"
 echo '-- old per-machine config' >"$HOME/.config/nvim/lua/local.lua"
 echo '# old tmux config' >"$HOME/.tmux.conf"
-# In the shapes of Oh My Zsh's template, plus two lines of the machine's own.
+# In the shapes of Oh My Zsh's template, plus the machine's own lines, among
+# them a setting Oh My Zsh reads at runtime, which works in ~/.zshrc.local.
 # shellcheck disable=SC2016  # literal zshrc lines, not expanded here
-zshrc_own=('export PATH="$HOME/bin:$PATH"' "alias ll='ls -la'")
+zshrc_own=('export PATH="$HOME/bin:$PATH"' "alias ll='ls -la'" 'DISABLE_AUTO_TITLE="true"')
 # shellcheck disable=SC2016
 printf '%s\n' '# old zsh config' '# If you come from bash you might have to change your $PATH.' '' '' \
-  'export ZSH="$HOME/.oh-my-zsh"' 'ZSH_THEME="robbyrussell"' 'plugins=(' '  git' '  docker' ')' \
+  'export ZSH="$HOME/.oh-my-zsh"' 'ZSH_THEME="robbyrussell"' 'HIST_STAMPS="mm/dd/yyyy"' \
+  "zstyle ':omz:update' mode disabled" 'plugins=(' '  git' '  docker' ')' \
   'source $ZSH/oh-my-zsh.sh' 'eval "$(/opt/homebrew/bin/brew shellenv)"' "${zshrc_own[@]}" >"$HOME/.zshrc"
 
 # turn_on_extra <tool>/extras/<name>: appends the README's "Line to add" for
@@ -186,6 +188,8 @@ omz_lacks="$(grep 'Oh My Zsh settings the shared zshrc lacks' <<<"$first")" ||
   die "install.sh didn't warn about the old ~/.zshrc's plugins the shared zshrc lacks"
 [[ " $omz_lacks " == *" docker "* && " $omz_lacks " != *" git "* ]] ||
   die "install.sh should name plugin docker, and not git: $omz_lacks"
+[[ "$omz_lacks" == *'HIST_STAMPS="mm/dd/yyyy"'* && "$omz_lacks" == *"zstyle ':omz:update' mode disabled"* ]] ||
+  die "install.sh should name HIST_STAMPS and zstyle ':omz:update', which load too late in ~/.zshrc.local: $omz_lacks"
 zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
 [[ "$(cat "$REPO_DIR/nvim/lazy-lock.json")" == "$lock_seed" ]] ||
   die "install.sh changed nvim/lazy-lock.json:"$'\n'"$(diff <(echo "$lock_seed") "$REPO_DIR/nvim/lazy-lock.json")"
