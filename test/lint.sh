@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
-# config link, override file and extra, that the messages fresh-home.sh greps
-# for are marked, and that the language recipes agree across doctor.sh, the
+# config link, override file, extra and test script, that CI runs every test
+# script, that the messages fresh-home.sh greps for are marked, and that the language recipes agree across doctor.sh, the
 # nvim config and LANGUAGES.md. Run by CI and the pre-commit hook.
 set -euo pipefail
 
@@ -48,6 +48,15 @@ for f in "${LOCAL_FILES[@]}"; do
   for doc in README.md AGENTS.md; do
     grep -qF "$f" "$doc" || err "$doc doesn't mention $f (LOCAL_FILES in lib/common.sh)"
   done
+done
+
+# Every test script runs in CI and is in the README "Checks" list. Sourced
+# helpers go in lib/, not test/, so every test/*.sh is a script CI runs.
+for f in test/*.sh; do
+  re="${f//./\\.}"
+  grep -Eq "^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${re}[[:space:]]*\$" .github/workflows/check.yml ||
+    err ".github/workflows/check.yml doesn't run $f"
+  grep -q "^- \`${re}\`:" README.md || err "README.md \"Checks\" list is missing \`$f\`"
 done
 
 # Every opt-in extra has a row in the README's extras table that ends in its
