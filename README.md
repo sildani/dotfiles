@@ -119,8 +119,9 @@ Checks (also run by CI on every push):
   config and `LANGUAGES.md`.
   Runs before each commit once you enable the hook: `git config core.hooksPath hooks`
   (the hook also refuses commits on `main`; changes go through a PR).
-- `test/lint-selftest.sh`: breaks the fresh-home.sh markers and extras rows in a
-  copy of the repo, one at a time, and checks that `test/lint.sh` fails on each.
+- `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
+  fresh-home.sh markers, adds an unmarked grep and breaks the extras rows, one at
+  a time, and checks that `test/lint.sh` fails on each.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
 
 After merging a PR, `./prune-merged.sh` deletes the merged branches locally and
