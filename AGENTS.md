@@ -8,7 +8,7 @@ macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `
 - Work machines are pull-only: put machine-specific changes in `~/.zshrc.local`, `nvim/lua/local.lua`, `~/.tmux.local.conf` or `~/.config/ghostty/local`.
 - Optional per-machine tweaks: `<tool>/extras/`, turned on from that tool's per-machine file (README "Optional extras").
 - Scripts must run on stock macOS bash 3.2 (a new machine has no newer bash): expand possibly-empty arrays as `${arr[@]+"${arr[@]}"}`.
-- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker or extras checks) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all three on macOS.
+- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker or extras checks) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all three on macOS. `test/fresh-home.sh` takes minutes: run it once for green, in the background with output to a log, and again after any change to what it installs or checks; docs-only changes skip it.
 
 ## Agent skills
 
