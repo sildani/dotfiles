@@ -189,6 +189,18 @@ install_tmux_plugins() {
   env -u TMUX TMUX_TMPDIR="$sock" tmux kill-server 2>/dev/null || true
   rm -rf "$sock"
   ok "plugins installed"
+
+  # resurrect saves through ~/.tmux/resurrect when it's a folder, else in its
+  # XDG folder; link the first to the second so both paths show the saves.
+  # An existing ~/.tmux/resurrect (a folder, or a link anywhere) is left
+  # alone: resurrect already saves through it. doctor.sh doesn't check this
+  # convenience link.
+  local link="$HOME/.tmux/resurrect" saves="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/resurrect"
+  if [[ ! -e "$link" && ! -L "$link" ]]; then
+    mkdir -p "$saves"
+    ln -s "$saves" "$link"
+    info "linked ~/.tmux/resurrect -> ${saves/#$HOME/~}"  # fresh-home.sh greps for "linked ~/.tmux/resurrect -> "
+  fi
 }
 
 # The repo's nvim/lazy-lock.json, saved by install_nvim_plugins.
