@@ -33,7 +33,7 @@ The user runs `/mattpocock-skills:implement` from `main`. Carry it through to a 
 1. Pull `main` and branch off it, named after the change. `/implement` commits to the current branch.
 2. Build with `tdd`, then commit, staging files by name (`code-review` diffs `main...HEAD`).
 3. Run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why.
-4. Push the branch, report, and stop until the user runs `/mattpocock-skills:pr`. Then open the PR with a body that follows it.
+4. Push the branch, report, and stop. When the user runs `/mattpocock-skills:pr`, create the PR (`gh pr create`) with a body that follows that skill.
 5. Watch CI by run ID. Green: merge it and run `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`). Red: stop and report.
 6. Suggest `/mattpocock-skills:retro`; the user runs it.
 
