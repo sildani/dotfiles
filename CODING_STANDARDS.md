@@ -5,6 +5,9 @@ Judgement calls for reviewing changes to this repo. `test/lint.sh` enforces the 
 the `# fresh-home.sh greps for "<text>"` markers on messages the test matches),
 so they aren't repeated here.
 
+An issue's triage comment outranks these standards: a diff doing what triage decided follows them.
+Where a decision looks like it conflicts with one, report it as a question for the spec.
+
 ## Tests stay inside their temp HOME
 
 `test/fresh-home.sh` may read from the real HOME (it links the Hurmit font in), but nothing it
