@@ -177,6 +177,8 @@ done
 [[ ! -e "$ghostty_lib/config.ghostty" ]] || die "Ghostty Library config still in place"
 [[ "$(grep -v '^#' "$HOME/.zshrc.local")" == "$(printf '%s\n' "${zshrc_own[@]}")" ]] ||
   die "the copied ~/.zshrc.local isn't the header plus the old ~/.zshrc's own lines:"$'\n'"$(cat "$HOME/.zshrc.local")"
+{ grep -qF "${backup/#$HOME/~}/.zshrc" "$HOME/.zshrc.local" && grep -qF 'is at ~/.zshrc.example' "$HOME/.zshrc.local"; } ||
+  die "the copied ~/.zshrc.local's header doesn't point to the backup and ~/.zshrc.example"
 grep -q '^source' "$HOME/.zshrc.local" && die ".zshrc.local still loads Oh My Zsh itself"
 [[ "$(readlink "$HOME/.zshrc.example")" == "$HOME/.oh-my-zsh/templates/zshrc.zsh-template" ]] ||
   die "first run didn't link ~/.zshrc.example to Oh My Zsh's template"

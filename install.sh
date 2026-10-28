@@ -102,35 +102,36 @@ install_tools() {
 }
 
 # A machine's own ~/.zshrc (PATH, nvm, ...) keeps working as ~/.zshrc.local,
-# which the shared zshrc sources last. Its own Oh My Zsh load is commented out
-# because the shared zshrc already does that. Skipped if ~/.zshrc.local exists.
-# Keeps ~/.zshrc's own settings in ~/.zshrc.local, leaving out comments, blank
-# lines and what the shared zshrc already does: Homebrew's shellenv, loading
-# Oh My Zsh and its ZSH, ZSH_THEME and plugins settings. ~/.zshrc.local loads
-# after Oh My Zsh, too late for those settings, so it warns about any that
-# differ from the shared zshrc's (plugins only for ones the shared list lacks).
+# which the shared zshrc sources last. Skipped if ~/.zshrc.local exists. Only
+# its own settings are kept, leaving out comments, blank lines and what the
+# shared zshrc already does: Homebrew's shellenv, loading Oh My Zsh and its
+# ZSH, ZSH_THEME and plugins settings. ~/.zshrc.local loads after Oh My Zsh,
+# too late for those settings, so it warns about any whose value differs from
+# the shared zshrc's (plugins only for ones the shared list lacks).
 migrate_zshrc() {
   local old="$HOME/.zshrc" new="$HOME/.zshrc.local" shared="$REPO_DIR/zsh/zshrc"
   [[ -f "$old" && ! -e "$new" ]] || return 0
-  local shared_lines shared_plugins line trimmed in_plugins=false plugins="" p
+  local shared_lines shared_plugins line trimmed setting in_plugins=false plugins="" p
   local kept=() lost=() missing=()
   shared_lines="$(tr -d "\"'" <"$shared")"
   shared_plugins="$(sed -nE 's/^plugins=\((.*)\)$/\1/p' "$shared")"
   while IFS= read -r line || [[ -n "$line" ]]; do
     trimmed="${line#"${line%%[![:space:]]*}"}"
-    if $in_plugins; then
+    if ! $in_plugins && [[ "$trimmed" == 'plugins=('* ]]; then
+      in_plugins=true
+      trimmed="${trimmed#plugins=(}"
+    fi
+    if $in_plugins; then  # up to the closing ), which may be lines later
       [[ "$trimmed" == *")"* ]] && in_plugins=false
       plugins+=" ${trimmed%%[)#]*}"
       continue
     fi
     case "$trimmed" in
       '' | '#'*) ;;
-      'plugins=('*)
-        trimmed="${trimmed#plugins=(}"
-        [[ "$trimmed" == *")"* ]] || in_plugins=true
-        plugins+=" ${trimmed%%[)#]*}" ;;
       'ZSH_THEME='* | 'export ZSH='*)
-        grep -qxF -- "$(tr -d "\"'" <<<"$trimmed")" <<<"$shared_lines" || lost+=("$trimmed") ;;
+        setting="${trimmed%%[[:space:]]#*}"
+        setting="${setting%"${setting##*[![:space:]]}"}"
+        grep -qxF -- "$(tr -d "\"'" <<<"$setting")" <<<"$shared_lines" || lost+=("$setting") ;;
       'source '*oh-my-zsh.sh* | '. '*oh-my-zsh.sh* | 'eval '*'brew shellenv'*) ;;
       *) kept+=("$line") ;;
     esac
@@ -150,7 +151,7 @@ migrate_zshrc() {
   info "copied ~/.zshrc to ~/.zshrc.local so this machine's shell setup keeps working"  # fresh-home.sh greps for "copied "
   if ((${#lost[@]})); then
     warn "Oh My Zsh settings the shared zshrc lacks weren't copied (~/.zshrc.local loads too late for them): ${lost[*]}"  # fresh-home.sh greps for "Oh My Zsh settings the shared zshrc lacks"
-    hint "to keep them, add them to zsh/zshrc"
+    hint "to keep them, add them to zsh/zshrc (shared: change it from a machine that pushes)"
   fi
 }
 
