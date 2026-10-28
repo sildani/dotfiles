@@ -44,3 +44,15 @@ term goes into the glossary first, then into the text.
 A PR's description matches its diff: each behaviour it claims is in the code, and each change in
 the diff is in the description. Unrelated changes (a tmux binding in a zsh PR) go in their own PR.
 Revert and blast-radius claims cover every machine that pulls and re-runs `install.sh`.
+
+## The README describes what `install.sh` does
+
+A change to what the install moves, copies, links or warns about updates the README's description
+of it in the same PR, including any by-hand steps that point there. The installer reads the
+README, not the script.
+
+## Agent docs follow `writing-for-agents`
+
+`AGENTS.md` and `docs/agents/` are written by the `mattpocock-skills:writing-for-agents` skill's
+rules. Each flow or rule lives in one file and the others point to it, so a change to it is a
+one-place edit and two files can't give different steps.
