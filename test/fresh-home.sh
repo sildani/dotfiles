@@ -4,7 +4,8 @@
 # twice for real), then doctor.sh and an interactive zsh. Passes when doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
-# real run backed up the seeded files, the second changed nothing, doctor exits
+# real run backed up the seeded files and left nvim/lazy-lock.json and every
+# nvim plugin at its locked commit, the second changed nothing, doctor exits
 # 0 and warns about a stray tmux server only while one runs, zsh starts without
 # errors and exports DOTFILES as the repo, tmux loads its config and every extra
 # without errors, and every extra turns on from its README line, pasted as is
@@ -116,6 +117,7 @@ printf '#!/bin/sh\ncase "$*" in *ohmyzsh*) echo "simulated clone failure" >&2; e
   "$(command -v git)" >"$SHIM_DIR/git"
 chmod +x "$SHIM_DIR/git"
 zshrc_seed="$(cat "$HOME/.zshrc")"
+lock_seed="$(cat "$REPO_DIR/nvim/lazy-lock.json")"
 
 echo "doctor.sh --diff before install (should show the seeded files and change nothing)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed"; }
@@ -169,6 +171,12 @@ done
 grep -qx '# old zsh config' "$HOME/.zshrc.local" || die "old ~/.zshrc was not copied to ~/.zshrc.local"
 grep -q '^source' "$HOME/.zshrc.local" && die ".zshrc.local still loads Oh My Zsh itself"
 zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
+[[ "$(cat "$REPO_DIR/nvim/lazy-lock.json")" == "$lock_seed" ]] ||
+  die "install.sh changed nvim/lazy-lock.json:"$'\n'"$(diff <(echo "$lock_seed") "$REPO_DIR/nvim/lazy-lock.json")"
+while read -r name commit; do
+  head="$(git -C "$HOME/.local/share/nvim/lazy/$name" rev-parse HEAD 2>/dev/null)" || die "nvim plugin $name not installed"
+  [[ "$head" == "$commit" ]] || die "nvim plugin $name is at $head, not its locked $commit"
+done < <(sed -nE 's/^  "([^"]+)": \{ "branch": "[^"]*", "commit": "([0-9a-f]+)" \},?$/\1 \2/p' <<<"$lock_seed")
 zshrc_local="$(cat "$HOME/.zshrc.local")"
 omz_inode="$(stat -f %i "$HOME/.oh-my-zsh")"
 

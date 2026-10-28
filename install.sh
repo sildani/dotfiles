@@ -195,6 +195,13 @@ install_nvim_plugins() {
   section "nvim plugins (lazy.nvim, pinned by lazy-lock.json)"
   local log="$HOME/.dotfiles-install.log"
   : >"$log"
+  # On a fresh install lazy rewrites the lockfile between its install rounds,
+  # dropping the plugins NvChad's spec imports, so they land at their latest
+  # commits. Let it install everything, put the lockfile back, then restore.
+  local lock="$REPO_DIR/nvim/lazy-lock.json" pinned
+  pinned="$(cat "$lock")"
+  run_logged "$log" nvim --headless +qa
+  printf '%s\n' "$pinned" >"$lock"
   run_logged "$log" nvim --headless "+Lazy! restore" +qa
   ok "plugins restored to lazy-lock.json"
 
