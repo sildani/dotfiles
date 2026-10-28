@@ -201,14 +201,15 @@ check_plugins() {
   fi
   stray_tmux_servers
 
-  local commit missing=() drifted=()
+  local name commit missing=() drifted=()
+  # The commit is optional, so a lock line without one is still checked as missing.
   while read -r name commit; do
     if [[ ! -d "$NVIM_DATA/lazy/$name" ]]; then
       missing+=("$name")
-    elif [[ "$(git -C "$NVIM_DATA/lazy/$name" rev-parse HEAD 2>/dev/null)" != "$commit" ]]; then
+    elif [[ -n "$commit" && "$(git -C "$NVIM_DATA/lazy/$name" rev-parse HEAD 2>/dev/null)" != "$commit" ]]; then
       drifted+=("$name")
     fi
-  done < <(sed -nE 's/^  "([^"]+)": \{.*"commit": "([0-9a-f]+)".*/\1 \2/p' "$REPO_DIR/nvim/lazy-lock.json")
+  done < <(sed -nE 's/^  "([^"]+)": \{(.*"commit": "([0-9a-f]+)")?.*/\1 \3/p' "$REPO_DIR/nvim/lazy-lock.json")
   if ((${#missing[@]})); then
     broken "nvim plugins missing: ${missing[*]}"
     hint "run ./install.sh (or :Lazy restore in nvim)"
