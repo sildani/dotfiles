@@ -6,8 +6,9 @@
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files and left nvim/lazy-lock.json and every
 # nvim plugin at its locked commit, the second changed nothing, doctor exits
-# 0 and warns about a stray tmux server only while one runs and about a changed
-# nvim/lazy-lock.json only while it's changed, zsh starts without
+# 0 and warns about a stray tmux server only while one runs, about a changed
+# nvim/lazy-lock.json only while it's changed and about an nvim plugin off its
+# locked commit only while one is, zsh starts without
 # errors and exports DOTFILES as the repo, tmux loads its config and every extra
 # without errors, and every extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), and the real repo's working tree is as it
@@ -220,6 +221,8 @@ grep -qF 'tmux servers besides the default one are running' <<<"$doctor_out" &&
   die "doctor.sh warned about stray tmux servers with none running (stop any left over and rerun)"
 grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" &&
   die "doctor.sh warned about a changed nvim/lazy-lock.json after a clean install"
+grep -qF 'nvim plugins not at their locked commit' <<<"$doctor_out" &&
+  die "doctor.sh warned about nvim plugins off their locked commit after a clean install"
 
 echo "doctor.sh with a changed nvim/lazy-lock.json (should warn, with the fix, and still pass)"
 sed -i '' -E 's/"commit": "[0-9a-f]+"/"commit": "0000000000000000000000000000000000000000"/' "$REPO_DIR/nvim/lazy-lock.json"
@@ -230,6 +233,17 @@ grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" ||
   die "doctor.sh didn't warn about the changed nvim/lazy-lock.json"
 grep -qF 'checkout nvim/lazy-lock.json' <<<"$doctor_out" ||
   die "doctor.sh didn't say how to put nvim/lazy-lock.json back"
+
+echo "doctor.sh with an nvim plugin off its locked commit (should warn, naming it, and still pass)"
+# lazy's clones are partial, so checking out an older commit needs the network;
+# moving HEAD with reset --soft doesn't, and is undone the same way.
+read -r name commit < <(sed -nE 's/^  "([^"]+)": \{ "branch": "[^"]*", "commit": "([0-9a-f]+)" \},?$/\1 \2/p' <<<"$lock_seed")
+git -C "$HOME/.local/share/nvim/lazy/$name" reset -q --soft HEAD~1
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with nvim plugin $name off its locked commit"; }
+git -C "$HOME/.local/share/nvim/lazy/$name" reset -q --soft "$commit"
+echo "$doctor_out" >>"$LOG"
+grep 'nvim plugins not at their locked commit' <<<"$doctor_out" | grep -qF "$name" ||
+  die "doctor.sh didn't warn about nvim plugin $name off its locked commit"
 
 echo "doctor.sh with a stray tmux server (should warn, naming it, and still pass)"
 tmux -L "$STRAY_SOCKET" -f /dev/null new-session -d >>"$LOG" 2>&1 || die "tmux didn't start"

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Read-only health check: what's installed, what's linked, and which languages
 # are set up. Changes nothing. Exits non-zero if something is broken (✗);
-# warnings (!) and language status never fail it.
+# warnings (!), such as an nvim plugin off its locked commit, and language
+# status never fail it.
 # --diff instead shows how each config file differs from what install.sh
 # would put there, and how many backed-up originals differ from the repo
 # (--diff --backups shows those diffs too); it exits non-zero only if a diff
@@ -200,15 +201,23 @@ check_plugins() {
   fi
   stray_tmux_servers
 
-  local missing=()
-  while read -r name; do
-    [[ -d "$NVIM_DATA/lazy/$name" ]] || missing+=("$name")
-  done < <(sed -nE 's/^  "([^"]+)": \{.*/\1/p' "$REPO_DIR/nvim/lazy-lock.json")
+  local commit missing=() drifted=()
+  while read -r name commit; do
+    if [[ ! -d "$NVIM_DATA/lazy/$name" ]]; then
+      missing+=("$name")
+    elif [[ "$(git -C "$NVIM_DATA/lazy/$name" rev-parse HEAD 2>/dev/null)" != "$commit" ]]; then
+      drifted+=("$name")
+    fi
+  done < <(sed -nE 's/^  "([^"]+)": \{.*"commit": "([0-9a-f]+)".*/\1 \2/p' "$REPO_DIR/nvim/lazy-lock.json")
   if ((${#missing[@]})); then
     broken "nvim plugins missing: ${missing[*]}"
     hint "run ./install.sh (or :Lazy restore in nvim)"
   else
     ok "all nvim plugins in lazy-lock.json"
+  fi
+  if ((${#drifted[@]})); then
+    warn "nvim plugins not at their locked commit: ${drifted[*]}"  # fresh-home.sh greps for "nvim plugins not at their locked commit"
+    hint "run ./install.sh (or :Lazy restore in nvim)"
   fi
   changed_lazy_lock
 
