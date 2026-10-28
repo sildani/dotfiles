@@ -68,6 +68,7 @@ repo_state() {
 # copy.
 REAL_REPO_DIR="$REPO_DIR"
 repo_before="$(repo_state)"
+# The real repo's, for copy_worktree. The copy's replaces it below.
 # shellcheck source=lib/common.sh
 source "$REAL_REPO_DIR/lib/common.sh"
 REPO_DIR="$HOME/src/dotfiles"

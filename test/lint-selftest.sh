@@ -14,8 +14,10 @@ trap 'rm -rf "$COPY"' EXIT
 
 # The working tree, as fresh-home.sh copies it. Mutations are made here only.
 copy_worktree "$REPO_DIR" "$COPY"
+[[ -z "$(git -C "$COPY" status --porcelain)" ]] || { echo "FAIL: copy_worktree left the copy with changes" >&2; exit 1; }
 
-# The copy has only a snapshot commit to scan; lint scans the real repo.
+# The copy has only a snapshot commit to scan; CI's test/lint.sh run scans the
+# real repo's history.
 lint() { (cd "$COPY" && LINT_SKIP_SECRETS=1 test/lint.sh 2>&1); }
 
 lint >/dev/null || { lint >&2 || true; echo "FAIL: lint fails on the unmutated copy" >&2; exit 1; }
