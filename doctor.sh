@@ -165,6 +165,15 @@ stray_tmux_servers() {
   hint "stop each with: tmux -L <name> kill-server (tmux -S <path> kill-server for a path)"
 }
 
+# A changed lockfile pins plugins to commits the repo doesn't have (see
+# install_nvim_plugins). git status prints nothing, so this stays quiet, when
+# the repo isn't a git checkout.
+changed_lazy_lock() {
+  [[ -n "$(git -C "$REPO_DIR" status --porcelain -- nvim/lazy-lock.json 2>/dev/null)" ]] || return 0
+  warn "nvim/lazy-lock.json has uncommitted changes (plugins may not match the repo)"  # fresh-home.sh greps for "nvim/lazy-lock.json has uncommitted changes"
+  hint "git -C ${REPO_DIR/#$HOME/~} checkout nvim/lazy-lock.json, then :Lazy restore in nvim"  # fresh-home.sh greps for "checkout nvim/lazy-lock.json"
+}
+
 check_plugins() {
   section "Plugins"
   if [[ -d "$ZSH_DIR" ]]; then
@@ -201,11 +210,7 @@ check_plugins() {
   else
     ok "all nvim plugins in lazy-lock.json"
   fi
-  # Empty when the repo isn't a git checkout.
-  if [[ -n "$(git -C "$REPO_DIR" status --porcelain -- nvim/lazy-lock.json 2>/dev/null)" ]]; then
-    warn "nvim/lazy-lock.json has uncommitted changes (plugins may not match the repo)"  # fresh-home.sh greps for "nvim/lazy-lock.json has uncommitted changes"
-    hint "git -C ${REPO_DIR/#$HOME/~} checkout nvim/lazy-lock.json, then :Lazy restore in nvim"  # fresh-home.sh greps for "checkout nvim/lazy-lock.json"
-  fi
+  changed_lazy_lock
 
   missing=()
   while read -r name; do
