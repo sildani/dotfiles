@@ -104,10 +104,12 @@ install_tools() {
 # A machine's own ~/.zshrc (PATH, nvm, ...) keeps working as ~/.zshrc.local,
 # which the shared zshrc sources last. Skipped if ~/.zshrc.local exists. Only
 # its own settings are kept, leaving out comments, blank lines and what the
-# shared zshrc already does: Homebrew's shellenv, loading Oh My Zsh and its
-# ZSH, ZSH_THEME and plugins settings. ~/.zshrc.local loads after Oh My Zsh,
-# too late for those settings, so it warns about any whose value differs from
-# the shared zshrc's (plugins only for ones the shared list lacks).
+# shared zshrc already does: Homebrew's shellenv, loading Oh My Zsh and the
+# settings it reads only while loading (ZSH, ZSH_THEME, plugins, HIST_STAMPS,
+# zstyle ':omz:...' and the like). ~/.zshrc.local loads after Oh My Zsh, too
+# late for those settings, so it warns about any whose value differs from the
+# shared zshrc's (plugins only for ones the shared list lacks). Settings Oh My
+# Zsh reads at runtime, such as DISABLE_AUTO_TITLE, are kept.
 migrate_zshrc() {
   local old="$HOME/.zshrc" new="$HOME/.zshrc.local" shared="$REPO_DIR/zsh/zshrc"
   [[ -f "$old" && ! -e "$new" ]] || return 0
@@ -128,7 +130,10 @@ migrate_zshrc() {
     fi
     case "$trimmed" in
       '' | '#'*) ;;
-      'ZSH_THEME='* | 'export ZSH='*)
+      'ZSH_THEME='* | 'export ZSH='* | 'CASE_SENSITIVE='* | 'HYPHEN_INSENSITIVE='* | \
+        'DISABLE_MAGIC_FUNCTIONS='* | 'DISABLE_LS_COLORS='* | 'ENABLE_CORRECTION='* | \
+        'COMPLETION_WAITING_DOTS='* | 'HIST_STAMPS='* | 'ZSH_CUSTOM='* | \
+        'ZSH_THEME_RANDOM_CANDIDATES='* | "zstyle ':omz:"* | 'zstyle ":omz:'*)
         setting="${trimmed%%[[:space:]]#*}"
         setting="${setting%"${setting##*[![:space:]]}"}"
         grep -qxF -- "$(tr -d "\"'" <<<"$setting")" <<<"$shared_lines" || lost+=("$setting") ;;
