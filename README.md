@@ -115,13 +115,16 @@ push. Work machines only pull.
 Checks (also run by CI on every push):
 
 - `test/lint.sh`: shellcheck, secret scan (gitleaks), that the extras are
-  documented, and that the language recipes agree across `doctor.sh`, the nvim
-  config and `LANGUAGES.md`.
+  documented, that CI runs every `test/*.sh` and this list names it, and that
+  the language recipes agree across `doctor.sh`, the nvim config and
+  `LANGUAGES.md`. A new test script needs a `run:` step in
+  `.github/workflows/check.yml` and a bullet here; sourced helpers go in `lib/`.
   Runs before each commit once you enable the hook: `git config core.hooksPath hooks`
   (the hook also refuses commits on `main`; changes go through a PR).
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
-  fresh-home.sh markers, adds an unmarked grep and breaks the extras rows, one at
-  a time, and checks that `test/lint.sh` fails on each.
+  fresh-home.sh markers, adds an unmarked grep, breaks the extras rows, drops
+  each test script's CI step and bullet here and adds an unlisted test script,
+  one at a time, and checks that `test/lint.sh` fails on each.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
 
 After merging a PR, `./prune-merged.sh` deletes the merged branches locally and
