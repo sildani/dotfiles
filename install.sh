@@ -116,7 +116,7 @@ migrate_zshrc() {
   [[ -f "$old" && ! -e "$new" ]] || return 0
   local shared_lines shared_plugins line trimmed setting in_plugins=false plugins="" p
   local kept=() lost=() missing=()
-  shared_lines="$(tr -d "\"'" <"$shared")"
+  shared_lines="$(sed 's/^export //' "$shared" | tr -d "\"'")"
   shared_plugins="$(sed -nE 's/^plugins=\((.*)\)$/\1/p' "$shared")"
   while IFS= read -r line || [[ -n "$line" ]]; do
     trimmed="${line#"${line%%[![:space:]]*}"}"
@@ -129,15 +129,15 @@ migrate_zshrc() {
       plugins+=" ${trimmed%%[)#]*}"
       continue
     fi
-    case "$trimmed" in
+    case "${trimmed#export }" in
       '' | '#'*) ;;
-      'ZSH_THEME='* | 'export ZSH='* | 'CASE_SENSITIVE='* | 'HYPHEN_INSENSITIVE='* | \
+      'ZSH_THEME='* | 'ZSH='* | 'CASE_SENSITIVE='* | 'HYPHEN_INSENSITIVE='* | \
         'DISABLE_MAGIC_FUNCTIONS='* | 'DISABLE_LS_COLORS='* | 'ENABLE_CORRECTION='* | \
         'COMPLETION_WAITING_DOTS='* | 'HIST_STAMPS='* | 'ZSH_CUSTOM='* | \
         'ZSH_THEME_RANDOM_CANDIDATES='* | "zstyle ':omz:"* | 'zstyle ":omz:'*)
         setting="${trimmed%%[[:space:]]#*}"
         setting="${setting%"${setting##*[![:space:]]}"}"
-        grep -qxF -- "$(tr -d "\"'" <<<"$setting")" <<<"$shared_lines" || lost+=("$setting") ;;
+        grep -qxF -- "$(tr -d "\"'" <<<"${setting#export }")" <<<"$shared_lines" || lost+=("$setting") ;;
       'source '*oh-my-zsh.sh* | '. '*oh-my-zsh.sh* | 'eval '*'brew shellenv'*) ;;
       *) kept+=("$line") ;;
     esac
