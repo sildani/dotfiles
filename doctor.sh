@@ -201,6 +201,11 @@ check_plugins() {
   else
     ok "all nvim plugins in lazy-lock.json"
   fi
+  # Empty when the repo isn't a git checkout.
+  if [[ -n "$(git -C "$REPO_DIR" status --porcelain -- nvim/lazy-lock.json 2>/dev/null)" ]]; then
+    warn "nvim/lazy-lock.json has uncommitted changes (plugins may not match the repo)"  # fresh-home.sh greps for "nvim/lazy-lock.json has uncommitted changes"
+    hint "git -C ${REPO_DIR/#$HOME/~} checkout nvim/lazy-lock.json, then :Lazy restore in nvim"  # fresh-home.sh greps for "checkout nvim/lazy-lock.json"
+  fi
 
   missing=()
   while read -r name; do
