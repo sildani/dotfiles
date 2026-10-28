@@ -48,11 +48,11 @@ Revert and blast-radius claims cover every machine that pulls and re-runs `insta
 ## The README describes what `install.sh` does
 
 A change to what the install moves, copies, links or warns about updates the README's description
-of it in the same PR, including any by-hand steps that point there. The installer reads the
-README, not the script.
+of it in the same PR, including any by-hand steps that point there. Lint checks the link table;
+this covers the prose around it. The installer reads the README, not the script.
 
 ## Agent docs follow `writing-for-agents`
 
-`AGENTS.md` and `docs/agents/` are written by the `mattpocock-skills:writing-for-agents` skill's
+`AGENTS.md`, `docs/agents/` and this file are written by the `mattpocock-skills:writing-for-agents` skill's
 rules. Each flow or rule lives in one file and the others point to it, so a change to it is a
 one-place edit and two files can't give different steps.
