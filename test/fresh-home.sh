@@ -101,8 +101,8 @@ echo '# old tmux config' >"$HOME/.tmux.conf"
 zshrc_own=('export PATH="$HOME/bin:$PATH"' "alias ll='ls -la'" 'DISABLE_AUTO_TITLE="true"')
 # shellcheck disable=SC2016
 printf '%s\n' '# old zsh config' '# If you come from bash you might have to change your $PATH.' '' '' \
-  'export ZSH="$HOME/.oh-my-zsh"' 'ZSH_THEME="robbyrussell"' 'HIST_STAMPS="mm/dd/yyyy"' \
-  "zstyle ':omz:update' mode disabled" 'plugins=(' '  git' '  docker' ')' \
+  'export ZSH="$HOME/.oh-my-zsh"' 'export ZSH_THEME="robbyrussell"' 'HIST_STAMPS="mm/dd/yyyy"' \
+  'export ZSH_CUSTOM="$HOME/omz-custom"' "zstyle ':omz:update' mode disabled" 'plugins=(' '  git' '  docker' ')' \
   'source $ZSH/oh-my-zsh.sh' 'eval "$(/opt/homebrew/bin/brew shellenv)"' "${zshrc_own[@]}" >"$HOME/.zshrc"
 
 # turn_on_extra <tool>/extras/<name>: appends the README's "Line to add" for
@@ -190,6 +190,8 @@ omz_lacks="$(grep 'Oh My Zsh settings the shared zshrc lacks' <<<"$first")" ||
   die "install.sh should name plugin docker, and not git: $omz_lacks"
 [[ "$omz_lacks" == *'HIST_STAMPS="mm/dd/yyyy"'* && "$omz_lacks" == *"zstyle ':omz:update' mode disabled"* ]] ||
   die "install.sh should name HIST_STAMPS and zstyle ':omz:update', which load too late in ~/.zshrc.local: $omz_lacks"
+[[ "$omz_lacks" == *'export ZSH_CUSTOM='* && "$omz_lacks" != *ZSH_THEME* ]] ||
+  die "install.sh should name export ZSH_CUSTOM, and not export ZSH_THEME, which matches the shared zshrc: $omz_lacks"
 zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
 [[ "$(cat "$REPO_DIR/nvim/lazy-lock.json")" == "$lock_seed" ]] ||
   die "install.sh changed nvim/lazy-lock.json:"$'\n'"$(diff <(echo "$lock_seed") "$REPO_DIR/nvim/lazy-lock.json")"

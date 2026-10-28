@@ -106,7 +106,8 @@ install_tools() {
 # its own settings are kept, leaving out comments, blank lines and what the
 # shared zshrc already does: Homebrew's shellenv, loading Oh My Zsh and the
 # settings it reads only while loading (ZSH, ZSH_THEME, plugins, zstyle
-# ':omz:...' and the template's others, listed in the case below).
+# ':omz:...' and the template's others, listed in the case below; each with or
+# without `export `, which the comparison with the shared zshrc ignores).
 # ~/.zshrc.local loads after Oh My Zsh, too late for those settings, so it
 # warns about any whose value differs from the shared zshrc's (plugins only for
 # ones the shared list lacks). Settings Oh My Zsh reads at runtime, such as
@@ -116,7 +117,7 @@ migrate_zshrc() {
   [[ -f "$old" && ! -e "$new" ]] || return 0
   local shared_lines shared_plugins line trimmed setting in_plugins=false plugins="" p
   local kept=() lost=() missing=()
-  shared_lines="$(tr -d "\"'" <"$shared")"
+  shared_lines="$(sed 's/^export //' "$shared" | tr -d "\"'")"
   shared_plugins="$(sed -nE 's/^plugins=\((.*)\)$/\1/p' "$shared")"
   while IFS= read -r line || [[ -n "$line" ]]; do
     trimmed="${line#"${line%%[![:space:]]*}"}"
@@ -129,15 +130,15 @@ migrate_zshrc() {
       plugins+=" ${trimmed%%[)#]*}"
       continue
     fi
-    case "$trimmed" in
+    case "${trimmed#export }" in
       '' | '#'*) ;;
-      'ZSH_THEME='* | 'export ZSH='* | 'CASE_SENSITIVE='* | 'HYPHEN_INSENSITIVE='* | \
+      'ZSH_THEME='* | 'ZSH='* | 'CASE_SENSITIVE='* | 'HYPHEN_INSENSITIVE='* | \
         'DISABLE_MAGIC_FUNCTIONS='* | 'DISABLE_LS_COLORS='* | 'ENABLE_CORRECTION='* | \
         'COMPLETION_WAITING_DOTS='* | 'HIST_STAMPS='* | 'ZSH_CUSTOM='* | \
         'ZSH_THEME_RANDOM_CANDIDATES='* | "zstyle ':omz:"* | 'zstyle ":omz:'*)
         setting="${trimmed%%[[:space:]]#*}"
         setting="${setting%"${setting##*[![:space:]]}"}"
-        grep -qxF -- "$(tr -d "\"'" <<<"$setting")" <<<"$shared_lines" || lost+=("$setting") ;;
+        grep -qxF -- "$(tr -d "\"'" <<<"${setting#export }")" <<<"$shared_lines" || lost+=("$setting") ;;
       'source '*oh-my-zsh.sh* | '. '*oh-my-zsh.sh* | 'eval '*'brew shellenv'*) ;;
       *) kept+=("$line") ;;
     esac
