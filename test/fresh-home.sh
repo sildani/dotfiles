@@ -4,8 +4,9 @@
 # twice for real), then doctor.sh and an interactive zsh. Passes when doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
-# real run backed up the seeded files and left nvim/lazy-lock.json and every
-# nvim plugin at its locked commit, the second changed nothing, doctor exits
+# real run backed up the seeded files, linked ~/.tmux/resurrect to resurrect's
+# saves and left nvim/lazy-lock.json and every nvim plugin at its locked commit,
+# the second changed nothing (not even a real ~/.tmux/resurrect), doctor exits
 # 0 and warns about a stray tmux server only while one runs, about a changed
 # nvim/lazy-lock.json only while it's changed and about an nvim plugin off its
 # locked commit only while one is, zsh starts without
@@ -180,20 +181,31 @@ while read -r name commit; do
   head="$(git -C "$HOME/.local/share/nvim/lazy/$name" rev-parse HEAD 2>/dev/null)" || die "nvim plugin $name not installed"
   [[ "$head" == "$commit" ]] || die "nvim plugin $name is at $head, not its locked $commit"
 done <<<"$locked_plugins"
+resurrect_saves="$HOME/.local/share/tmux/resurrect"
+[[ -L "$HOME/.tmux/resurrect" && "$(readlink "$HOME/.tmux/resurrect")" == "$resurrect_saves" && -d "$resurrect_saves" ]] ||
+  die "first run didn't link ~/.tmux/resurrect to the folder $resurrect_saves"
+grep -qF '• linked ~/.tmux/resurrect -> ' <<<"$first" || die "install.sh didn't say it linked ~/.tmux/resurrect"
 zshrc_local="$(cat "$HOME/.zshrc.local")"
 omz_inode="$(stat -f %i "$HOME/.oh-my-zsh")"
+# A real ~/.tmux/resurrect folder, as on a machine that saved there before the
+# link, which the second run should leave alone.
+rm "$HOME/.tmux/resurrect"
+mkdir "$HOME/.tmux/resurrect"
+echo 'old save' >"$HOME/.tmux/resurrect/tmux_resurrect_old.txt"
 
 echo "install.sh, second run (should change nothing)"
 second="$("$REPO_DIR/install.sh" </dev/null 2>&1)" || { echo "$second" >>"$LOG"; die "second install.sh run failed"; }
 echo "$second" >>"$LOG"
 [[ "$(backups)" == 1 ]] || die "second run created a new backup folder"
 # These are install.sh's messages for each change it makes; keep them in sync.
-changes="$(grep -E 'moved |cloned |copied |✓ [^ ]+ -> ' <<<"$second" || true)"
+changes="$(grep -E 'moved |cloned |copied |linked |✓ [^ ]+ -> ' <<<"$second" || true)"
 [[ -z "$changes" ]] || die "second run changed something: $changes"
 grep -q 'optional extras' <<<"$second" || die "install.sh didn't point to the optional extras"
 grep -qF 'Press Space c h in nvim' <<<"$second" || die "install.sh didn't point to NvChad's cheatsheet"
 [[ "$(stat -f %i "$HOME/.oh-my-zsh")" == "$omz_inode" ]] || die "second run replaced ~/.oh-my-zsh"
 [[ "$(cat "$HOME/.zshrc.local")" == "$zshrc_local" ]] || die "second run changed ~/.zshrc.local"
+[[ ! -L "$HOME/.tmux/resurrect" && "$(cat "$HOME/.tmux/resurrect/tmux_resurrect_old.txt")" == 'old save' ]] ||
+  die "second run changed the real ~/.tmux/resurrect folder"
 
 echo "doctor.sh --diff after install (links match, backups summed up in one line)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed after install"; }

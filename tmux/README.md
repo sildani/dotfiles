@@ -14,8 +14,21 @@ runs them for you.
 - **By hand**: `prefix Ctrl-s` saves now, `prefix Ctrl-r` restores the last
   save. The prefix here is Ctrl-Space.
 
-Saves live in `${XDG_DATA_HOME:-~/.local/share}/tmux/resurrect/` (or
-`~/.tmux/resurrect/` if that folder exists); `last` points to the newest one.
+Saves live in `${XDG_DATA_HOME:-~/.local/share}/tmux/resurrect/`; `last`
+points to the newest one. `install.sh` links `~/.tmux/resurrect` to that folder
+unless something is already at that path; `rm ~/.tmux/resurrect` removes the
+link and leaves the saves. A real `~/.tmux/resurrect/` folder (from before the
+link) is where resurrect saves instead. To fold it into the XDG folder:
+
+```sh
+saves="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/resurrect"
+mkdir -p "$saves" && mv -n ~/.tmux/resurrect/* "$saves/"
+ls ~/.tmux/resurrect  # what's left had the same name in both folders
+```
+
+Delete or move whatever's left, then `rmdir ~/.tmux/resurrect` and re-run
+`./install.sh`. `last` is a relative link, so moved saves keep working; if both
+folders had one, check that the one you keep points to the newest save.
 
 Auto-save and auto-restore stay off on a tmux server started while another tmux
 server is running, so a second server can't overwrite your saves. If tmux
