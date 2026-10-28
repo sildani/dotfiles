@@ -45,4 +45,5 @@ Several issues in one session: follow `docs/agents/batch.md`.
 
 - Write to `.scratch/handoff/handoff.md`.
 - If it already exists, ask: update it in place, or move it to `.scratch/handoff/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
+- A handoff's `Next:` line names a command the user types, such as `/mattpocock-skills:triage 59`: ask the user to run it.
 - When a handoff is done, move it to `.scratch/handoff/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.
