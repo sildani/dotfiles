@@ -6,11 +6,10 @@ The user runs `/mattpocock-skills:implement <n> <n> …` once. Apply it per issu
 
 1. Branch off the updated `main`.
 2. `tdd` at the seam the handoff pre-agreed: red, then green. Stop and ask only when a seam doesn't work.
-3. Commit, staging files by name.
-4. `code-review` on `main...HEAD`; fixes go in a follow-up commit.
-5. Push and open a PR whose body follows `mattpocock-skills:pr` and ends `Closes #N`.
-6. Watch CI by run ID. Green: merge. Red: stop and report.
-7. Run `./prune-merged.sh`.
+3. Commit and `code-review` as AGENTS.md "Writing code" step 2 says.
+4. Push and open a PR whose body follows `mattpocock-skills:pr` and ends `Closes #N`.
+5. Watch CI by run ID. Green: merge. Red: stop and report.
+6. Run `./prune-merged.sh`.
 
 Merge on green before branching the next issue, so each branch builds on the earlier merges, unless the handoff chose another policy.
 
