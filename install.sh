@@ -106,7 +106,8 @@ install_tools() {
 # its own settings are kept, leaving out comments, blank lines and what the
 # shared zshrc already does: Homebrew's shellenv, loading Oh My Zsh and the
 # settings it reads only while loading (ZSH, ZSH_THEME, plugins, zstyle
-# ':omz:...' and the template's others, listed in the case below).
+# ':omz:...' and the template's others, listed in the case below; each with or
+# without `export `, which the comparison with the shared zshrc ignores).
 # ~/.zshrc.local loads after Oh My Zsh, too late for those settings, so it
 # warns about any whose value differs from the shared zshrc's (plugins only for
 # ones the shared list lacks). Settings Oh My Zsh reads at runtime, such as
