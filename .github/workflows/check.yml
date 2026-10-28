@@ -19,6 +19,7 @@ jobs:
           fetch-depth: 0 # gitleaks scans the full history
       - run: brew install shellcheck gitleaks
       - run: test/lint.sh
+      - run: test/lint-selftest.sh
 
   fresh-home:
     runs-on: macos-latest

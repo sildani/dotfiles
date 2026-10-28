@@ -19,7 +19,11 @@ for f in zsh/* zsh/extras/*; do
   zsh -n "$f" || err "zsh syntax check failed: $f"
 done
 
-if command -v gitleaks >/dev/null; then
+# test/lint-selftest.sh sets LINT_SKIP_SECRETS=1: its copies have no history,
+# and its many runs stay fast.
+if [[ -n "${LINT_SKIP_SECRETS:-}" ]]; then
+  echo "lint: LINT_SKIP_SECRETS set, skipping secret scan" >&2
+elif command -v gitleaks >/dev/null; then
   # The pre-commit hook sets LINT_STAGED=1 to scan what's about to be committed.
   scope=()
   [[ -n "${LINT_STAGED:-}" ]] && scope=(--pre-commit --staged)
