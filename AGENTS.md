@@ -45,4 +45,5 @@ Several issues in one session: follow `docs/agents/batch.md`.
 
 - Write to `.scratch/handoff/handoff.md`.
 - If it already exists, ask: update it in place, or move it to `.scratch/handoff/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
+- When you pick up a handoff, its `Next:` heading names a command the user types, such as `/mattpocock-skills:triage <n>`. These user-only skills are installed but left out of your skill list, so ask the user to run it.
 - When a handoff is done, move it to `.scratch/handoff/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.
