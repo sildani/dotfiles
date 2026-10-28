@@ -28,14 +28,14 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created only
 
 Every change reaches `main` through a pull request; `hooks/pre-commit` refuses commits on `main`.
 
-By default, suggest this flow before starting:
+The user runs `/mattpocock-skills:implement` from `main`. Carry it through to a pushed branch in one go:
 
-1. Branch off `main`. `/implement` commits to the current branch, so branch first.
-2. The user runs `/mattpocock-skills:implement`, which builds with `tdd` and ends with `code-review`. It is user-invoked only, so suggest it rather than call it. When it reaches `code-review`, commit first, staging files by name (the review diffs `main...HEAD`); fixes go in a follow-up commit.
-3. Push and open a PR whose body follows the `mattpocock-skills:pr` skill.
-4. Watch CI; if it passes, merge the PR. If it fails, stop and report.
-5. Run `./prune-merged.sh`: it switches to `main`, pulls, and deletes every merged branch locally and on `origin`.
-6. The user runs `/mattpocock-skills:retro`. It is user-invoked only, so suggest it rather than call it.
+1. Pull `main` and branch off it, named after the change. `/implement` commits to the current branch.
+2. Build with `tdd`, then commit, staging files by name (`code-review` diffs `main...HEAD`).
+3. Run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why.
+4. Push the branch, report, and stop until the user runs `/mattpocock-skills:pr`. Then open the PR with a body that follows it.
+5. Watch CI by run ID. Green: merge it and run `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`). Red: stop and report.
+6. Suggest `/mattpocock-skills:retro`; the user runs it.
 
 Several issues in one session: follow `docs/agents/batch.md`.
 
