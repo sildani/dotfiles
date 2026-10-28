@@ -191,11 +191,24 @@ install_tmux_plugins() {
   ok "plugins installed"
 }
 
+# The repo's nvim/lazy-lock.json, saved by install_nvim_plugins.
+pinned_lazy_lock=""
+put_back_lazy_lock() { printf '%s\n' "$pinned_lazy_lock" >"$REPO_DIR/nvim/lazy-lock.json"; }
+
 install_nvim_plugins() {
   section "nvim plugins (lazy.nvim, pinned by lazy-lock.json)"
   local log="$HOME/.dotfiles-install.log"
   : >"$log"
+  # On a fresh install lazy rewrites the lockfile between its install rounds,
+  # dropping the plugins NvChad's spec imports, so they land at their latest
+  # commits. Let it install everything, put the lockfile back, then restore.
+  # The trap puts it back too if either step fails or is interrupted.
+  pinned_lazy_lock="$(cat "$REPO_DIR/nvim/lazy-lock.json")"
+  trap put_back_lazy_lock EXIT
+  run_logged "$log" nvim --headless +qa
+  put_back_lazy_lock
   run_logged "$log" nvim --headless "+Lazy! restore" +qa
+  trap - EXIT
   ok "plugins restored to lazy-lock.json"
 
   info "installing treesitter parsers: $(wanted_parsers | tr '\n' ' ')"

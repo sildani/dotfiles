@@ -4,8 +4,10 @@
 # twice for real), then doctor.sh and an interactive zsh. Passes when doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
-# real run backed up the seeded files, the second changed nothing, doctor exits
-# 0 and warns about a stray tmux server only while one runs, zsh starts without
+# real run backed up the seeded files and left nvim/lazy-lock.json and every
+# nvim plugin at its locked commit, the second changed nothing, doctor exits
+# 0 and warns about a stray tmux server only while one runs and about a changed
+# nvim/lazy-lock.json only while it's changed, zsh starts without
 # errors and exports DOTFILES as the repo, tmux loads its config and every extra
 # without errors, and every extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), and the real repo's working tree is as it
@@ -74,6 +76,10 @@ mkdir -p "$REPO_DIR"
     if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi  # skip deleted, not yet committed
   done | tar --null -T - -cf -
 ) | tar -xf - -C "$REPO_DIR"
+# A checkout, as a clone would be, so doctor.sh can check it for changes.
+git -C "$REPO_DIR" init -q
+git -C "$REPO_DIR" add -A
+git -C "$REPO_DIR" -c user.name=fresh-home -c user.email=fresh-home@localhost commit -qm snapshot
 # The copy's, so its REPO_DIR is the copy too. For EXTRAS_ROW_RE.
 # shellcheck source=lib/common.sh
 source "$REPO_DIR/lib/common.sh"
@@ -116,6 +122,7 @@ printf '#!/bin/sh\ncase "$*" in *ohmyzsh*) echo "simulated clone failure" >&2; e
   "$(command -v git)" >"$SHIM_DIR/git"
 chmod +x "$SHIM_DIR/git"
 zshrc_seed="$(cat "$HOME/.zshrc")"
+lock_seed="$(cat "$REPO_DIR/nvim/lazy-lock.json")"
 
 echo "doctor.sh --diff before install (should show the seeded files and change nothing)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed"; }
@@ -169,6 +176,16 @@ done
 grep -qx '# old zsh config' "$HOME/.zshrc.local" || die "old ~/.zshrc was not copied to ~/.zshrc.local"
 grep -q '^source' "$HOME/.zshrc.local" && die ".zshrc.local still loads Oh My Zsh itself"
 zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
+[[ "$(cat "$REPO_DIR/nvim/lazy-lock.json")" == "$lock_seed" ]] ||
+  die "install.sh changed nvim/lazy-lock.json:"$'\n'"$(diff <(echo "$lock_seed") "$REPO_DIR/nvim/lazy-lock.json")"
+locked=0
+while read -r name commit; do
+  head="$(git -C "$HOME/.local/share/nvim/lazy/$name" rev-parse HEAD 2>/dev/null)" || die "nvim plugin $name not installed"
+  [[ "$head" == "$commit" ]] || die "nvim plugin $name is at $head, not its locked $commit"
+  locked=$((locked + 1))
+done < <(sed -nE 's/^  "([^"]+)": \{ "branch": "[^"]*", "commit": "([0-9a-f]+)" \},?$/\1 \2/p' <<<"$lock_seed")
+# A lockfile format this sed doesn't know would check nothing.
+[[ "$locked" -gt 0 ]] || die "found no plugins in nvim/lazy-lock.json; has lazy changed its format?"
 zshrc_local="$(cat "$HOME/.zshrc.local")"
 omz_inode="$(stat -f %i "$HOME/.oh-my-zsh")"
 
@@ -208,6 +225,18 @@ doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die
 echo "$doctor_out" >>"$LOG"
 grep -qF 'tmux servers besides the default one are running' <<<"$doctor_out" &&
   die "doctor.sh warned about stray tmux servers with none running (stop any left over and rerun)"
+grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" &&
+  die "doctor.sh warned about a changed nvim/lazy-lock.json after a clean install"
+
+echo "doctor.sh with a changed nvim/lazy-lock.json (should warn, with the fix, and still pass)"
+sed -i '' -E 's/"commit": "[0-9a-f]+"/"commit": "0000000000000000000000000000000000000000"/' "$REPO_DIR/nvim/lazy-lock.json"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a changed nvim/lazy-lock.json"; }
+git -C "$REPO_DIR" checkout -q nvim/lazy-lock.json
+echo "$doctor_out" >>"$LOG"
+grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" ||
+  die "doctor.sh didn't warn about the changed nvim/lazy-lock.json"
+grep -qF 'checkout nvim/lazy-lock.json' <<<"$doctor_out" ||
+  die "doctor.sh didn't say how to put nvim/lazy-lock.json back"
 
 echo "doctor.sh with a stray tmux server (should warn, naming it, and still pass)"
 tmux -L "$STRAY_SOCKET" -f /dev/null new-session -d >>"$LOG" 2>&1 || die "tmux didn't start"
