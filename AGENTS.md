@@ -31,8 +31,8 @@ Every change reaches `main` through a pull request; `hooks/pre-commit` refuses c
 By default, suggest this flow before starting:
 
 1. Branch off `main`. `/implement` commits to the current branch, so branch first.
-2. The user runs `/mattpocock-skills:implement`, which builds with `tdd` and ends with `code-review`. It is user-invoked only, so suggest it rather than call it.
-3. Commit, push, and open a PR whose body follows the `mattpocock-skills:pr` skill.
+2. The user runs `/mattpocock-skills:implement`, which builds with `tdd` and ends with `code-review`. It is user-invoked only, so suggest it rather than call it. When it reaches `code-review`, commit first, staging files by name (the review diffs `main...HEAD`); fixes go in a follow-up commit.
+3. Push and open a PR whose body follows the `mattpocock-skills:pr` skill.
 4. Watch CI; if it passes, merge the PR. If it fails, stop and report.
 5. Run `./prune-merged.sh`: it switches to `main`, pulls, and deletes every merged branch locally and on `origin`.
 6. The user runs `/mattpocock-skills:retro`. It is user-invoked only, so suggest it rather than call it.
