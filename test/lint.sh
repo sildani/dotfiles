@@ -19,8 +19,8 @@ for f in zsh/* zsh/extras/*; do
   zsh -n "$f" || err "zsh syntax check failed: $f"
 done
 
-# test/lint-selftest.sh sets LINT_SKIP_SECRETS=1: its copies have no history,
-# and its many runs stay fast.
+# test/lint-selftest.sh sets LINT_SKIP_SECRETS=1: its copies have only a
+# snapshot commit, and its many runs stay fast.
 if [[ -n "${LINT_SKIP_SECRETS:-}" ]]; then
   echo "lint: LINT_SKIP_SECRETS set, skipping secret scan" >&2
 elif command -v gitleaks >/dev/null; then
