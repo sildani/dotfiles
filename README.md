@@ -43,9 +43,12 @@ cd "$DOTFILES" && git pull && ./install.sh
   which would otherwise override the repo's file. A machine's own `~/.zshrc` is
   backed up too, and copied to `~/.zshrc.local` (if that doesn't exist yet) so its
   PATH and tool setup keep working. The copy leaves out comments, blank lines and
-  what the shared zshrc already does (Homebrew, loading Oh My Zsh, and its `ZSH`,
-  `ZSH_THEME` and `plugins` settings); install warns about any of those settings
-  that differ from the shared zshrc's, to add to `zsh/zshrc` by hand.
+  what the shared zshrc already does (Homebrew, loading Oh My Zsh, and the
+  settings it reads only while loading: `ZSH`, `ZSH_THEME`, `plugins`, `zstyle
+  ':omz:…'` lines and the template's others, such as `HIST_STAMPS`; the full list
+  is in `migrate_zshrc` in `install.sh`). Those load too late in `~/.zshrc.local`,
+  so install warns about any that differ from the shared zshrc's, to add to
+  `zsh/zshrc` by hand.
 - installs Oh My Zsh, and links its sample zshrc, with all its comments, to
   `~/.zshrc.example` (unless something is already there).
 - installs tmux plugins (TPM), nvim plugins at the versions in

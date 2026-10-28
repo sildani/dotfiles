@@ -105,11 +105,12 @@ install_tools() {
 # which the shared zshrc sources last. Skipped if ~/.zshrc.local exists. Only
 # its own settings are kept, leaving out comments, blank lines and what the
 # shared zshrc already does: Homebrew's shellenv, loading Oh My Zsh and the
-# settings it reads only while loading (ZSH, ZSH_THEME, plugins, HIST_STAMPS,
-# zstyle ':omz:...' and the like). ~/.zshrc.local loads after Oh My Zsh, too
-# late for those settings, so it warns about any whose value differs from the
-# shared zshrc's (plugins only for ones the shared list lacks). Settings Oh My
-# Zsh reads at runtime, such as DISABLE_AUTO_TITLE, are kept.
+# settings it reads only while loading (ZSH, ZSH_THEME, plugins, zstyle
+# ':omz:...' and the template's others, listed in the case below).
+# ~/.zshrc.local loads after Oh My Zsh, too late for those settings, so it
+# warns about any whose value differs from the shared zshrc's (plugins only for
+# ones the shared list lacks). Settings Oh My Zsh reads at runtime, such as
+# DISABLE_AUTO_TITLE, are kept.
 migrate_zshrc() {
   local old="$HOME/.zshrc" new="$HOME/.zshrc.local" shared="$REPO_DIR/zsh/zshrc"
   [[ -f "$old" && ! -e "$new" ]] || return 0
