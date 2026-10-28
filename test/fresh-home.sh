@@ -4,7 +4,9 @@
 # twice for real), then doctor.sh and an interactive zsh. Passes when doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
-# real run backed up the seeded files, linked ~/.tmux/resurrect to resurrect's
+# real run backed up the seeded files, copied only the old ~/.zshrc's own lines
+# to ~/.zshrc.local (warning about its plugins the shared zshrc lacks), linked
+# ~/.zshrc.example to Oh My Zsh's template and ~/.tmux/resurrect to resurrect's
 # saves and left nvim/lazy-lock.json and every nvim plugin at its locked commit,
 # the second changed nothing (not even a real ~/.tmux/resurrect), doctor exits
 # 0 and warns about a stray tmux server only while one runs, about a changed
@@ -93,8 +95,13 @@ echo '-- old config' >"$HOME/.config/nvim/init.lua"
 mkdir -p "$HOME/.config/nvim/lua"
 echo '-- old per-machine config' >"$HOME/.config/nvim/lua/local.lua"
 echo '# old tmux config' >"$HOME/.tmux.conf"
-# shellcheck disable=SC2016  # a literal zshrc line, not expanded here
-printf '%s\n' '# old zsh config' 'source $ZSH/oh-my-zsh.sh' >"$HOME/.zshrc"
+# In the shapes of Oh My Zsh's template, plus two lines of the machine's own.
+# shellcheck disable=SC2016  # literal zshrc lines, not expanded here
+zshrc_own=('export PATH="$HOME/bin:$PATH"' "alias ll='ls -la'")
+# shellcheck disable=SC2016
+printf '%s\n' '# old zsh config' '# If you come from bash you might have to change your $PATH.' '' '' \
+  'export ZSH="$HOME/.oh-my-zsh"' 'ZSH_THEME="robbyrussell"' 'plugins=(' '  git' '  docker' ')' \
+  'source $ZSH/oh-my-zsh.sh' 'eval "$(/opt/homebrew/bin/brew shellenv)"' "${zshrc_own[@]}" >"$HOME/.zshrc"
 
 # turn_on_extra <tool>/extras/<name>: appends the README's "Line to add" for
 # it to its "Per-machine file", so the test runs what people paste.
@@ -168,8 +175,15 @@ for f in .tmux.conf .zshrc .config/nvim/init.lua "Library/Application Support/co
   [[ -e "$backup/$f" ]] || die "seeded file was not backed up: $f"
 done
 [[ ! -e "$ghostty_lib/config.ghostty" ]] || die "Ghostty Library config still in place"
-grep -qx '# old zsh config' "$HOME/.zshrc.local" || die "old ~/.zshrc was not copied to ~/.zshrc.local"
+[[ "$(grep -v '^#' "$HOME/.zshrc.local")" == "$(printf '%s\n' "${zshrc_own[@]}")" ]] ||
+  die "the copied ~/.zshrc.local isn't the header plus the old ~/.zshrc's own lines:"$'\n'"$(cat "$HOME/.zshrc.local")"
 grep -q '^source' "$HOME/.zshrc.local" && die ".zshrc.local still loads Oh My Zsh itself"
+[[ "$(readlink "$HOME/.zshrc.example")" == "$HOME/.oh-my-zsh/templates/zshrc.zsh-template" ]] ||
+  die "first run didn't link ~/.zshrc.example to Oh My Zsh's template"
+omz_lacks="$(grep 'Oh My Zsh settings the shared zshrc lacks' <<<"$first")" ||
+  die "install.sh didn't warn about the old ~/.zshrc's plugins the shared zshrc lacks"
+[[ " $omz_lacks " == *" docker "* && " $omz_lacks " != *" git "* ]] ||
+  die "install.sh should name plugin docker, and not git: $omz_lacks"
 zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
 [[ "$(cat "$REPO_DIR/nvim/lazy-lock.json")" == "$lock_seed" ]] ||
   die "install.sh changed nvim/lazy-lock.json:"$'\n'"$(diff <(echo "$lock_seed") "$REPO_DIR/nvim/lazy-lock.json")"

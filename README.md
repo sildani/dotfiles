@@ -42,9 +42,18 @@ cd "$DOTFILES" && git pull && ./install.sh
   It also moves away Ghostty's `~/Library/Application Support/com.mitchellh.ghostty/config*`,
   which would otherwise override the repo's file. A machine's own `~/.zshrc` is
   backed up too, and copied to `~/.zshrc.local` (if that doesn't exist yet) so its
-  PATH and tool setup keep working; its Oh My Zsh load is commented out there.
-- installs Oh My Zsh, tmux plugins (TPM), nvim plugins at the versions in
+  PATH and tool setup keep working. The copy leaves out comments, blank lines and
+  what the shared zshrc already does (Homebrew, loading Oh My Zsh, and its `ZSH`,
+  `ZSH_THEME` and `plugins` settings); install warns about any of those settings
+  that differ from the shared zshrc's, to add to `zsh/zshrc` by hand.
+- installs Oh My Zsh, and links its sample zshrc, with all its comments, to
+  `~/.zshrc.example` (unless something is already there).
+- installs tmux plugins (TPM), nvim plugins at the versions in
   `nvim/lazy-lock.json`, and the treesitter parsers for the files in this repo.
+
+A `~/.zshrc.local` copied by an older install still has the whole old `~/.zshrc`.
+To tidy it by hand, delete its comments and the lines the shared zshrc already
+does (listed above); move any Oh My Zsh settings you want to keep into `zsh/zshrc`.
 
 It never logs in to GitHub or changes git/gh config: each machine keeps its own account.
 

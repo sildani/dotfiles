@@ -104,15 +104,54 @@ install_tools() {
 # A machine's own ~/.zshrc (PATH, nvm, ...) keeps working as ~/.zshrc.local,
 # which the shared zshrc sources last. Its own Oh My Zsh load is commented out
 # because the shared zshrc already does that. Skipped if ~/.zshrc.local exists.
+# Keeps ~/.zshrc's own settings in ~/.zshrc.local, leaving out comments, blank
+# lines and what the shared zshrc already does: Homebrew's shellenv, loading
+# Oh My Zsh and its ZSH, ZSH_THEME and plugins settings. ~/.zshrc.local loads
+# after Oh My Zsh, too late for those settings, so it warns about any that
+# differ from the shared zshrc's (plugins only for ones the shared list lacks).
 migrate_zshrc() {
-  local old="$HOME/.zshrc" new="$HOME/.zshrc.local"
+  local old="$HOME/.zshrc" new="$HOME/.zshrc.local" shared="$REPO_DIR/zsh/zshrc"
   [[ -f "$old" && ! -e "$new" ]] || return 0
+  local shared_lines shared_plugins line trimmed in_plugins=false plugins="" p
+  local kept=() lost=() missing=()
+  shared_lines="$(tr -d "\"'" <"$shared")"
+  shared_plugins="$(sed -nE 's/^plugins=\((.*)\)$/\1/p' "$shared")"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+    if $in_plugins; then
+      [[ "$trimmed" == *")"* ]] && in_plugins=false
+      plugins+=" ${trimmed%%[)#]*}"
+      continue
+    fi
+    case "$trimmed" in
+      '' | '#'*) ;;
+      'plugins=('*)
+        trimmed="${trimmed#plugins=(}"
+        [[ "$trimmed" == *")"* ]] || in_plugins=true
+        plugins+=" ${trimmed%%[)#]*}" ;;
+      'ZSH_THEME='* | 'export ZSH='*)
+        grep -qxF -- "$(tr -d "\"'" <<<"$trimmed")" <<<"$shared_lines" || lost+=("$trimmed") ;;
+      'source '*oh-my-zsh.sh* | '. '*oh-my-zsh.sh* | 'eval '*'brew shellenv'*) ;;
+      *) kept+=("$line") ;;
+    esac
+  done <"$old"
+  for p in $plugins; do
+    [[ " $shared_plugins " == *" $p "* ]] || missing+=("$p")
+  done
+  ((${#missing[@]})) && lost+=("plugins ${missing[*]}")
+
   {
-    echo "# Moved from ~/.zshrc by install.sh on $(date +%Y-%m-%d). The shared zshrc"
-    echo "# already loads Homebrew and Oh My Zsh; trim what it duplicates."
-    sed -E 's/^([[:space:]]*(source|\.)[[:space:]].*oh-my-zsh\.sh.*)$/# \1  # loaded by the shared zshrc/' "$old"
+    echo "# Moved from ~/.zshrc by install.sh on $(date +%Y-%m-%d), without what the"
+    echo "# shared zshrc already does. The full original is in"
+    echo "#   ${BACKUP_DIR/#$HOME/~}/.zshrc"
+    echo "# and Oh My Zsh's sample zshrc, with all its comments, is at ~/.zshrc.example."
+    if ((${#kept[@]})); then printf '%s\n' "${kept[@]}"; fi
   } >"$new"
   info "copied ~/.zshrc to ~/.zshrc.local so this machine's shell setup keeps working"  # fresh-home.sh greps for "copied "
+  if ((${#lost[@]})); then
+    warn "Oh My Zsh settings the shared zshrc lacks weren't copied (~/.zshrc.local loads too late for them): ${lost[*]}"  # fresh-home.sh greps for "Oh My Zsh settings the shared zshrc lacks"
+    hint "to keep them, add them to zsh/zshrc"
+  fi
 }
 
 link_configs() {
@@ -172,6 +211,13 @@ install_oh_my_zsh() {
     ok "cloned Oh My Zsh"  # fresh-home.sh greps for "cloned "
   else
     ok "Oh My Zsh ($ZSH_DIR)"
+  fi
+  # Oh My Zsh's sample zshrc, comments and all, which a migrated ~/.zshrc.local
+  # points to. Anything already at ~/.zshrc.example is left alone.
+  local example="$HOME/.zshrc.example" template="$ZSH_DIR/templates/zshrc.zsh-template"
+  if [[ -f "$template" && ! -e "$example" && ! -L "$example" ]]; then
+    ln -s "$template" "$example"
+    info "linked ~/.zshrc.example -> ${template/#$HOME/~}"  # fresh-home.sh greps for "linked "
   fi
 }
 
