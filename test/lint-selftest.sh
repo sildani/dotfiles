@@ -93,11 +93,11 @@ done < <(cd "$REPO_DIR" && printf '%s\n' */extras/*)
 # Each test script: its CI step dropped, its README "Checks" bullet dropped.
 for f in "$REPO_DIR"/test/*.sh; do
   f="test/${f##*/}"
-  re="${f//./\\.}"
-  re="${re//\//\\/}"
-  mutate .github/workflows/check.yml "/^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${re}[[:space:]]*\$/d" \
+  path_re="${f//./\\.}"
+  path_re="${path_re//\//\\/}"
+  mutate .github/workflows/check.yml "/^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${path_re}[[:space:]]*\$/d" \
     "check.yml step dropped for $f" "$f"
-  mutate README.md "/^- \`$re\`:/d" "README Checks bullet dropped for $f" "$f"
+  mutate README.md "/^- \`${path_re}\`:/d" "README Checks bullet dropped for $f" "$f"
 done
 
 # A test script in neither list.
