@@ -8,7 +8,7 @@ macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `
 - Work machines are pull-only: put machine-specific changes in `~/.zshrc.local`, `nvim/lua/local.lua`, `~/.tmux.local.conf` or `~/.config/ghostty/local`.
 - Optional per-machine tweaks: `<tool>/extras/`, turned on from that tool's per-machine file (README "Optional extras").
 - Scripts must run on stock macOS bash 3.2 (a new machine has no newer bash): expand possibly-empty arrays as `${arr[@]+"${arr[@]}"}`.
-- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker or extras checks) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all three on macOS. `test/fresh-home.sh` takes minutes: run it once for green, in the background with output to a log, and again after any change to what it installs or checks; docs-only changes skip it.
+- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker or extras checks) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all three on macOS. `test/fresh-home.sh` takes minutes: commit first, then run it once for green, in the background with output to a log, and leave the repo alone until it finishes. Run it again after any change to what it installs or checks; docs-only changes skip it.
 
 ## Agent skills
 
@@ -34,7 +34,7 @@ The user runs `/mattpocock-skills:implement` from `main`. Carry it through to a 
 2. Build with `tdd`, then commit, staging files by name (`code-review` diffs `main...HEAD`).
 3. Run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why.
 4. Push the branch, report, and stop. When the user runs `/mattpocock-skills:pr`, create the PR (`gh pr create`) with a body that follows that skill.
-5. Watch CI by run ID. Green: merge it and run `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`). Red: stop and report.
+5. Watch CI by run ID and report. Red: stop. When the user says to merge: merge it and run `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`).
 6. Suggest `/mattpocock-skills:retro`; the user runs it.
 
 Several issues in one session: follow `docs/agents/batch.md`.
