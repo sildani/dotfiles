@@ -1,6 +1,6 @@
 # Batch sessions
 
-Several issues implemented in one session, one branch and PR each, after a separate triage session. The triage session leaves its decisions (labels, spec amendments, order, seams, merge policy) in `.scratch/handoff/handoff.md`, and the issue comments amend the specs: read both.
+Several issues implemented in one session, one branch and PR each, after a separate triage session. The triage session leaves its decisions (labels, spec amendments, order, seams, merge policy) in `.scratch/handoffs/handoff.md`, and the issue comments amend the specs: read both.
 
 The user runs `/mattpocock-skills:implement <n> <n> …` once. Apply it per issue: finish the whole loop for one issue before starting the next.
 
@@ -8,7 +8,7 @@ The user runs `/mattpocock-skills:implement <n> <n> …` once. Apply it per issu
 2. `tdd` at the seam the handoff pre-agreed: red, then green. Stop and ask only when a seam doesn't work.
 3. Commit and `code-review` as AGENTS.md "Writing code" says.
 4. Push and open a PR whose body follows `mattpocock-skills:pr` and ends `Closes #N`. A batch doesn't stop for the user's `/pr` the way a single change does.
-5. Watch CI by run ID. Green: merge and prune as AGENTS.md "Writing code" step 5 says, without waiting for the user. Red: stop and report.
+5. Watch CI, then merge and prune or stop, as AGENTS.md "Writing code" step 5 says.
 
 Merge on green before branching the next issue, so each branch builds on the earlier merges, unless the handoff chose another policy.
 

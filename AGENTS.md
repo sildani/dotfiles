@@ -34,8 +34,8 @@ The user runs `/mattpocock-skills:implement` from `main`. Carry it through to a 
 2. Build with `tdd`, then commit, staging files by name (`code-review` diffs `main...HEAD`).
 3. Run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why.
 4. Push the branch, report, and stop. When the user runs `/mattpocock-skills:pr`, create the PR (`gh pr create`) with a body that follows that skill.
-5. Watch CI by run ID and report. Red: stop. When the user says to merge: merge it and run `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`).
-6. Suggest `/mattpocock-skills:retro`; the user runs it.
+5. Watch CI by run ID. Green: merge and run `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`), then report. Red: stop and report.
+6. With no tasks left in the session, suggest `/mattpocock-skills:retro`; the user runs it.
 
 Several issues in one session: follow `docs/agents/batch.md`.
 
@@ -43,7 +43,7 @@ Several issues in one session: follow `docs/agents/batch.md`.
 
 `.scratch/` is gitignored local space. `/handoff` writes here, not to `$TMPDIR`:
 
-- Write to `.scratch/handoff/handoff.md`.
-- If it already exists, ask: update it in place, or move it to `.scratch/handoff/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
+- Write to `.scratch/handoffs/handoff.md`.
+- If it already exists, ask: update it in place, or move it to `.scratch/handoffs/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
 - When you pick up a handoff, its `Next:` heading names a command the user types, such as `/mattpocock-skills:triage <n>`. These user-only skills are installed but left out of your skill list, so ask the user to run it.
-- When a handoff is done, move it to `.scratch/handoff/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.
+- When a handoff is done, move it to `.scratch/handoffs/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.
