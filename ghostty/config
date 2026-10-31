@@ -1,5 +1,8 @@
 font-family = "Hurmit Nerd Font Mono"
 
+# No title bar: drag the window with Option+click on its frame.
+macos-titlebar-style = hidden
+
 # Per-machine overrides (not in the repo): ~/.config/ghostty/local
 # The leading ? makes it optional. Must stay the last line so it wins.
 config-file = ?local
