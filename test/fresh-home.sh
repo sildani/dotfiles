@@ -14,9 +14,10 @@
 # locked commit only while one is, zsh starts without
 # errors and exports DOTFILES as the repo, tmux loads its config and every extra
 # without errors, and every extra turns on from its README line, pasted as is
-# (and doctor flags a missing one), Ghostty reads the shared config's window
-# settings and ghostty/extras/window-frame.conf undoes them, and the real repo's
-# working tree is as it was. Set KEEP=1 to keep the temp HOME.
+# (and doctor flags a missing one), Ghostty accepts its config and every extra,
+# reads the shared config's window settings and ghostty/extras/window-frame.conf
+# undoes them, and the real repo's working tree is as it was. Set KEEP=1 to keep
+# the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -317,6 +318,12 @@ for opt in set-clipboard allow-passthrough; do
   [[ "$(tmux -L "$TMUX_SOCKET" show -gv "$opt" 2>>"$LOG")" == on ]] || die "tmux config or an extra left $opt off"
 done
 tmux -L "$TMUX_SOCKET" kill-server
+
+echo "Ghostty config and every Ghostty extra are valid"
+for f in "$HOME/.config/ghostty/config" "$REPO_DIR"/ghostty/extras/*; do
+  "$(ghostty_app)/Contents/MacOS/ghostty" +validate-config --config-file="$f" >>"$LOG" 2>&1 ||
+    die "Ghostty reports errors in ${f/#$HOME/~}"
+done
 
 echo "Ghostty reads the shared config's window settings"
 ghostty_expect "shared config" window-decoration none

@@ -82,12 +82,13 @@ for dir in */extras; do
   fi
 done
 
-# The repo can be cloned anywhere: docs and extras lines use $DOTFILES, and
-# the clone path appears only as README's example.
+# The repo can be cloned anywhere: docs and extras lines reach it through
+# $DOTFILES or a link install.sh made, and the clone path appears only as
+# README's example.
 # shellcheck disable=SC2088  # literal text to search for, split so this file doesn't match
 clone_path='~/code''/dotfiles'
 while IFS= read -r hit; do
-  [[ "$hit" == "README.md:DOTFILES=$clone_path "* ]] || err "hard-coded clone path, use \$DOTFILES: $hit"
+  [[ "$hit" == "README.md:DOTFILES=$clone_path "* ]] || err "hard-coded clone path, use \$DOTFILES or a link install.sh made: $hit"
 done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . | sed 's|^\./||')
 
 # Messages test/fresh-home.sh greps for carry a `# fresh-home.sh greps for
