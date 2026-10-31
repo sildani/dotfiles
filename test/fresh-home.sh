@@ -124,7 +124,8 @@ backups() { find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1 2>/dev/null | 
 # once it has loaded ~/.config/ghostty/config and everything that pulls in.
 ghostty_expect() {
   local got
-  got="$("$(ghostty_app)/Contents/MacOS/ghostty" +show-config --changes-only=false 2>>"$LOG" | sed -n "s/^$2 = //p")"
+  got="$("$(ghostty_app)/Contents/MacOS/ghostty" +show-config --changes-only=false 2>>"$LOG" | sed -n "s/^$2 = //p")" ||
+    die "$1: ghostty +show-config failed"
   [[ "$got" == "$3" ]] || die "$1: Ghostty has $2 = '$got', not '$3'"
 }
 
@@ -242,7 +243,7 @@ grep -qF 'Press Space c h in nvim' <<<"$second" || die "install.sh didn't point 
 echo "doctor.sh --diff after install (links match, backups summed up in one line)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed after install"; }
 echo "$diff_out" >>"$LOG"
-[[ "$(grep -c 'already links to the repo' <<<"$diff_out")" == 4 ]] || die "doctor.sh --diff didn't find all 4 links"
+[[ "$(grep -c 'already links to the repo' <<<"$diff_out")" == "${#LINKS[@]}" ]] || die "doctor.sh --diff didn't find all ${#LINKS[@]} links"
 grep -q 'would be' <<<"$diff_out" && die "doctor.sh --diff says install would still change something"
 grep -qF "4 backed-up originals differ from the repo (newest: ${backup##*/})" <<<"$diff_out" ||
   die "doctor.sh --diff didn't sum up the 4 backed-up originals"
@@ -347,7 +348,7 @@ tmux -L "$TMUX_SOCKET" kill-server
 prompt="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'print -P "$PROMPT"' 2>&1)"
 echo "prompt: $prompt" >>"$LOG"
 grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' <<<"$prompt" || die "utc-prompt.zsh's prompt has no timestamp: $prompt"
-rm "$HOME/.tmux.local.conf"
+rm "$HOME/.tmux.local.conf" "$HOME/.config/ghostty/local"
 printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 echo "tmux extra missing from the repo"
