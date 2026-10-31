@@ -26,6 +26,7 @@ LINKS=(
   "tmux/tmux.conf:$HOME/.tmux.conf"
   "nvim:$HOME/.config/nvim"
   "ghostty/config:$HOME/.config/ghostty/config"
+  "ghostty/extras:$HOME/.config/ghostty/extras"
 )
 
 # Per-machine overrides the shared configs load if present. Not in git.
@@ -42,6 +43,7 @@ LOCAL_FILES=(
 EXTRAS_HOSTS=(
   "tmux:$HOME/.tmux.local.conf"
   "zsh:$HOME/.zshrc.local"
+  "ghostty:$HOME/.config/ghostty/local"
 )
 
 # An extra's row in the README "Optional extras" table ends in its "Line to

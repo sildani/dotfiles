@@ -32,12 +32,13 @@ cd "$DOTFILES" && git pull && ./install.sh
   warning with how to upgrade.
 - symlinks the configs (existing files are moved to `~/.dotfiles-backup/<time>/`):
 
-  | Repo             | Linked at                   |
-  | ---------------- | --------------------------- |
-  | `zsh/zshrc`      | `~/.zshrc`                  |
-  | `tmux/tmux.conf` | `~/.tmux.conf`              |
-  | `nvim/`          | `~/.config/nvim`            |
-  | `ghostty/config` | `~/.config/ghostty/config`  |
+  | Repo              | Linked at                   |
+  | ----------------- | --------------------------- |
+  | `zsh/zshrc`       | `~/.zshrc`                  |
+  | `tmux/tmux.conf`  | `~/.tmux.conf`              |
+  | `nvim/`           | `~/.config/nvim`            |
+  | `ghostty/config`  | `~/.config/ghostty/config`  |
+  | `ghostty/extras/` | `~/.config/ghostty/extras`  |
 
   It also moves away Ghostty's `~/Library/Application Support/com.mitchellh.ghostty/config*`,
   which would otherwise override the repo's file. A machine's own `~/.zshrc` is
@@ -110,14 +111,17 @@ Snippets that are in the repo but off by default. Turn one on for a machine by
 adding its line to that machine's per-machine file; `doctor.sh` lists the ones
 in use. tmux gets `$DOTFILES` from the shell that starts its server: if the
 server started before your shell had it (first install, or the update that
-added it), open a new shell and run `tmux kill-server` once.
+added it), open a new shell and run `tmux kill-server` once. Ghostty doesn't
+expand `$DOTFILES`, so its extras load through the `~/.config/ghostty/extras`
+link instead.
 
 <!-- test/lint.sh checks each row and test/fresh-home.sh turns each extra on from it (EXTRAS_ROW_RE in lib/common.sh): keep the last two cells as `<line>` and `<file>`. -->
 
-| Extra                         | What it does                                   | Line to add                                           | Per-machine file     |
-| ----------------------------- | ---------------------------------------------- | ----------------------------------------------------- | -------------------- |
-| `tmux/extras/agy-ctrl-k.conf` | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file "$DOTFILES/tmux/extras/agy-ctrl-k.conf"` | `~/.tmux.local.conf` |
-| `zsh/extras/utc-prompt.zsh`   | Prompt starts with the current UTC time        | `source "$DOTFILES/zsh/extras/utc-prompt.zsh"`        | `~/.zshrc.local`     |
+| Extra                              | What it does                                   | Line to add                                                | Per-machine file          |
+| ---------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- | ------------------------- |
+| `tmux/extras/agy-ctrl-k.conf`      | `prefix Ctrl-k` sends Ctrl-k to the pane (agy) | `source-file "$DOTFILES/tmux/extras/agy-ctrl-k.conf"`      | `~/.tmux.local.conf`      |
+| `zsh/extras/utc-prompt.zsh`        | Prompt starts with the current UTC time        | `source "$DOTFILES/zsh/extras/utc-prompt.zsh"`             | `~/.zshrc.local`          |
+| `ghostty/extras/window-frame.conf` | Brings back Ghostty's title bar and frame      | `config-file = ~/.config/ghostty/extras/window-frame.conf` | `~/.config/ghostty/local` |
 
 ## Changing config
 
