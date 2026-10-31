@@ -82,8 +82,9 @@ for dir in */extras; do
   fi
 done
 
-# The repo can be cloned anywhere: docs and extras lines use $DOTFILES, and
-# the clone path appears only as README's example.
+# The repo can be cloned anywhere: docs and extras lines reach it through
+# $DOTFILES or a link install.sh made, and the clone path appears only as
+# README's example.
 # shellcheck disable=SC2088  # literal text to search for, split so this file doesn't match
 clone_path='~/code''/dotfiles'
 while IFS= read -r hit; do

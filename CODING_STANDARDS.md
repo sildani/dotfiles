@@ -39,6 +39,11 @@ README text, script messages, comments and PR descriptions use the `GLOSSARY.md`
 (installer, shared config, per-machine file, extra), not the words it lists under _Avoid_. A new
 term goes into the glossary first, then into the text.
 
+## Config comments state what was seen
+
+A comment telling people how to use a setting describes behaviour someone saw run. A claim taken
+from a tool's docs alone needs a check first, or the PR says it's unchecked.
+
 ## One change per PR, described as it is
 
 A PR's description matches its diff: each behaviour it claims is in the code, and each change in
