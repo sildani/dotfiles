@@ -72,6 +72,7 @@ repo_state() {
 # copy.
 REAL_REPO_DIR="$REPO_DIR"
 repo_before="$(repo_state)"
+head_before="$(git -C "$REAL_REPO_DIR" rev-parse HEAD)"
 # The real repo's, for copy_worktree. The copy's replaces it below.
 # shellcheck source=lib/common.sh
 source "$REAL_REPO_DIR/lib/common.sh"
@@ -339,6 +340,9 @@ echo 'source-file "$DOTFILES/tmux/extras/no-such-extra.conf"' >"$HOME/.tmux.loca
 rm "$HOME/.tmux.local.conf"
 
 echo "real repo's working tree unchanged"
+# A commit mid-run also changes repo_state, so name it rather than blame the run.
+[[ "$(git -C "$REAL_REPO_DIR" rev-parse HEAD)" == "$head_before" ]] ||
+  die "HEAD moved during the run; rerun with the repo untouched"
 repo_after="$(repo_state)"
 changed="$(comm -3 <(sort <<<"$repo_before") <(sort <<<"$repo_after") | sed -e '/^$/d' -e $'s/^\t//' | cut -f1 | sort -u)"
 [[ -z "$changed" ]] || die "the run changed the real repo at $REAL_REPO_DIR:"$'\n'"$changed"
