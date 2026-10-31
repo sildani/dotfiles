@@ -3,7 +3,7 @@
 macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `README.md`.
 
 - Language support (Java, Python, Go): follow `LANGUAGES.md`; edit the `[JAVA]`/`[PYTHON]`/`[GO]` markers in `nvim/lua/configs/`.
-- Machine state: run `./doctor.sh` before and after a change.
+- Machine state: run `./doctor.sh` before and after a change to it; docs-only changes skip it.
 - Each machine keeps its own git and gh setup; leave `~/.gitconfig` and `gh auth` as they are.
 - Work machines are pull-only: put machine-specific changes in `~/.zshrc.local`, `nvim/lua/local.lua`, `~/.tmux.local.conf` or `~/.config/ghostty/local`.
 - Optional per-machine tweaks: `<tool>/extras/`, turned on from that tool's per-machine file (README "Optional extras").
@@ -32,9 +32,9 @@ The user runs `/mattpocock-skills:implement` from `main`. Carry it through to a 
 
 1. Pull `main` and branch off it, named after the change. `/implement` commits to the current branch.
 2. Build with `tdd`, then commit, staging files by name (`code-review` diffs `main...HEAD`).
-3. Run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why.
+3. Run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why. Docs-only edits the user approved verbatim skip `code-review`.
 4. Push the branch, report, and stop. When the user runs `/mattpocock-skills:pr`, create the PR (`gh pr create`) with a body that follows that skill.
-5. Watch CI by run ID. Green: merge and run `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`), then report. Red: stop and report.
+5. Watch CI by run ID. Green: run `gh pr merge --merge --match-head-commit <full-sha>` with the commit CI passed, then `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`), then report. Red: stop and report.
 6. With no tasks left in the session, suggest `/mattpocock-skills:retro`; the user runs it.
 
 Several issues in one session: follow `docs/agents/batch.md`.
