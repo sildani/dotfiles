@@ -1,6 +1,13 @@
 font-family = "Hurmit Nerd Font Mono"
 
-# No title bar: drag the window with Option+click on its frame.
+# No title bar, frame or shadow, for square corners. Move and resize the window
+# with a window manager (e.g. Rectangle). ghostty/extras/window-frame.conf brings
+# the title bar and frame back.
+window-decoration = none
+macos-window-shadow = false
+
+# Ignored while window-decoration is none. Keeps the title bar hidden on a
+# machine that sets window-decoration = auto in its per-machine file.
 macos-titlebar-style = hidden
 
 # Per-machine overrides (not in the repo): ~/.config/ghostty/local

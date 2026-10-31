@@ -14,8 +14,9 @@
 # locked commit only while one is, zsh starts without
 # errors and exports DOTFILES as the repo, tmux loads its config and every extra
 # without errors, and every extra turns on from its README line, pasted as is
-# (and doctor flags a missing one), and the real repo's working tree is as it
-# was. Set KEEP=1 to keep the temp HOME.
+# (and doctor flags a missing one), Ghostty reads the shared config's window
+# settings and ghostty/extras/window-frame.conf undoes them, and the real repo's
+# working tree is as it was. Set KEEP=1 to keep the temp HOME.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -118,6 +119,15 @@ turn_on_extra() {
 }
 
 backups() { find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' '; }
+
+# ghostty_expect <context> <setting> <value>: the value Ghostty ends up with
+# once it has loaded ~/.config/ghostty/config and everything that pulls in.
+ghostty_expect() {
+  local got
+  got="$("$(ghostty_app)/Contents/MacOS/ghostty" +show-config --changes-only=false 2>>"$LOG" | sed -n "s/^$2 = //p")" ||
+    die "$1: ghostty +show-config failed"
+  [[ "$got" == "$3" ]] || die "$1: Ghostty has $2 = '$got', not '$3'"
+}
 
 echo "fresh HOME: $HOME"
 
@@ -233,7 +243,7 @@ grep -qF 'Press Space c h in nvim' <<<"$second" || die "install.sh didn't point 
 echo "doctor.sh --diff after install (links match, backups summed up in one line)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed after install"; }
 echo "$diff_out" >>"$LOG"
-[[ "$(grep -c 'already links to the repo' <<<"$diff_out")" == 4 ]] || die "doctor.sh --diff didn't find all 4 links"
+[[ "$(grep -c 'already links to the repo' <<<"$diff_out")" == "${#LINKS[@]}" ]] || die "doctor.sh --diff didn't find all ${#LINKS[@]} links"
 grep -q 'would be' <<<"$diff_out" && die "doctor.sh --diff says install would still change something"
 grep -qF "4 backed-up originals differ from the repo (newest: ${backup##*/})" <<<"$diff_out" ||
   die "doctor.sh --diff didn't sum up the 4 backed-up originals"
@@ -308,8 +318,16 @@ for opt in set-clipboard allow-passthrough; do
 done
 tmux -L "$TMUX_SOCKET" kill-server
 
+echo "Ghostty reads the shared config's window settings"
+ghostty_expect "shared config" window-decoration none
+ghostty_expect "shared config" macos-window-shadow false
+ghostty_expect "shared config" macos-titlebar-style hidden
+
 echo "every extra turned on with its README line"
 for f in "$REPO_DIR"/*/extras/*; do turn_on_extra "${f#"$REPO_DIR"/}"; done
+ghostty_expect window-frame.conf window-decoration auto
+ghostty_expect window-frame.conf macos-window-shadow true
+ghostty_expect window-frame.conf macos-titlebar-style transparent
 doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with every extra on"; }
 echo "$doctor_out" >>"$LOG"
 grep -q 'optional extras' <<<"$doctor_out" || die "doctor.sh didn't point to the optional extras"
@@ -330,7 +348,7 @@ tmux -L "$TMUX_SOCKET" kill-server
 prompt="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'print -P "$PROMPT"' 2>&1)"
 echo "prompt: $prompt" >>"$LOG"
 grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' <<<"$prompt" || die "utc-prompt.zsh's prompt has no timestamp: $prompt"
-rm "$HOME/.tmux.local.conf"
+rm "$HOME/.tmux.local.conf" "$HOME/.config/ghostty/local"
 printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 echo "tmux extra missing from the repo"
