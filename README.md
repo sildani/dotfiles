@@ -72,7 +72,7 @@ cd "$DOTFILES" && git pull && ./install.sh
   is in `migrate_zshrc` in `install.sh`). Those load too late in `~/.zshrc.local`,
   so install warns about any that differ from the shared zshrc's, to add to
   `zsh/zshrc` by hand.
-- sets `core.hooksPath` to `hooks` in this clone, so commits run the pre-commit
+- sets `core.hooksPath` to `hooks` in this clone, so commits run the commit
   hook. If it's already set to something else, it warns and leaves it.
 - installs Oh My Zsh, and links its sample zshrc, with all its comments, to
   `~/.zshrc.example` (unless something is already there).
