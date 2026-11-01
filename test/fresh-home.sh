@@ -54,7 +54,8 @@ die() {
 #   pops a "Keychain Not Found" dialog for a HOME with no keychain.
 # - Running inside tmux leaks TMUX_PLUGIN_MANAGER_PATH, which sends TPM's
 #   installs to the real ~/.tmux/plugins.
-# - An inherited SSH_AGENT_PID would aim ssh-agent -k at the real agent.
+# - An inherited SSH_AGENT_PID or SSH_AUTH_SOCK reaches the real agent, and
+#   ssh-agent -k would stop it.
 export HOME="$FAKE_HOME" GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0
 unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME DOTFILES SSH_AGENT_PID SSH_AUTH_SOCK
 

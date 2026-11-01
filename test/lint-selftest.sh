@@ -3,10 +3,9 @@
 # what they exist for: in a copy of the working tree, it removes each
 # `# fresh-home.sh greps for "<text>"` marker, rewords one, drops one piece of
 # a <placeholder> marker from test/fresh-home.sh, adds an unmarked grep there,
-# empties or drops each extras row's cells, drops
-# each test script's CI step and README "Checks" bullet, and adds an unlisted
-# test script, one mutation at a time, and expects lint to fail naming the
-# mutated text.
+# empties or drops each extras row's cells, drops each test script's CI step
+# and README "Checks" bullet, and adds an unlisted test script, one mutation
+# at a time, and expects lint to fail naming the mutated text.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 set -euo pipefail
 
