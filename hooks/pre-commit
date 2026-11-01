@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Enabled on the laptop with: git config core.hooksPath hooks
+# install.sh enables this in each clone by setting core.hooksPath to hooks.
 # main only moves by merging a PR, so commits go on a branch.
 if [[ "$(git symbolic-ref --short -q HEAD)" == main ]]; then
   echo "pre-commit: refusing to commit on main; branch first: git switch -c <name>" >&2

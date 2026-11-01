@@ -1,6 +1,6 @@
 # dotfiles
 
-Shared terminal setup (zsh, tmux, nvim, Ghostty) for several macOS machines, one personal and the rest pull-only.
+Shared terminal setup (zsh, tmux, nvim, Ghostty) for several macOS machines, any of which can make changes.
 
 ## Language
 

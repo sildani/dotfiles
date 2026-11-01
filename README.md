@@ -1,7 +1,8 @@
 # dotfiles
 
 zsh (Oh My Zsh), tmux, Neovim (NvChad) and Ghostty config for macOS, shared across machines.
-Nothing else (git and gh config are left alone on purpose).
+Nothing else (git and gh config are left alone on purpose, apart from this
+clone's `core.hooksPath`).
 
 ## New machine
 
@@ -26,8 +27,9 @@ cd "$DOTFILES" && git pull && ./install.sh
 
 `install.sh` is safe to re-run. It:
 
-- installs only what's **missing** with brew: git, gh, ripgrep, tree-sitter-cli,
-  tmux (≥ 3.5), neovim (≥ 0.12), Ghostty, Hurmit Nerd Font. Anything already
+- installs only what's **missing** with brew: git, gh, ripgrep, shellcheck,
+  gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), Ghostty, Hurmit Nerd
+  Font. Anything already
   installed, however it was installed, is left alone; if it's too old you get a
   warning with how to upgrade.
 - symlinks the configs (existing files are moved to `~/.dotfiles-backup/<time>/`):
@@ -50,6 +52,8 @@ cd "$DOTFILES" && git pull && ./install.sh
   is in `migrate_zshrc` in `install.sh`). Those load too late in `~/.zshrc.local`,
   so install warns about any that differ from the shared zshrc's, to add to
   `zsh/zshrc` by hand.
+- sets `core.hooksPath` to `hooks` in this clone, so commits run the pre-commit
+  hook. If it's already set to something else, it warns and leaves it.
 - installs Oh My Zsh, and links its sample zshrc, with all its comments, to
   `~/.zshrc.example` (unless something is already there).
 - installs tmux plugins (TPM), nvim plugins at the versions in
@@ -59,7 +63,8 @@ A `~/.zshrc.local` copied by an older install still has the whole old `~/.zshrc`
 To tidy it by hand, delete its comments and the lines the shared zshrc already
 does (listed above); move any Oh My Zsh settings you want to keep into `zsh/zshrc`.
 
-It never logs in to GitHub or changes git/gh config: each machine keeps its own account.
+It never logs in to GitHub or changes `~/.gitconfig` or `gh`: each machine keeps
+its own account.
 
 To go back to a machine's own zsh config, replace the link with the backup and
 remove the copy: `mv ~/.dotfiles-backup/<time>/.zshrc ~/.zshrc && rm ~/.zshrc.local`
@@ -125,18 +130,40 @@ link instead.
 
 ## Changing config
 
-Edit on the personal laptop (the links mean you're editing the repo), commit and
-push. Work machines only pull.
+Edit the repo from any Mac (the links mean you're editing it already), then
+commit on a branch and open a PR.
 
-Checks (also run by CI on every push):
+### Making changes from any Mac
+
+`install.sh` makes a clone ready to commit, but signing in is yours to do:
+
+```sh
+gh auth login      # as the repo's owner
+gh auth setup-git  # the remote is HTTPS, so git pushes through gh
+```
+
+On a Mac signed in to another account, add this one with `gh auth login`, then
+move between them with `gh auth switch`.
+
+A Mac's global git identity may not be the one to use in a public repo, so set
+it for this clone only:
+
+```sh
+git -C "$DOTFILES" config user.name "Your Name"
+git -C "$DOTFILES" config user.email "you@example.com"
+```
+
+### Checks
+
+Also run by CI on every push:
 
 - `test/lint.sh`: shellcheck, secret scan (gitleaks), that the extras are
   documented, that CI runs every `test/*.sh` and this list names it, and that
   the language recipes agree across `doctor.sh`, the nvim config and
   `LANGUAGES.md`. A new test script needs a `run:` step in
   `.github/workflows/check.yml` and a bullet here; sourced helpers go in `lib/`.
-  Runs before each commit once you enable the hook: `git config core.hooksPath hooks`
-  (the hook also refuses commits on `main`; changes go through a PR).
+  Runs before each commit through the hook `install.sh` turns on (it also refuses
+  commits on `main`; changes go through a PR).
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
   fresh-home.sh markers, drops one marker's text from fresh-home.sh, adds an
   unmarked grep, breaks the extras rows, drops each test script's CI step and
@@ -147,7 +174,7 @@ Checks (also run by CI on every push):
 After merging a PR, `./prune-merged.sh` deletes the merged branches locally and
 on `origin`.
 
-To update nvim plugins: `:Lazy update` on the laptop, test, then commit
+To update nvim plugins: `:Lazy update`, test, then commit
 `nvim/lazy-lock.json`. Other machines get the same versions on their next
 `./install.sh`.
 

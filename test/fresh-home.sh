@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Simulates a new machine: copies the repo to ~/src/dotfiles in an empty, seeded
 # HOME and runs its install.sh (once with the Oh My Zsh clone failing, then
-# twice for real), then doctor.sh and an interactive zsh. Passes when doctor.sh
+# twice for real), then doctor.sh and an interactive zsh. Passes when a throwaway
+# clone gets the commit hook, which refuses a commit on main, and keeps a
+# core.hooksPath of its own with a warning, the install sets the hook in the
+# copy without writing ~/.gitconfig, doctor.sh lists every tool, doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, copied only the old ~/.zshrc's own lines
@@ -26,6 +29,7 @@ REAL_HOME="$HOME"
 FAKE_HOME="$(mktemp -d)"
 LOG="$FAKE_HOME.log"
 SHIM_DIR="$FAKE_HOME.bin"
+HOOK_CLONE="$FAKE_HOME.clone"
 TMUX_SOCKET="fresh-home-$$"
 STRAY_SOCKET="fresh-home-stray-$$"
 
@@ -35,7 +39,7 @@ cleanup() {
   if [[ "${KEEP:-}" == 1 ]]; then
     echo "kept: $FAKE_HOME (log: $LOG)"
   else
-    rm -rf "$FAKE_HOME" "$LOG" "$SHIM_DIR"
+    rm -rf "$FAKE_HOME" "$LOG" "$SHIM_DIR" "$HOOK_CLONE"
   fi
 }
 trap cleanup EXIT
@@ -135,6 +139,20 @@ ghostty_expect() {
 
 echo "fresh HOME: $HOME"
 
+echo "a clone gets the commit hook, and keeps a core.hooksPath of its own"
+git clone -q "$REPO_DIR" "$HOOK_CLONE"
+git -C "$HOOK_CLONE" switch -q -c main
+git -C "$HOOK_CLONE" config --local --unset-all core.hooksPath || true
+enable_commit_hook "$HOOK_CLONE" >>"$LOG"
+[[ "$(git -C "$HOOK_CLONE" config --local core.hooksPath)" == hooks ]] || die "enable_commit_hook didn't set core.hooksPath to hooks"
+refused="$(git -C "$HOOK_CLONE" -c user.name=t -c user.email=t@localhost commit --allow-empty -m refused 2>&1)" &&
+  die "a commit on main in a clone with the hook wasn't refused"
+[[ "$refused" == *"refusing to commit on main"* ]] || die "the commit failed, but not through the hook: $refused"
+git -C "$HOOK_CLONE" config --local core.hooksPath other-hooks
+hook_out="$(enable_commit_hook "$HOOK_CLONE")"
+[[ "$(git -C "$HOOK_CLONE" config --local core.hooksPath)" == other-hooks ]] || die "enable_commit_hook replaced a core.hooksPath of the clone's own"
+[[ "$hook_out" == *"other-hooks"* ]] || die "enable_commit_hook didn't warn about core.hooksPath other-hooks: $hook_out"
+
 # A git that fails only the Oh My Zsh clone, as with no network.
 mkdir -p "$SHIM_DIR"
 printf '#!/bin/sh\ncase "$*" in *ohmyzsh*) echo "simulated clone failure" >&2; exit 128 ;; esac\nexec %s "$@"\n' \
@@ -187,6 +205,8 @@ expect_predicted "linked" "$(sed -nE 's/^  ✓ (.*) -> .*/\1/p' <<<"$first")" \
 expect_predicted "copied" "$(grep -q '^  • copied ~/.zshrc ' <<<"$first" && echo '~/.zshrc')" \
   "$(grep 'would also be copied to ~/.zshrc.local' <<<"$diff_out")"
 [[ "$(backups)" == 1 ]] || die "expected 1 backup folder after the first run, found $(backups)"
+[[ "$(git -C "$REPO_DIR" config --local core.hooksPath)" == hooks ]] || die "install.sh didn't set core.hooksPath in the clone"
+[[ ! -e "$HOME/.gitconfig" ]] || die "install.sh wrote ~/.gitconfig"
 backup="$(find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1)"
 for f in .tmux.conf .zshrc .config/nvim/init.lua "Library/Application Support/com.mitchellh.ghostty/config.ghostty"; do
   [[ -e "$backup/$f" ]] || die "seeded file was not backed up: $f"
@@ -266,6 +286,10 @@ grep -qxF -- '-# old tmux config' <<<"$diff_out" ||  # not a script message: a s
 echo "doctor.sh"
 doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh reported problems"; }
 echo "$doctor_out" >>"$LOG"
+for entry in "${FORMULAE[@]}"; do
+  IFS=: read -r _ cmd _ <<<"$entry"
+  [[ "$doctor_out" =~ ✓\ $cmd\ [0-9] ]] || die "doctor.sh doesn't list $cmd with its version"
+done
 grep -qF 'tmux servers besides the default one are running' <<<"$doctor_out" &&
   die "doctor.sh warned about stray tmux servers with none running (stop any left over and rerun)"
 grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" &&

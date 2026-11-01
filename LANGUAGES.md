@@ -12,9 +12,8 @@ hand, per machine, when you actually need it. Each language takes three edits in
 
 Find them all with: `rg -n '\[JAVA\]|\[PYTHON\]|\[GO\]' "$DOTFILES/nvim"`
 
-These files live in the repo, so uncommenting is a repo change. On a work
-machine (pull-only), either make the change on the personal laptop and
-`git pull`, or put machine-only setup in `nvim/lua/local.lua` (git-ignored):
+These files live in the repo, so uncommenting is a repo change: commit it for
+every machine, or put machine-only setup in `nvim/lua/local.lua` (git-ignored):
 
 ```lua
 -- nvim/lua/local.lua: e.g. Go only on this machine

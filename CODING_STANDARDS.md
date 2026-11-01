@@ -23,8 +23,8 @@ machine. A test that reuses real state for speed no longer tests a fresh install
 When `install.sh` starts managing a file a machine already has, that machine's setup keeps
 working after the install: carry it into the matching per-machine override file (as
 `migrate_zshrc` does for `~/.zshrc` → `~/.zshrc.local`), and say in the README how to go back.
-A backup alone counts only for files with nothing machine-specific in them. Work machines re-run
-`install.sh` after every pull, so a change here reaches every machine.
+A backup alone counts only for files with nothing machine-specific in them. Every machine re-runs
+`install.sh` after a pull, so a change here reaches every machine.
 
 ## Shared configs survive a partial install
 

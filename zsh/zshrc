@@ -1,5 +1,5 @@
 # Shared zsh config, linked to ~/.zshrc by install.sh. Machine-specific setup
-# (PATH, nvm, work tools) goes in ~/.zshrc.local, which is sourced last.
+# (PATH, nvm, its own tools) goes in ~/.zshrc.local, which is sourced last.
 
 # Homebrew: Apple Silicon or Intel prefix, whichever is installed.
 if [[ -x /opt/homebrew/bin/brew ]]; then
