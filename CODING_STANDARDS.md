@@ -2,8 +2,8 @@
 
 Judgement calls for reviewing changes to this repo. `test/lint.sh` enforces the mechanical rules
 (shellcheck, zsh syntax, secrets, docs listing every link and override file, language recipes,
-the `# fresh-home.sh greps for "<text>"` markers on messages the test matches),
-so they aren't repeated here.
+the `# fresh-home.sh greps for "<text>"` markers on messages the test matches, multi-word
+`GLOSSARY.md` _Avoid_ entries), so they aren't repeated here.
 
 Triage's decisions outrank these standards. Read them before calling something a violation: the
 issue's comments (`gh issue view <n> --json comments`, with `#n` from the commits) and, in a batch,
@@ -52,7 +52,8 @@ that can't load yet.
 ## Text people read uses the glossary's terms
 
 README text, script messages, comments and PR descriptions use the `GLOSSARY.md` terms, not the
-words it lists under _Avoid_. A new term goes into the glossary first, then into the text.
+words it lists under _Avoid_. Lint covers the multi-word entries; review covers the single words.
+A new term goes into the glossary first, then into the text.
 
 ## Config comments state what was seen
 

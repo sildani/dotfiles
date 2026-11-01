@@ -18,7 +18,7 @@
 # plugin and warns about a stray tmux server only while one runs and about
 # ssh-agent in ~/.zprofile only while a line there starts one, update.sh runs
 # for real, apart from brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as
-# the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local overrides), keeps
+# the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local can change), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, tmux loads its config and every extra without errors, and every
 # extra turns on from its README line, pasted as is

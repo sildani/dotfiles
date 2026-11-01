@@ -157,9 +157,10 @@ commit on a branch and open a PR.
 Checks (also run by CI on every PR, on pushes to `main` and weekly):
 
 - `test/lint.sh`: shellcheck, secret scan (gitleaks), that the extras are
-  documented, that CI runs every `test/*.sh` and this list names it, and that
-  the language recipes agree across `doctor.sh`, the nvim config and
-  `LANGUAGES.md`. A new test script needs a `run:` step in
+  documented, that CI runs every `test/*.sh` and this list names it, that text
+  avoids the multi-word _Avoid_ entries in `GLOSSARY.md`, and that the language
+  recipes agree across `doctor.sh`, the nvim config and `LANGUAGES.md`. A new
+  test script needs a `run:` step in
   `.github/workflows/check.yml` and a bullet here, and must source
   `lib/test-guard.sh`, which names the line that stopped it; sourced helpers go
   in `lib/`. Runs before each commit through the hook `install.sh` turns on,
@@ -169,8 +170,9 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
   fresh-home.sh markers, drops one marker's text from fresh-home.sh, adds an
   unmarked grep, breaks the extras rows, drops each test script's CI step and
-  bullet here and adds an unlisted test script, one at a time, and checks that
-  `test/lint.sh` fails on each. It also runs `lib/test-guard.sh` on a test that
+  bullet here, adds an unlisted test script, blanks the glossary's _Avoid_ lines
+  and adds each multi-word entry, one at a time, and checks that `test/lint.sh`
+  fails on each. It also runs `lib/test-guard.sh` on a test that
   stops. Takes minutes.
 - `test/doctor-warnings.sh`: runs `doctor.sh` in an empty temporary HOME with a
   fake `defaults`, and checks when it warns.

@@ -234,6 +234,12 @@ nvim_lock_plugins() {
   sed -nE 's/^  "([^"]+)": \{.*"commit": "([0-9a-f]+)".*/\1 \2/p' "$NVIM_LOCK" 2>/dev/null
 }
 
+# The multi-word _Avoid_ entries in GLOSSARY.md, lower case, one per line.
+avoid_phrases() {
+  sed -n 's/^_Avoid_: //p' "$REPO_DIR/GLOSSARY.md" | tr ',' '\n' | sed 's/^ *//' |
+    tr '[:upper:]' '[:lower:]' | grep ' ' || true
+}
+
 pull_command() { echo "cd ${REPO_DIR/#$HOME/~} && git pull && ./install.sh"; }
 
 # Prints "current", "behind" or, offline or after 5 seconds, "unknown", for this

@@ -6,7 +6,8 @@
 # empties or drops each extras row's cells, drops each test script's CI step
 # and README "Checks" bullet, and adds an unlisted test script, one mutation
 # at a time, and expects lint to fail naming the mutated text. Also drops each
-# test script's lib/test-guard.sh, and runs the guard itself.
+# test script's lib/test-guard.sh, runs the guard itself, and adds each
+# multi-word _Avoid_ entry from GLOSSARY.md.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
@@ -140,6 +141,17 @@ expect_guard() {
 expect_guard top "guard-check.sh: died at line 10: false"
 expect_guard function "guard-check.sh: died in stops, called from line 11: false"
 rm "$COPY/guard-check.sh"
+
+# Each multi-word _Avoid_ entry, split over a commented line break, as wrapped
+# text splits one. No entries would leave the check empty.
+mutate GLOSSARY.md 's/^_Avoid_: .*//' "no _Avoid_ entries" "no multi-word _Avoid_ entries"
+line_break=$'\n# '
+while IFS= read -r phrase; do
+  runs=$((runs + 1))
+  printf '%s\n' "${phrase/ /$line_break}" >>"$COPY/README.md"
+  expect_caught "_Avoid_ entry: $phrase" "$phrase"
+  cp "$REPO_DIR/README.md" "$COPY/README.md"
+done < <(avoid_phrases)
 
 # A test script in neither list.
 runs=$((runs + 1))
