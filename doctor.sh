@@ -91,6 +91,36 @@ zprofile_ssh_agent() {
   hint "delete those lines (launchd provides an agent on demand), then stop the leftovers, and any keys loaded in them: pkill -f '$leftovers'"  # fresh-home.sh greps for "launchd provides an agent on demand"
 }
 
+# plist_value <plist text> <key path>: fails if the key isn't there. An array
+# gives its length.
+plist_value() { plutil -extract "$2" raw -o - - <<<"$1" 2>/dev/null; }
+
+# With more than one input source, macOS selects the previous one on Ctrl-Space
+# (hotkey 60, on by default, so an absent key counts), and tmux never gets its
+# prefix. Non Keyboard Input Method entries, such as emoji, don't count.
+check_ctrl_space() {
+  section "macOS"
+  local plist count i kept=0
+  plist="$(defaults export com.apple.HIToolbox - 2>/dev/null)"
+  count="$(plist_value "$plist" AppleEnabledInputSources)" || count=0
+  for ((i = 0; i < count; i++)); do
+    [[ "$(plist_value "$plist" "AppleEnabledInputSources.$i.InputSourceKind")" == "Non Keyboard Input Method" ]] || kept=$((kept + 1))
+  done
+
+  local key=AppleSymbolicHotKeys.60 enabled shortcut=""
+  plist="$(defaults export com.apple.symbolichotkeys - 2>/dev/null)"
+  enabled="$(plist_value "$plist" "$key.enabled")" || enabled=true
+  for i in 0 1 2; do
+    shortcut+="$(plist_value "$plist" "$key.value.parameters.$i") "
+  done
+  if ((kept > 1)) && [[ "$enabled" == true && ("$shortcut" == "32 49 262144 " || -z "${shortcut// /}") ]]; then
+    warn "macOS takes Ctrl-Space, the tmux prefix, to switch input sources"  # doctor-warnings.sh greps for "macOS takes Ctrl-Space"
+    hint "System Settings > Keyboard > Keyboard Shortcuts > Input Sources: turn off or change \"Select the previous input source\""
+  else
+    ok "macOS leaves Ctrl-Space to tmux"
+  fi
+}
+
 check_links() {
   section "Config links"
   local entry src dest
@@ -393,6 +423,7 @@ esac
 
 check_tools
 check_shell
+check_ctrl_space
 check_links
 check_plugins
 check_languages

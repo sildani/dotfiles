@@ -10,6 +10,8 @@ macos-window-shadow = false
 # machine that sets window-decoration = auto in its per-machine file.
 macos-titlebar-style = hidden
 
+macos-option-as-alt = left
+
 # Per-machine overrides (not in the repo): ~/.config/ghostty/local
 # The leading ? makes it optional. Must stay the last line so it wins.
 config-file = ?local
