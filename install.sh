@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Sets up zsh (Oh My Zsh), tmux, nvim and Ghostty from this repo. Safe to re-run;
-# re-running after `git pull` is also how you update. Never touches git/gh config or
-# auth, and never installs language support (see LANGUAGES.md).
+# re-running after `git pull` is also how you update. Sets core.hooksPath in this
+# clone; otherwise never touches git/gh config or auth. Never installs language
+# support (see LANGUAGES.md).
 set -euo pipefail
 
 # shellcheck source=lib/common.sh
@@ -158,7 +159,7 @@ migrate_zshrc() {
   info "copied ~/.zshrc to ~/.zshrc.local so this machine's shell setup keeps working"  # fresh-home.sh greps for "copied "
   if ((${#lost[@]})); then
     warn "Oh My Zsh settings the shared zshrc lacks weren't copied (~/.zshrc.local loads too late for them): ${lost[*]}"  # fresh-home.sh greps for "Oh My Zsh settings the shared zshrc lacks"
-    hint "to keep them, add them to zsh/zshrc (shared: change it from a machine that pushes)"
+    hint "to keep them, add them to zsh/zshrc"
   fi
 }
 
@@ -306,6 +307,8 @@ check_prereqs
 install_tools
 install_oh_my_zsh # before the zshrc link, so a failed clone leaves the old shell config in place
 link_configs
+section "Commit hook"
+enable_commit_hook "$REPO_DIR"
 maybe_reset_nvim_data
 install_tmux_plugins
 install_nvim_plugins

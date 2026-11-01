@@ -57,6 +57,8 @@ FORMULAE=(
   "git:git:"
   "gh:gh:"
   "ripgrep:rg:"
+  "shellcheck:shellcheck:"
+  "gitleaks:gitleaks:"
   "tree-sitter-cli:tree-sitter:$MIN_TREE_SITTER"
   "tmux:tmux:$MIN_TMUX"
   "neovim:nvim:$MIN_NVIM"
@@ -99,6 +101,7 @@ tool_version() {
   case "$1" in
     tmux) out="$(tmux -V 2>/dev/null)" ;;
     nvim) out="$(nvim --version 2>/dev/null | head -1)" ;;
+    shellcheck) out="$(shellcheck --version 2>/dev/null | sed -n 's/^version: //p')" ;;
     *) out="$("$1" --version 2>/dev/null | head -1)" ;;
   esac
   grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?[a-z]?' <<<"$out" | head -1
@@ -121,6 +124,25 @@ ghostty_app() {
     [[ -d "$app" ]] && { echo "$app"; return 0; }
   done
   return 1
+}
+
+# enable_commit_hook <repo>: turns on hooks/pre-commit in that clone's own git
+# config. A core.hooksPath already set there stays, with a warning.
+enable_commit_hook() {
+  local repo="$1" current
+  git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || return 0  # not a clone
+  current="$(git -C "$repo" config --local core.hooksPath || true)"
+  case "$current" in
+    "")
+      git -C "$repo" config --local core.hooksPath hooks
+      info "commit hook on: core.hooksPath set to hooks in this clone"
+      ;;
+    hooks) ok "commit hook on" ;;
+    *)
+      warn "core.hooksPath in this clone is $current, not hooks; leaving it alone"
+      hint "for the repo's hook: git -C ${repo/#$HOME/~} config core.hooksPath hooks"
+      ;;
+  esac
 }
 
 hurmit_font_installed() {

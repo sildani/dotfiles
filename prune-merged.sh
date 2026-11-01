@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Delete every branch already merged into main, on origin and locally. Run on
-# the laptop after merging a PR. PRs here merge with a merge commit, so
-# --merged finds every merged branch.
+# Delete every branch already merged into main, on origin and locally. Run
+# after merging a PR. PRs here merge with a merge commit, so --merged finds
+# every merged branch.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
