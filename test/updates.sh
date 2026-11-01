@@ -6,6 +6,8 @@
 # checks that a brew tool below its minimum gets upgraded, and the shared
 # zshrc's update reminder.
 set -euo pipefail
+# shellcheck source=lib/test-guard.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
 
 REAL_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(cd "$(mktemp -d)" && pwd -P)"

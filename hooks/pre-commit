@@ -5,4 +5,11 @@ if [[ "$(git symbolic-ref --short -q HEAD)" == main ]]; then
   echo "pre-commit: refusing to commit on main; branch first: git switch -c <name>" >&2
   exit 1
 fi
-LINT_STAGED=1 exec "$(git rev-parse --show-toplevel)/test/lint.sh"
+root="$(git rev-parse --show-toplevel)"
+# Git's variables for this commit would point the tests' temp repos at this one.
+# shellcheck disable=SC2046  # one name per word
+unset $(git rev-parse --local-env-vars)
+# Their progress is noise here; failures go to stderr.
+LINT_STAGED=1 "$root/test/lint.sh" &&
+  "$root/test/doctor-warnings.sh" >/dev/null &&
+  "$root/test/updates.sh" >/dev/null

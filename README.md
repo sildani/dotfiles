@@ -160,14 +160,17 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   documented, that CI runs every `test/*.sh` and this list names it, and that
   the language recipes agree across `doctor.sh`, the nvim config and
   `LANGUAGES.md`. A new test script needs a `run:` step in
-  `.github/workflows/check.yml` and a bullet here; sourced helpers go in `lib/`.
-  Runs before each commit through the hook `install.sh` turns on (it also refuses
-  commits on `main`; changes go through a PR).
+  `.github/workflows/check.yml` and a bullet here, and must source
+  `lib/test-guard.sh`, which names the line that stopped it; sourced helpers go
+  in `lib/`. Runs before each commit through the hook `install.sh` turns on,
+  with `test/doctor-warnings.sh` and `test/updates.sh`, so a commit takes about
+  half a minute. The hook also refuses commits on `main`; changes go through a
+  PR.
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
   fresh-home.sh markers, drops one marker's text from fresh-home.sh, adds an
   unmarked grep, breaks the extras rows, drops each test script's CI step and
   bullet here and adds an unlisted test script, one at a time, and checks that
-  `test/lint.sh` fails on each.
+  `test/lint.sh` fails on each. It also checks the guard. Takes minutes.
 - `test/doctor-warnings.sh`: runs `doctor.sh` in an empty temporary HOME with a
   fake `defaults`, and checks when it warns.
 - `test/updates.sh`: runs `update.sh` against a fake Homebrew and nvim and local

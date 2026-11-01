@@ -5,9 +5,12 @@
 # a <placeholder> marker from test/fresh-home.sh, adds an unmarked grep there,
 # empties or drops each extras row's cells, drops each test script's CI step
 # and README "Checks" bullet, and adds an unlisted test script, one mutation
-# at a time, and expects lint to fail naming the mutated text.
+# at a time, and expects lint to fail naming the mutated text. Also drops each
+# test script's lib/test-guard.sh, and runs the guard itself.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 set -euo pipefail
+# shellcheck source=lib/test-guard.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
 
 # shellcheck source=lib/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
@@ -102,6 +105,36 @@ for f in "$REPO_DIR"/test/*.sh; do
     "check.yml step dropped for $f" "$f"
   mutate README.md "/^- \`${path_re}\`:/d" "README Checks bullet dropped for $f" "$f"
 done
+
+# A test script without the guard, which would otherwise stop silently.
+for f in "$REPO_DIR"/test/*.sh; do
+  f="test/${f##*/}"
+  runs=$((runs + 1))
+  cp "$COPY/$f" "$COPY/$f.keep"
+  grep -v '^source .*lib/test-guard.sh' "$COPY/$f.keep" >"$COPY/$f"
+  rm "$COPY/$f.keep"
+  expect_caught "no guard in $f" "$f doesn't source lib/test-guard.sh"
+  cp "$REPO_DIR/$f" "$COPY/$f"
+done
+
+# The guard itself, on stock bash: a stop inside a function names its line, and
+# an expected failure in a condition or a $(...) stays quiet.
+runs=$((runs + 1))
+cat >"$COPY/guard-check.sh" <<GUARD
+set -euo pipefail
+source "$REPO_DIR/lib/test-guard.sh"
+fails() { false; }
+out="\$(fails)" || true
+if fails; then :; fi
+stops() { false; }
+stops
+GUARD
+guard_out="$(/bin/bash "$COPY/guard-check.sh" 2>&1)" && guard_rc=0 || guard_rc=$?
+rm "$COPY/guard-check.sh"
+if [[ "$guard_rc" == 0 || "$guard_out" != "guard-check.sh: stopped at line 6: false" ]]; then
+  echo "SURVIVED: the guard printed '$guard_out' (exit $guard_rc)" >&2
+  survived=$((survived + 1))
+fi
 
 # A test script in neither list.
 runs=$((runs + 1))

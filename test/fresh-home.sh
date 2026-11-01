@@ -2,8 +2,8 @@
 # Simulates a new machine: copies the repo to ~/src/dotfiles in an empty, seeded
 # HOME and runs its install.sh (once with the Oh My Zsh clone failing, then
 # twice for real), then doctor.sh and an interactive zsh. Passes when a throwaway
-# clone gets the commit hook and keeps a core.hooksPath of its own with a
-# warning, Rectangle is installed only if missing and a failed cask only warns,
+# clone gets the commit hook, which refuses a commit when a fast test fails, and
+# keeps a core.hooksPath of its own with a warning, Rectangle is installed only if missing and a failed cask only warns,
 # the install sets the hook in the copy, which then refuses a commit on
 # main, without writing ~/.gitconfig, doctor.sh lists every tool, doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
@@ -26,6 +26,8 @@
 # undoes them, and the real repo's working tree is as it was. Set KEEP=1 to keep
 # the temp HOME.
 set -euo pipefail
+# shellcheck source=lib/test-guard.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REAL_HOME="$HOME"
@@ -142,6 +144,9 @@ ghostty_expect() {
 
 echo "fresh HOME: $HOME"
 
+# hook_commit: an empty commit in the throwaway clone, through its hook.
+hook_commit() { git -C "$HOOK_CLONE" -c user.name=t -c user.email=t@localhost commit -q --allow-empty -m check; }
+
 echo "a clone gets the commit hook, and keeps a core.hooksPath of its own"
 git clone -q "$REPO_DIR" "$HOOK_CLONE"
 enable_commit_hook "$HOOK_CLONE" >>"$LOG"
@@ -150,6 +155,23 @@ git -C "$HOOK_CLONE" config --local core.hooksPath other-hooks
 hook_out="$(enable_commit_hook "$HOOK_CLONE")"
 [[ "$(git -C "$HOOK_CLONE" config --local core.hooksPath)" == other-hooks ]] || die "enable_commit_hook replaced a core.hooksPath of the clone's own"
 [[ "$hook_out" == *"other-hooks"* ]] || die "enable_commit_hook didn't warn about core.hooksPath other-hooks: $hook_out"
+
+echo "the commit hook refuses a commit when a fast test fails"
+git -C "$HOOK_CLONE" config --local core.hooksPath hooks
+git -C "$HOOK_CLONE" switch -q -c hook-check
+hook_tests=(lint doctor-warnings updates)
+# Stand-ins that also fail if git's variables reach the tests' temp repos.
+for name in "${hook_tests[@]}"; do
+  # shellcheck disable=SC2016  # for the stand-in to expand
+  printf '#!/bin/sh\n[ -z "$GIT_INDEX_FILE$GIT_DIR" ]\n' >"$HOOK_CLONE/test/$name.sh"
+done
+hook_commit 2>>"$LOG" || die "the commit hook refused a commit with every test passing"
+for name in "${hook_tests[@]}"; do
+  cp "$HOOK_CLONE/test/$name.sh" "$HOOK_CLONE/test/$name.sh.keep"
+  printf '#!/bin/sh\nexit 1\n' >"$HOOK_CLONE/test/$name.sh"
+  hook_commit 2>>"$LOG" && die "the commit hook let a commit through with test/$name.sh failing"
+  mv "$HOOK_CLONE/test/$name.sh.keep" "$HOOK_CLONE/test/$name.sh"
+done
 
 # A git that fails only the Oh My Zsh clone, as with no network.
 mkdir -p "$SHIM_DIR"
