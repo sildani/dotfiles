@@ -8,7 +8,7 @@ macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `
 - Any Mac can commit shared changes. Put changes for one Mac in `~/.zshrc.local`, `nvim/lua/local.lua`, `~/.tmux.local.conf` or `~/.config/ghostty/local`.
 - Optional per-machine tweaks: `<tool>/extras/`, turned on from that tool's per-machine file (README "Optional extras").
 - Scripts must run on stock macOS bash 3.2 (a new machine has no newer bash): expand possibly-empty arrays as `${arr[@]+"${arr[@]}"}`.
-- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker, extras or guard checks; takes minutes, so give the call a 5-minute timeout), `test/doctor-warnings.sh` (`doctor.sh` warnings, in seconds), `test/updates.sh` (`update.sh` and the reminder against fakes, in seconds) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all five on macOS. `test/fresh-home.sh` takes minutes: run it in the background as `test/fresh-home.sh > "$log" 2>&1; rc=$?; tail -5 "$log"; exit $rc` with `log` set to a file in your scratchpad, so the notification carries the test's exit code, and leave the repo alone until it finishes. Run it again after any change to what it installs or checks; docs-only changes skip it.
+- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker, extras, guard or glossary checks; takes minutes, so give the call a 5-minute timeout), `test/doctor-warnings.sh` (`doctor.sh` warnings, in seconds), `test/updates.sh` (`update.sh` and the reminder against fakes, in seconds) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all five on macOS. `test/fresh-home.sh` takes minutes: run it in the background as `test/fresh-home.sh > "$log" 2>&1; rc=$?; tail -5 "$log"; exit $rc` with `log` set to a file in your scratchpad, so the notification carries the test's exit code, and leave the repo alone until it finishes. Run it again after any change to what it installs or checks; docs-only changes skip it.
 
 ## Agent skills
 
@@ -46,4 +46,5 @@ Several issues in one session: follow `docs/agents/batch.md`.
 - Write to `.scratch/handoffs/handoff.md`.
 - If it already exists, ask: update it in place, or move it to `.scratch/handoffs/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
 - When you pick up a handoff, its `Next:` heading names a command the user types, such as `/mattpocock-skills:triage <n>`. These user-only skills are installed but left out of your skill list, so ask the user to run it.
+- When the step `Next:` names finishes, rewrite `Next:` to the step after it.
 - When a handoff is done, move it to `.scratch/handoffs/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.

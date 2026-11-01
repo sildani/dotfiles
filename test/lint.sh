@@ -2,8 +2,9 @@
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
 # config link, override file, extra and test script, that CI runs every test
 # script and each has lib/test-guard.sh, that the messages fresh-home.sh greps
-# for are marked, and that the language recipes agree across doctor.sh, the
-# nvim config and LANGUAGES.md.
+# for are marked, that text avoids the glossary's multi-word _Avoid_ entries,
+# and that the language recipes agree across doctor.sh, the nvim config and
+# LANGUAGES.md.
 # Run by CI and the commit hook.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
@@ -94,6 +95,20 @@ clone_path='~/code''/dotfiles'
 while IFS= read -r hit; do
   [[ "$hit" == "README.md:DOTFILES=$clone_path "* ]] || err "hard-coded clone path, use \$DOTFILES or a link install.sh made: $hit"
 done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . | sed 's|^\./||')
+
+# Text uses the glossary's terms: no multi-word _Avoid_ entry in any other
+# tracked file, across a line break or comment leader too. Review covers the
+# single words, since most uses of them are fine.
+phrases=()
+while IFS= read -r phrase; do phrases+=("$phrase"); done < <(avoid_phrases)
+while IFS= read -r file; do
+  text="$(tr -s ' \n#' ' ' <"$file" | tr '[:upper:]' '[:lower:]')"
+  for phrase in ${phrases[@]+"${phrases[@]}"}; do
+    if [[ "$text" == *"$phrase"* ]]; then
+      err "$file says \"$phrase\", which GLOSSARY.md lists under _Avoid_"
+    fi
+  done
+done < <(git grep -Il '' -- . ':!GLOSSARY.md')
 
 # Messages test/fresh-home.sh greps for carry a `# fresh-home.sh greps for
 # "<text>"` marker where they're printed, so whoever rewords one updates the
