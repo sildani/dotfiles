@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Read-only health check: what's installed, what's linked, and which languages
 # are set up. Changes nothing. Exits non-zero if something is broken (✗);
-# warnings (!), such as an nvim plugin off its locked commit, and language
-# status never fail it.
+# warnings (!), such as a tool below its minimum, and language status never
+# fail it.
 # --diff instead shows how each config file differs from what install.sh
 # would put there, and how many backed-up originals differ from the repo
 # (--diff --backups shows those diffs too); it exits non-zero only if a diff
@@ -37,7 +37,7 @@ check_tools() {
     version="$(tool_version "$cmd")"
     if [[ -n "$min" ]] && ! version_ge "$version" "$min"; then
       warn "$cmd $version ($(tool_source "$cmd")) is older than $min"
-      hint "upgrade it the way it was installed (brew: brew upgrade $formula)"
+      hint "re-run ./install.sh if brew installed it, otherwise upgrade it the way it was installed"
     else
       ok "$cmd $version ($(tool_source "$cmd"))${min:+, needs ≥ $min}"
     fi
@@ -221,13 +221,16 @@ stray_tmux_servers() {
   hint "stop each with: tmux -L <name> kill-server (tmux -S <path> kill-server for a path)"
 }
 
-# A changed lockfile pins plugins to commits the repo doesn't have (see
-# install_nvim_plugins). git status prints nothing, so this stays quiet, when
-# the repo isn't a git checkout.
-changed_lazy_lock() {
-  [[ -n "$(git -C "$REPO_DIR" status --porcelain -- nvim/lazy-lock.json 2>/dev/null)" ]] || return 0
-  warn "nvim/lazy-lock.json has uncommitted changes (plugins may not match the repo)"  # fresh-home.sh greps for "nvim/lazy-lock.json has uncommitted changes"
-  hint "git -C ${REPO_DIR/#$HOME/~} checkout nvim/lazy-lock.json, then :Lazy restore in nvim"  # fresh-home.sh greps for "checkout nvim/lazy-lock.json"
+check_origin() {
+  section "Repo"
+  case "$(repo_origin_state)" in
+    current) ok "up to date with origin" ;;
+    behind)
+      warn "this clone is behind origin"  # doctor-warnings.sh greps for "behind origin"
+      hint "$(pull_command)"
+      ;;
+    *) info "couldn't reach origin, so this clone wasn't compared with it" ;;  # doctor-warnings.sh greps for "couldn't reach origin"
+  esac
 }
 
 check_plugins() {
@@ -240,10 +243,10 @@ check_plugins() {
   fi
 
   if [[ -d "$TPM_DIR" ]]; then
-    local name missing=()
-    while read -r name; do
-      [[ -d "$HOME/.tmux/plugins/$name" ]] || missing+=("$name")
-    done < <(sed -nE "s/^set -g @plugin '[^/]+\/([^'#]+).*/\1/p" "$REPO_DIR/tmux/tmux.conf")
+    local repo missing=()
+    while read -r repo _; do
+      [[ -d "$HOME/.tmux/plugins/${repo##*/}" ]] || missing+=("${repo##*/}")
+    done < <(tmux_plugins)
     if ((${#missing[@]})); then
       broken "tmux plugins missing: ${missing[*]}"
       hint "run ./install.sh (or prefix + I inside tmux)"
@@ -256,26 +259,21 @@ check_plugins() {
   fi
   stray_tmux_servers
 
-  local name commit missing=() drifted=()
-  # The commit is optional, so a lock line without one is still checked as missing.
-  while read -r name commit; do
-    if [[ ! -d "$NVIM_DATA/lazy/$name" ]]; then
-      missing+=("$name")
-    elif [[ -n "$commit" && "$(git -C "$NVIM_DATA/lazy/$name" rev-parse HEAD 2>/dev/null)" != "$commit" ]]; then
-      drifted+=("$name")
+  local name missing=()
+  if [[ -f "$NVIM_LOCK" ]]; then
+    while read -r name _; do
+      [[ -d "$NVIM_DATA/lazy/$name" ]] || missing+=("$name")
+    done < <(nvim_lock_plugins)
+    if ((${#missing[@]})); then
+      broken "nvim plugins missing: ${missing[*]}"  # fresh-home.sh greps for "nvim plugins missing"
+      hint "run ./install.sh (or :Lazy restore in nvim)"
+    else
+      ok "all nvim plugins in this machine's lockfile"
     fi
-  done < <(sed -nE 's/^  "([^"]+)": \{(.*"commit": "([0-9a-f]+)")?.*/\1 \3/p' "$REPO_DIR/nvim/lazy-lock.json")
-  if ((${#missing[@]})); then
-    broken "nvim plugins missing: ${missing[*]}"
-    hint "run ./install.sh (or :Lazy restore in nvim)"
   else
-    ok "all nvim plugins in lazy-lock.json"
+    warn "no nvim lockfile at ${NVIM_LOCK/#$HOME/~}, so nvim plugins weren't checked"
+    hint "run ./install.sh"
   fi
-  if ((${#drifted[@]})); then
-    warn "nvim plugins not at their locked commit: ${drifted[*]}"  # fresh-home.sh greps for "nvim plugins not at their locked commit"
-    hint "run ./install.sh (or :Lazy restore in nvim)"
-  fi
-  changed_lazy_lock
 
   missing=()
   while read -r name; do
@@ -437,6 +435,7 @@ check_tools
 check_shell
 check_ctrl_space
 check_links
+check_origin
 check_plugins
 check_languages
 

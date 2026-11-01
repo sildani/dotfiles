@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Sets up zsh (Oh My Zsh), tmux, nvim and Ghostty from this repo. Safe to re-run;
-# re-running after `git pull` is also how you update. Sets core.hooksPath in this
+# Sets up zsh (Oh My Zsh), tmux, nvim and Ghostty from this repo, at the latest
+# versions. Safe to re-run after `git pull`; update.sh keeps a machine current. Sets core.hooksPath in this
 # clone; otherwise never touches git/gh config or auth. Never installs language
 # support (see LANGUAGES.md).
 set -euo pipefail
@@ -61,8 +61,8 @@ check_prereqs() {
   fi
 }
 
-# Installs only what's missing. Existing installs are left alone whatever
-# installed them; if they're too old we warn instead of replacing them.
+# Installs only what's missing. An existing install stays as it is unless it's
+# below its minimum; see raise_to_minimum.
 install_tools() {
   section "Tools"
   local entry formula cmd min version
@@ -76,12 +76,7 @@ install_tools() {
     fi
     version="$(tool_version "$cmd")"
     if [[ -n "$min" ]] && ! version_ge "$version" "$min"; then
-      warn "$cmd $version is older than $min ($(tool_source "$cmd")); leaving it alone"
-      if [[ "$(tool_source "$cmd")" == brew ]]; then
-        hint "upgrade: brew upgrade $formula"
-      else
-        hint "upgrade it the way you installed it, or remove it and re-run to get brew's $formula"
-      fi
+      raise_to_minimum "$formula" "$cmd" "$min"
     else
       ok "$cmd $version ($(tool_source "$cmd"))"
     fi
@@ -260,25 +255,16 @@ install_tmux_plugins() {
   fi
 }
 
-# The repo's nvim/lazy-lock.json, saved by install_nvim_plugins.
-pinned_lazy_lock=""
-put_back_lazy_lock() { printf '%s\n' "$pinned_lazy_lock" >"$REPO_DIR/nvim/lazy-lock.json"; }
-
 install_nvim_plugins() {
-  section "nvim plugins (lazy.nvim, pinned by lazy-lock.json)"
+  section "nvim plugins (lazy.nvim)"
   local log="$HOME/.dotfiles-install.log"
   : >"$log"
-  # On a fresh install lazy rewrites the lockfile between its install rounds,
-  # dropping the plugins NvChad's spec imports, so they land at their latest
-  # commits. Let it install everything, put the lockfile back, then restore.
-  # The trap puts it back too if either step fails or is interrupted.
-  pinned_lazy_lock="$(cat "$REPO_DIR/nvim/lazy-lock.json")"
-  trap put_back_lazy_lock EXIT
+  # The first installs what's missing at the latest commits. The second writes
+  # this machine's lockfile in full: the first's misses the plugins NvChad's
+  # spec imports, and an up-to-date machine doesn't write one at all.
   run_logged "$log" nvim --headless +qa
-  put_back_lazy_lock
-  run_logged "$log" nvim --headless "+Lazy! restore" +qa
-  trap - EXIT
-  ok "plugins restored to lazy-lock.json"
+  run_logged "$log" nvim --headless "+Lazy! install" +qa
+  ok "plugins installed (versions: ${NVIM_LOCK/#$HOME/~})"
 
   info "installing treesitter parsers: $(wanted_parsers | tr '\n' ' ')"
   run_logged "$log" nvim --headless \
@@ -288,11 +274,19 @@ install_nvim_plugins() {
   ok "parsers installed (details: ${log/#$HOME/~})"
 }
 
+# A first install starts the reminder's clock, so a new machine stays quiet.
+start_update_clock() {
+  [[ -e "$UPDATE_STAMP" ]] && return 0
+  mkdir -p "$(dirname "$UPDATE_STAMP")"
+  touch "$UPDATE_STAMP"
+}
+
 next_steps() {
   section "Done. Next steps"
   info "restart Ghostty, tmux (tmux kill-server), and open a new shell to pick everything up"
   info "check this machine anytime:   $REPO_DIR/doctor.sh"
-  info "update later:                 cd $REPO_DIR && git pull && ./install.sh"
+  info "update this machine:          $REPO_DIR/update.sh"
+  info "get changes to the repo:       cd $REPO_DIR && git pull && ./install.sh"
   info "nvim comes set up with NvChad. Press Space c h in nvim for a cheatsheet of the keyboard shortcuts."  # fresh-home.sh greps for "Press Space c h in nvim"
   info "Rectangle needs Accessibility permission, which you grant by hand: System Settings > Privacy & Security > Accessibility"
   local f files=""
@@ -315,4 +309,5 @@ enable_commit_hook "$REPO_DIR"
 maybe_reset_nvim_data
 install_tmux_plugins
 install_nvim_plugins
+start_update_clock
 next_steps

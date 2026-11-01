@@ -21,6 +21,24 @@ first `git` command offers to install them.
 
 ## Update
 
+Keep a machine current, with no repo change needed:
+
+```sh
+"$DOTFILES/update.sh"
+```
+
+It upgrades the formulae below with brew (skipping any brew didn't install), then
+updates Oh My Zsh, the tmux plugins, nvim plugins and treesitter parsers, and
+shows old → new for each, with a restart note for what changed. It never pulls
+the repo: it ends with a note if the clone is behind `origin`. It leaves Ghostty,
+the font, Rectangle and other brew packages alone, and skips catppuccin, which
+`tmux/tmux.conf` pins to a tag, any plugin with changed tracked files, and Oh My
+Zsh if it has a commit of your own. A new shell reminds you once `update.sh`
+hasn't run for 14 days, in place of Oh My Zsh's own prompt; `install.sh` starts
+that count.
+
+Get changes to the repo:
+
 ```sh
 cd "$DOTFILES" && git pull && ./install.sh
 ```
@@ -29,8 +47,9 @@ cd "$DOTFILES" && git pull && ./install.sh
 
 - installs only what's **missing** with brew: git, gh, ripgrep, shellcheck,
   gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), Ghostty, Hurmit Nerd
-  Font, Rectangle. Anything already installed, however it was installed, is left
-  alone; if it's too old you get a warning with how to upgrade. A failed Rectangle
+  Font, Rectangle. Anything already installed is left alone unless it's below
+  its minimum: brew's then gets `brew upgrade`, and anything else gets a warning
+  with how to upgrade. A failed Rectangle
   install is only a warning. Grant it Accessibility permission by hand. Its
   settings stay out of the repo.
 - symlinks the configs (existing files are moved to `~/.dotfiles-backup/<time>/`):
@@ -57,8 +76,8 @@ cd "$DOTFILES" && git pull && ./install.sh
   hook. If it's already set to something else, it warns and leaves it.
 - installs Oh My Zsh, and links its sample zshrc, with all its comments, to
   `~/.zshrc.example` (unless something is already there).
-- installs tmux plugins (TPM), nvim plugins at the versions in
-  `nvim/lazy-lock.json`, and the treesitter parsers for the files in this repo.
+- installs tmux plugins (TPM), the latest nvim plugins, and the treesitter
+  parsers for the files in this repo.
 
 A `~/.zshrc.local` copied by an older install still has the whole old `~/.zshrc`.
 To tidy it by hand, delete its comments and the lines the shared zshrc already
@@ -80,7 +99,7 @@ remove the copy: `mv ~/.dotfiles-backup/<time>/.zshrc ~/.zshrc && rm ~/.zshrc.lo
 Read-only. Shows tool versions and where they came from, whether the links point
 here, missing plugins/parsers, and which languages are set up, with a fix-it hint
 on every problem. It also warns if macOS would take Ctrl-Space, the tmux prefix,
-to switch input sources.
+to switch input sources, and if the clone is behind `origin`.
 
 Before installing on a machine that already has its own config, see what
 `install.sh` would replace:
@@ -151,14 +170,17 @@ Checks (also run by CI on every push):
   `test/lint.sh` fails on each.
 - `test/doctor-warnings.sh`: runs `doctor.sh` in an empty temporary HOME with a
   fake `defaults`, and checks when it warns.
+- `test/updates.sh`: runs `update.sh` against a fake Homebrew and nvim and local
+  repos, and checks brew upgrades below a minimum and the update reminder.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
 
 After merging a PR, `./prune-merged.sh` deletes the merged branches locally and
 on `origin`.
 
-To update nvim plugins: `:Lazy update`, test, then commit
-`nvim/lazy-lock.json`. Other machines get the same versions on their next
-`./install.sh`.
+Each machine keeps its own nvim lockfile, `lazy-lock.json` under
+`~/.local/state/nvim`, outside the repo. `:Lazy restore` puts that machine's
+plugins back at the versions in that file. `update.sh` and `:Lazy update` rewrite
+it, so copy it first if you may want to go back past an update.
 
 ### Making changes from any Mac
 

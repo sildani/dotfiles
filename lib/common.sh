@@ -1,4 +1,4 @@
-# Shared by install.sh, doctor.sh and the tests. Source it; don't run it.
+# Shared by install.sh, update.sh, doctor.sh and the tests. Source it; don't run it.
 # shellcheck shell=bash
 # shellcheck disable=SC2034  # variables are used by the scripts that source this
 
@@ -13,8 +13,13 @@ NVIM_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/nvim"
 NVIM_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/nvim"
 MASON_PKGS="$NVIM_DATA/mason/packages"
 TS_PARSERS="$NVIM_DATA/site/parser"
+# Each machine's own, not the repo's: nvim/lua/configs/lazy.lua points lazy.nvim here.
+NVIM_LOCK="$NVIM_STATE/lazy-lock.json"
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 ZSH_DIR="$HOME/.oh-my-zsh"
+# When this machine last ran update.sh or saw the reminder; zsh/zshrc reads the same
+# path.
+UPDATE_STAMP="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/last-update"
 
 # Ghostty on macOS also reads this directory, and it wins over ~/.config/ghostty.
 GHOSTTY_LIBRARY_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
@@ -197,6 +202,66 @@ copy_worktree() {
   git -C "$dest" add -A
   git -C "$dest" -c user.name=copy_worktree -c user.email=copy_worktree@localhost -c commit.gpgsign=false \
     commit -q --no-verify -m snapshot
+}
+
+# raise_to_minimum <formula> <command> <minimum>: for a tool below its minimum.
+# Brew's get upgraded; what else installed one is left to whoever did.
+raise_to_minimum() {
+  local version source
+  version="$(tool_version "$2")"
+  source="$(tool_source "$2")"
+  if [[ "$source" == brew ]]; then
+    info "upgrading $1: $2 $version is older than $3"
+    if brew upgrade "$1"; then
+      ok "$2 $(tool_version "$2") (brew, just upgraded)"
+    else
+      warn "couldn't upgrade $1; $2 $version is still older than $3"
+      hint "brew upgrade $1"
+    fi
+  else
+    warn "$2 $version is older than $3 ($source); brew didn't install it"
+    hint "upgrade it the way you installed it, or remove it and re-run to get brew's $1"
+  fi
+}
+
+# "owner/name ref" per plugin in tmux.conf; ref is empty unless it's pinned.
+tmux_plugins() {
+  sed -nE "s/^set -g @plugin '([^'#]+)#?([^']*)'.*/\1 \2/p" "$REPO_DIR/tmux/tmux.conf"
+}
+
+# "name commit" per plugin in this machine's nvim lockfile.
+nvim_lock_plugins() {
+  sed -nE 's/^  "([^"]+)": \{.*"commit": "([0-9a-f]+)".*/\1 \2/p' "$NVIM_LOCK" 2>/dev/null
+}
+
+pull_command() { echo "cd ${REPO_DIR/#$HOME/~} && git pull && ./install.sh"; }
+
+# Prints "current", "behind" or, offline or after 5 seconds, "unknown", for this
+# clone against main on origin. ls-remote doesn't write to .git. macOS has no
+# timeout command, so the limit is a loop here.
+repo_origin_state() {
+  local out sha pid rc=0 i
+  out="$(mktemp)"
+  GIT_TERMINAL_PROMPT=0 git -C "$REPO_DIR" ls-remote origin refs/heads/main >"$out" 2>/dev/null &
+  pid=$!
+  for ((i = 0; i < 50; i++)); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null
+    rc=1
+  fi
+  wait "$pid" 2>/dev/null || rc=1
+  sha="$(cut -f1 "$out")"
+  rm -f "$out"
+  if ((rc)) || [[ -z "$sha" ]]; then
+    echo unknown
+  elif git -C "$REPO_DIR" merge-base --is-ancestor "$sha" HEAD 2>/dev/null; then
+    echo current
+  else
+    echo behind
+  fi
 }
 
 # Uncommented "name", entries from the nvim treesitter parser list.
