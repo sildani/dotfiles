@@ -14,7 +14,7 @@ macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `
 
 ### Issue tracker
 
-Issues live in GitHub Issues for sildani/dotfiles, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues for sildani/dotfiles, via the `gh` CLI. See `docs/agents/issue-tracker.md`, also when writing an agent brief.
 
 ### Triage labels
 

@@ -51,9 +51,8 @@ that can't load yet.
 
 ## Text people read uses the glossary's terms
 
-README text, script messages, comments and PR descriptions use the `GLOSSARY.md` terms
-(installer, shared config, per-machine file, extra), not the words it lists under _Avoid_. A new
-term goes into the glossary first, then into the text.
+README text, script messages, comments and PR descriptions use the `GLOSSARY.md` terms, not the
+words it lists under _Avoid_. A new term goes into the glossary first, then into the text.
 
 ## Config comments state what was seen
 

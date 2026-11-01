@@ -4,7 +4,7 @@
 # script and each has lib/test-guard.sh, that the messages fresh-home.sh greps
 # for are marked, and that the language recipes agree across doctor.sh, the
 # nvim config and LANGUAGES.md.
-# Run by CI and the pre-commit hook.
+# Run by CI and the commit hook.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
@@ -28,7 +28,7 @@ done
 if [[ -n "${LINT_SKIP_SECRETS:-}" ]]; then
   echo "lint: LINT_SKIP_SECRETS set, skipping secret scan" >&2
 elif command -v gitleaks >/dev/null; then
-  # The pre-commit hook sets LINT_STAGED=1 to scan what's about to be committed.
+  # The commit hook sets LINT_STAGED=1 to scan what's about to be committed.
   scope=()
   [[ -n "${LINT_STAGED:-}" ]] && scope=(--pre-commit --staged)
   gitleaks git --redact --no-banner ${scope[@]+"${scope[@]}"} . || err "gitleaks found a possible secret"

@@ -34,6 +34,10 @@ Create a GitHub issue.
 
 Read it as in **Read an issue** above.
 
+## Agent briefs
+
+Mark each concrete mechanism a brief names (a command, an option, a setting, an assumption about what a tool can do) as _run_, if you ran it and saw it work, or _unverified_. Each mark covers that one mechanism, so the implementer knows what to try first.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.

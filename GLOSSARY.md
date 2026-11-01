@@ -19,3 +19,15 @@ _Avoid_: local overrides, local config
 **Extra**:
 A snippet in `<tool>/extras/` that is off by default and that an installer turns on by adding one line to a per-machine file.
 _Avoid_: plugin, option, add-on
+
+**Commit hook**:
+The check a clone runs before every commit, which can refuse the commit.
+_Avoid_: pre-commit hook
+
+**Update reminder**:
+The line a new shell shows when a machine hasn't been updated for a while.
+_Avoid_: update prompt
+
+**Lockfile**:
+A machine's own record of the exact version of each nvim plugin, kept outside the repo.
+_Avoid_: lock file
