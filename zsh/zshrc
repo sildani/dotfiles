@@ -1,6 +1,11 @@
 # Shared zsh config, linked to ~/.zshrc by install.sh. Machine-specific setup
 # (PATH, nvm, its own tools) goes in ~/.zshrc.local, which is sourced last.
 
+# Each PATH entry once, keeping the first copy, whatever adds it below or in
+# ~/.zshrc.local, so PATH doesn't grow in nested shells. Both names: -U on path
+# alone misses `export PATH=...`.
+typeset -U PATH path
+
 # Homebrew: Apple Silicon or Intel prefix, whichever is installed.
 if [[ -x /opt/homebrew/bin/brew ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -8,6 +13,9 @@ elif [[ -x /usr/local/bin/brew ]]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
 export PATH=$HOME/bin:$HOME/.local/bin:$PATH
+
+# A machine's core.editor still wins for git.
+export EDITOR=nvim VISUAL=nvim
 
 # The repo root, wherever it was cloned: this file with symlinks resolved (:A),
 # two levels up. Docs and extras lines use it; tmux inherits it.
