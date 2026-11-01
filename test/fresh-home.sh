@@ -282,11 +282,18 @@ grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
   die "doctor.sh warned about a comment or a socket path in ~/.zprofile"
 # shellcheck disable=SC2016  # literal lines for ~/.zprofile
 echo 'eval "$(ssh-agent -s)" > /dev/null 2>&1' >>"$HOME/.zprofile"
-eval "$(ssh-agent -s)" >/dev/null  # one to count; doctor reports it
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { eval "$(ssh-agent -k)" >/dev/null; echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with ssh-agent in ~/.zprofile"; }
+# One real agent for doctor to count. Its socket goes under its HOME, and the
+# temp HOME's path is too long for a socket. Without the check, a failed start
+# would leave ssh-agent -k aiming at an agent inherited from the caller.
+agent_home="$(mktemp -d /tmp/fresh-home-agent.XXXXXX)"
+agent_env="$(HOME="$agent_home" ssh-agent -s)" || die "ssh-agent didn't start"
+eval "$agent_env" >/dev/null
+doctor_rc=0
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || doctor_rc=$?
 eval "$(ssh-agent -k)" >/dev/null
-rm "$HOME/.zprofile"
+rm -rf "$agent_home" "$HOME/.zprofile"
 echo "$doctor_out" >>"$LOG"
+((doctor_rc == 0)) || die "doctor.sh failed with ssh-agent in ~/.zprofile"
 grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" ||
   die "doctor.sh didn't warn about ssh-agent in ~/.zprofile"
 counted='[1-9][0-9]* running now'
