@@ -10,10 +10,11 @@
 # saves and left nvim/lazy-lock.json and every nvim plugin at its locked commit,
 # the second changed nothing (not even a real ~/.tmux/resurrect), doctor exits
 # 0 and warns about a stray tmux server only while one runs, about a changed
-# nvim/lazy-lock.json only while it's changed and about an nvim plugin off its
-# locked commit only while one is, zsh starts without
-# errors and exports DOTFILES as the repo, tmux loads its config and every extra
-# without errors, and every extra turns on from its README line, pasted as is
+# nvim/lazy-lock.json only while it's changed, about an nvim plugin off its
+# locked commit only while one is and about ssh-agent in ~/.zprofile only while
+# a line there starts one, zsh starts without errors and exports DOTFILES as
+# the repo, tmux loads its config and every extra without errors, and every
+# extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
 # undoes them, and the real repo's working tree is as it was. Set KEEP=1 to keep
@@ -269,6 +270,36 @@ grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" &&
   die "doctor.sh warned about a changed nvim/lazy-lock.json after a clean install"
 grep -qF 'nvim plugins not at their locked commit' <<<"$doctor_out" &&
   die "doctor.sh warned about nvim plugins off their locked commit after a clean install"
+grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
+  die "doctor.sh warned about ssh-agent in ~/.zprofile with no ~/.zprofile"
+
+echo "doctor.sh with ssh-agent in ~/.zprofile (should warn, counting agents, with the fix, and still pass; a comment or a socket path shouldn't)"
+# shellcheck disable=SC2016  # literal lines for ~/.zprofile
+printf '%s\n' '# eval "$(ssh-agent -s)"' 'export SSH_AUTH_SOCK=~/.ssh/ssh-agent.sock' >"$HOME/.zprofile"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a comment and a socket path in ~/.zprofile"; }
+echo "$doctor_out" >>"$LOG"
+grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
+  die "doctor.sh warned about a comment or a socket path in ~/.zprofile"
+# shellcheck disable=SC2016  # literal lines for ~/.zprofile
+echo 'eval "$(ssh-agent -s)" > /dev/null 2>&1' >>"$HOME/.zprofile"
+# One real agent for doctor to count. Its socket goes under its HOME, and the
+# temp HOME's path is too long for a socket. Without the check, a failed start
+# would leave ssh-agent -k aiming at an agent inherited from the caller.
+agent_home="$(mktemp -d /tmp/fresh-home-agent.XXXXXX)"
+agent_env="$(HOME="$agent_home" ssh-agent -s)" || die "ssh-agent didn't start"
+eval "$agent_env" >/dev/null
+doctor_rc=0
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || doctor_rc=$?
+eval "$(ssh-agent -k)" >/dev/null
+rm -rf "$agent_home" "$HOME/.zprofile"
+echo "$doctor_out" >>"$LOG"
+((doctor_rc == 0)) || die "doctor.sh failed with ssh-agent in ~/.zprofile"
+grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" ||
+  die "doctor.sh didn't warn about ssh-agent in ~/.zprofile"
+counted='[1-9][0-9]* running now'
+[[ "$doctor_out" =~ $counted ]] || die "doctor.sh didn't count the running ssh-agent"
+grep -qF 'launchd provides an agent on demand' <<<"$doctor_out" ||
+  die "doctor.sh didn't say how to fix ssh-agent in ~/.zprofile"
 
 echo "doctor.sh with a changed nvim/lazy-lock.json (should warn, with the fix, and still pass)"
 sed -i '' -E 's/"commit": "[0-9a-f]+"/"commit": "0000000000000000000000000000000000000000"/' "$REPO_DIR/nvim/lazy-lock.json"
