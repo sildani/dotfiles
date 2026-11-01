@@ -2,7 +2,8 @@
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
 # config link, override file, extra and test script, that CI runs every test
 # script and each has lib/test-guard.sh, that the messages fresh-home.sh greps
-# for are marked, and that the language recipes agree across doctor.sh, the nvim config and LANGUAGES.md.
+# for are marked, and that the language recipes agree across doctor.sh, the
+# nvim config and LANGUAGES.md.
 # Run by CI and the pre-commit hook.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh

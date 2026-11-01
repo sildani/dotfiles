@@ -3,7 +3,8 @@
 # HOME and runs its install.sh (once with the Oh My Zsh clone failing, then
 # twice for real), then doctor.sh and an interactive zsh. Passes when a throwaway
 # clone gets the commit hook, which refuses a commit when a fast test fails, and
-# keeps a core.hooksPath of its own with a warning, Rectangle is installed only if missing and a failed cask only warns,
+# keeps a core.hooksPath of its own with a warning, Rectangle is installed only
+# if missing and a failed cask only warns,
 # the install sets the hook in the copy, which then refuses a commit on
 # main, without writing ~/.gitconfig, doctor.sh lists every tool, doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
@@ -159,18 +160,25 @@ hook_out="$(enable_commit_hook "$HOOK_CLONE")"
 echo "the commit hook refuses a commit when a fast test fails"
 git -C "$HOOK_CLONE" config --local core.hooksPath hooks
 git -C "$HOOK_CLONE" switch -q -c hook-check
-hook_tests=(lint doctor-warnings updates)
-# Stand-ins that also fail if git's variables reach the tests' temp repos.
-for name in "${hook_tests[@]}"; do
-  # shellcheck disable=SC2016  # for the stand-in to expand
-  printf '#!/bin/sh\n[ -z "$GIT_INDEX_FILE$GIT_DIR" ]\n' >"$HOOK_CLONE/test/$name.sh"
-done
+# Stand-ins: lint needs the commit's index for its secret scan, and the tests
+# must not see git's variables, which would reach their temp repos.
+hook_stand_ins() {
+  # shellcheck disable=SC2016  # for the stand-ins to expand
+  printf '#!/bin/sh\n[ -n "$GIT_INDEX_FILE" ]\n' >"$HOOK_CLONE/test/lint.sh"
+  for name in doctor-warnings updates; do
+    # shellcheck disable=SC2016  # for the stand-ins to expand
+    printf '#!/bin/sh\n[ -z "$GIT_INDEX_FILE$GIT_DIR" ] && echo "%s: ok"\n' "$name" >"$HOOK_CLONE/test/$name.sh"
+  done
+}
+hook_stand_ins
 hook_commit 2>>"$LOG" || die "the commit hook refused a commit with every test passing"
-for name in "${hook_tests[@]}"; do
-  cp "$HOOK_CLONE/test/$name.sh" "$HOOK_CLONE/test/$name.sh.keep"
-  printf '#!/bin/sh\nexit 1\n' >"$HOOK_CLONE/test/$name.sh"
-  hook_commit 2>>"$LOG" && die "the commit hook let a commit through with test/$name.sh failing"
-  mv "$HOOK_CLONE/test/$name.sh.keep" "$HOOK_CLONE/test/$name.sh"
+printf '#!/bin/sh\nexit 1\n' >"$HOOK_CLONE/test/lint.sh"
+hook_commit 2>>"$LOG" && die "the commit hook let a commit through with test/lint.sh failing"
+# Exit 0 with no verdict is how a test stopped by set -u ends on stock bash.
+for name in doctor-warnings updates; do
+  hook_stand_ins
+  printf '#!/bin/sh\n' >"$HOOK_CLONE/test/$name.sh"
+  hook_commit 2>>"$LOG" && die "the commit hook let a commit through with test/$name.sh giving no verdict"
 done
 
 # A git that fails only the Oh My Zsh clone, as with no network.

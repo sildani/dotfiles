@@ -6,10 +6,14 @@ if [[ "$(git symbolic-ref --short -q HEAD)" == main ]]; then
   exit 1
 fi
 root="$(git rev-parse --show-toplevel)"
-# Git's variables for this commit would point the tests' temp repos at this one.
+LINT_STAGED=1 "$root/test/lint.sh" || exit 1
+
+# The secret scan above needs this commit's index. The tests don't: git's
+# variables would point their temp repos at this one.
 # shellcheck disable=SC2046  # one name per word
 unset $(git rev-parse --local-env-vars)
-# Their progress is noise here; failures go to stderr.
-LINT_STAGED=1 "$root/test/lint.sh" &&
-  "$root/test/doctor-warnings.sh" >/dev/null &&
-  "$root/test/updates.sh" >/dev/null
+
+# passes <test>: only a final "<test>: ok" counts, because on stock bash a test
+# stopped by set -u can still exit 0. Its failures go to stderr.
+passes() { [[ "$("$root/test/$1.sh" | tail -1)" == *": ok" ]]; }
+passes doctor-warnings && passes updates

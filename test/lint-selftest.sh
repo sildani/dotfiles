@@ -109,32 +109,37 @@ done
 # A test script without the guard, which would otherwise stop silently.
 for f in "$REPO_DIR"/test/*.sh; do
   f="test/${f##*/}"
-  runs=$((runs + 1))
-  cp "$COPY/$f" "$COPY/$f.keep"
-  grep -v '^source .*lib/test-guard.sh' "$COPY/$f.keep" >"$COPY/$f"
-  rm "$COPY/$f.keep"
-  expect_caught "no guard in $f" "$f doesn't source lib/test-guard.sh"
-  cp "$REPO_DIR/$f" "$COPY/$f"
+  mutate "$f" '/^source .*lib\/test-guard\.sh/d' "no guard in $f" "$f doesn't source lib/test-guard.sh"
 done
 
-# The guard itself, on stock bash: a stop inside a function names its line, and
-# an expected failure in a condition or a $(...) stays quiet.
-runs=$((runs + 1))
+# The guard itself, on stock bash: it names a stop at the top level, and inside
+# a function by its caller, and an expected failure stays quiet.
 cat >"$COPY/guard-check.sh" <<GUARD
 set -euo pipefail
 source "$REPO_DIR/lib/test-guard.sh"
 fails() { false; }
 out="\$(fails)" || true
 if fails; then :; fi
-stops() { false; }
+stops() {
+  :
+  false
+}
+[ "\$1" = function ] || false
 stops
 GUARD
-guard_out="$(/bin/bash "$COPY/guard-check.sh" 2>&1)" && guard_rc=0 || guard_rc=$?
+# expect_guard <argument> <message>
+expect_guard() {
+  local out rc=0
+  runs=$((runs + 1))
+  out="$(/bin/bash "$COPY/guard-check.sh" "$1" 2>&1)" || rc=$?
+  if ((rc == 0)) || [[ "$out" != "$2" ]]; then
+    echo "FAIL: the guard printed '$out' (exit $rc), not '$2'" >&2
+    survived=$((survived + 1))
+  fi
+}
+expect_guard top "guard-check.sh: died at line 10: false"
+expect_guard function "guard-check.sh: died in stops, called from line 11: false"
 rm "$COPY/guard-check.sh"
-if [[ "$guard_rc" == 0 || "$guard_out" != "guard-check.sh: stopped at line 6: false" ]]; then
-  echo "SURVIVED: the guard printed '$guard_out' (exit $guard_rc)" >&2
-  survived=$((survived + 1))
-fi
 
 # A test script in neither list.
 runs=$((runs + 1))
