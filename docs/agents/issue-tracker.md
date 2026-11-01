@@ -11,6 +11,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
+- **Keep the body current**: when a triage finding changes what an issue asks for, edit the body (`gh issue edit <number> --body-file <file>`) and link the triage comment from it, so the body gives the current steps. Once an agent brief is posted, the brief is the contract.
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
@@ -34,9 +35,11 @@ Create a GitHub issue.
 
 Read it as in **Read an issue** above.
 
-## Agent briefs
+## Agent briefs and commands for others
 
 Mark each concrete mechanism a brief names (a command, an option, a setting, an assumption about what a tool can do) as _run_, if you ran it and saw it work, or _unverified_. Each mark covers that one mechanism, so the implementer knows what to try first.
+
+The same marks cover any command on an issue or in a handoff that someone else will run. Give each command its healthy result too.
 
 ## Wayfinding operations
 

@@ -7,6 +7,7 @@ macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `
 - Each machine keeps its own git and gh setup; leave `~/.gitconfig` and `gh auth` as they are.
 - Any Mac can commit shared changes. Put changes for one Mac in `~/.zshrc.local`, `nvim/lua/local.lua`, `~/.tmux.local.conf` or `~/.config/ghostty/local`.
 - Optional per-machine tweaks: `<tool>/extras/`, turned on from that tool's per-machine file (README "Optional extras").
+- Steps that need a person on each Mac: `wizard`.
 - Scripts must run on stock macOS bash 3.2 (a new machine has no newer bash): expand possibly-empty arrays as `${arr[@]+"${arr[@]}"}`.
 - Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker, extras, guard or glossary checks; takes minutes, so give the call a 5-minute timeout), `test/doctor-warnings.sh` (`doctor.sh` warnings, in seconds), `test/updates.sh` (`update.sh` and the reminder against fakes, in seconds) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all five on macOS. `test/fresh-home.sh` takes minutes: run it in the background as `test/fresh-home.sh > "$log" 2>&1; rc=$?; tail -5 "$log"; exit $rc` with `log` set to a file in your scratchpad, so the notification carries the test's exit code, and leave the repo alone until it finishes. Run it again after any change to what it installs or checks; docs-only changes skip it.
 
@@ -14,7 +15,7 @@ macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `
 
 ### Issue tracker
 
-Issues live in GitHub Issues for sildani/dotfiles, via the `gh` CLI. See `docs/agents/issue-tracker.md`, also when writing an agent brief.
+Issues live in GitHub Issues for sildani/dotfiles, via the `gh` CLI. See `docs/agents/issue-tracker.md`, also when writing an agent brief or a command for someone else to run.
 
 ### Triage labels
 
@@ -44,6 +45,7 @@ Several issues in one session: follow `docs/agents/batch.md`.
 `.scratch/` is gitignored local space. `/handoff` writes here, not to `$TMPDIR`:
 
 - Write to `.scratch/handoffs/handoff.md`.
+- Mark each command for someone else to run, with its healthy result: `docs/agents/issue-tracker.md`.
 - If it already exists, ask: update it in place, or move it to `.scratch/handoffs/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
 - When you pick up a handoff, its `Next:` heading names a command the user types, such as `/mattpocock-skills:triage <n>`. These user-only skills are installed but left out of your skill list, so ask the user to run it.
 - When the step a handoff's `Next:` names finishes, rewrite `Next:` to the step after it.
