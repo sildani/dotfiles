@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Checks that test/lint.sh's marker, extras and test-script checks still catch
 # what they exist for: in a copy of the working tree, it removes each
-# `# fresh-home.sh greps for "<text>"` marker, rewords one, adds an unmarked
-# grep to test/fresh-home.sh, empties or drops each extras row's cells, drops
+# `# fresh-home.sh greps for "<text>"` marker, rewords one, drops one piece of
+# a <placeholder> marker from test/fresh-home.sh, adds an unmarked grep there,
+# empties or drops each extras row's cells, drops
 # each test script's CI step and README "Checks" bullet, and adds an unlisted
 # test script, one mutation at a time, and expects lint to fail naming the
 # mutated text.
@@ -73,6 +74,9 @@ done < <(cd "$REPO_DIR" && grep -nF '# fresh-home.sh greps for "' install.sh doc
 
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "lint-selftest reworded"/' \
   "marker reworded" "lint-selftest reworded"
+
+mutate test/fresh-home.sh 's/ running now/ lint-selftest count/' \
+  "one piece of a <placeholder> marker gone from test/fresh-home.sh" 'no longer greps for " running now"'
 
 mutate test/fresh-home.sh "\$a\\
 grep -q 'lint-selftest unmarked' <<<\"\$doctor_out\" || die x

@@ -104,7 +104,7 @@ for marker in ${markers[@]+"${markers[@]}"}; do
   while IFS= read -r piece; do
     [[ -z "$piece" ]] && continue
     grep -qF -- "$piece" test/fresh-home.sh ||
-      err "marker \"$marker\" (${marker_files[*]}): test/fresh-home.sh no longer greps for it"
+      err "test/fresh-home.sh no longer greps for \"$piece\", from marker \"$marker\" (${marker_files[*]})"
     while IFS=: read -r file n code; do
       [[ "$code" == *"# fresh-home.sh greps for"* || "$code" == *"# fresh-home.sh doesn't grep for this"* ]] ||
         err "$file:$n prints \"$piece\" without its marker: # fresh-home.sh greps for \"$marker\""
