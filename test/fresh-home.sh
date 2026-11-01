@@ -16,7 +16,9 @@
 # nvim/lazy-lock.json only while it's changed, about an nvim plugin off its
 # locked commit only while one is and about ssh-agent in ~/.zprofile only while
 # a line there starts one, zsh starts without errors and exports DOTFILES as
-# the repo, tmux loads its config and every extra without errors, and every
+# the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local overrides), keeps
+# PATH free of duplicates and in order, nested too, and stays on the emacs
+# keymap, tmux loads its config and every extra without errors, and every
 # extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
@@ -361,6 +363,37 @@ zsh_out="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c exit 2
 [[ -z "$zsh_out" ]] || die "an interactive zsh printed: $zsh_out"
 zsh_dotfiles="$(env -i HOME="$HOME" PATH="$PATH" TERM=xterm-256color zsh -i -c 'printenv DOTFILES' 2>&1)" || true
 [[ "$zsh_dotfiles" == "$(cd "$REPO_DIR" && pwd -P)" ]] || die "zsh exported DOTFILES='$zsh_dotfiles', not the repo at $REPO_DIR"
+
+# izsh <PATH> <command>: runs the command in an interactive zsh.
+izsh() { env -i HOME="$HOME" PATH="$1" TERM=xterm-256color zsh -i -c "$2" 2>&1; }
+
+echo "zsh sets EDITOR and VISUAL, keeps PATH unique and in order, and stays on emacs"
+# shellcheck disable=SC2016  # $EDITOR, $VISUAL and $path are for the inner zsh
+read_editors='print -r -- "[$EDITOR][$VISUAL]"' read_path='print -rl -- $path'
+editors="$(izsh "$PATH" "$read_editors")"
+[[ "$editors" == '[nvim][nvim]' ]] || die "zsh has EDITOR and VISUAL as $editors, not nvim"
+path_order="$(izsh "/p/a:/p/b:/p/a:/p/c:$PATH" "$read_path")"
+[[ -z "$(sort <<<"$path_order" | uniq -d)" ]] || die "zsh's PATH has duplicates:"$'\n'"$path_order"
+[[ "$(grep '^/p/' <<<"$path_order" | tr '\n' ' ')" == '/p/a /p/b /p/c ' ]] || die "zsh changed PATH's order:"$'\n'"$path_order"
+outer_path="$(izsh "$PATH" "$read_path")"
+# shellcheck disable=SC2016  # for the inner zsh
+nested_path="$(izsh "$PATH" 'zsh -i -c "print -rl -- \$path"')"
+[[ "$nested_path" == "$outer_path" ]] || die "a nested zsh has a different PATH:"$'\n'"$nested_path"
+keymap="$(izsh "$PATH" "zsh -i -c 'bindkey -lL main'")"
+[[ "$keymap" == 'bindkey -A emacs main' ]] || die "a nested zsh, with EDITOR inherited, isn't on the emacs keymap: $keymap"
+mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.away"
+keymap="$(izsh "$PATH" "zsh -i -c 'bindkey -lL main'")"
+mv "$HOME/.oh-my-zsh.away" "$HOME/.oh-my-zsh"
+[[ "$keymap" == *'bindkey -A emacs main' ]] || die "without Oh My Zsh, a nested zsh isn't on the emacs keymap: $keymap"
+
+echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"
+# shellcheck disable=SC2016  # literal lines for ~/.zshrc.local
+printf '%s\n' 'export EDITOR=vi VISUAL=vi' 'export PATH="/p/b:$PATH"' >>"$HOME/.zshrc.local"
+editors="$(izsh "$PATH" "$read_editors")"
+[[ "$editors" == '[vi][vi]' ]] || die "the per-machine file didn't override EDITOR and VISUAL: $editors"
+path_order="$(izsh "/p/a:/p/b:$PATH" "$read_path")"
+[[ -z "$(sort <<<"$path_order" | uniq -d)" ]] || die "an entry from the per-machine file duplicated PATH:"$'\n'"$path_order"
+printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 # Commands, not -f: a server started with -f exits 0 even when the file has
 # errors, while source-file as a command exits non-zero on any.
