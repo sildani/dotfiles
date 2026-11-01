@@ -32,7 +32,7 @@ The user runs `/mattpocock-skills:implement` from `main`. Carry it through to a 
 
 1. Pull `main` and branch off it, named after the change. `/implement` commits to the current branch.
 2. Build with `tdd`, picking the seams yourself and naming them in the report, then commit, staging files by name (`code-review` diffs `main...HEAD`).
-3. Once `git log` shows the commit, run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why. Docs-only edits the user approved verbatim skip `code-review`. Then run `test/fresh-home.sh` once for green.
+3. Once `git log` shows the commit, run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why. Docs-only edits the user approved verbatim skip `code-review`. Before proposing docs text for verbatim approval, run its commands on throwaway files, or say which claims are unrun. Then run `test/fresh-home.sh` once for green, unless the change is docs-only.
 4. Push the branch, report, and stop. When the user runs `/mattpocock-skills:pr`, create the PR (`gh pr create`) with a body that follows that skill.
 5. Watch CI by run ID. Green: run `gh pr merge --merge --match-head-commit <full-sha>` with the commit CI passed, then `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`), then report. Red: stop and report.
 6. With no tasks left in the session, suggest `/mattpocock-skills:retro`; the user runs it.
@@ -47,4 +47,4 @@ Several issues in one session: follow `docs/agents/batch.md`.
 - If it already exists, ask: update it in place, or move it to `.scratch/handoffs/handoff-<YYYY-MM-DD-HHMM>.md` and write a fresh one.
 - When you pick up a handoff, its `Next:` heading names a command the user types, such as `/mattpocock-skills:triage <n>`. These user-only skills are installed but left out of your skill list, so ask the user to run it.
 - When the step a handoff's `Next:` names finishes, rewrite `Next:` to the step after it.
-- When a handoff is done, move it to `.scratch/handoffs/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.
+- When a handoff is done, turn any open items into GitHub issues, then move it to `.scratch/handoffs/archive/<YYYY-MM-DD>-<slug>.md` and add a `Resolved by:` line linking the PRs that closed it, if any.
