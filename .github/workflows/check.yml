@@ -1,8 +1,8 @@
 name: check
 
 # Pushes to main and every PR, one run per change instead of one per event, plus
-# a weekly run of main: install.sh takes what upstream ships that day, so a fresh
-# install can break with no commit here.
+# a weekly run of main: Oh My Zsh, the plugins and the runner image's Homebrew
+# formulae move upstream, so a fresh install can break with no commit here.
 on:
   push:
     branches: [main]
