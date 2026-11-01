@@ -95,25 +95,37 @@ zprofile_ssh_agent() {
 # gives its length.
 plist_value() { plutil -extract "$2" raw -o - - <<<"$1" 2>/dev/null; }
 
-# With more than one input source, macOS selects the previous one on Ctrl-Space
-# (hotkey 60, on by default, so an absent key counts), and tmux never gets its
-# prefix. Non Keyboard Input Method entries, such as emoji, don't count.
-check_ctrl_space() {
-  section "macOS"
+# Enabled input sources, leaving out Non Keyboard Input Method entries such as
+# emoji.
+input_source_count() {
   local plist count i kept=0
   plist="$(defaults export com.apple.HIToolbox - 2>/dev/null)"
   count="$(plist_value "$plist" AppleEnabledInputSources)" || count=0
   for ((i = 0; i < count; i++)); do
     [[ "$(plist_value "$plist" "AppleEnabledInputSources.$i.InputSourceKind")" == "Non Keyboard Input Method" ]] || kept=$((kept + 1))
   done
+  echo "$kept"
+}
 
-  local key=AppleSymbolicHotKeys.60 enabled shortcut=""
+# Hotkey 60, "select previous input source", is on and Ctrl-Space. Both are the
+# default, so an absent key counts.
+previous_source_is_ctrl_space() {
+  local ctrl_space="32 49 262144" key=AppleSymbolicHotKeys.60
+  local plist enabled i shortcut=""
   plist="$(defaults export com.apple.symbolichotkeys - 2>/dev/null)"
   enabled="$(plist_value "$plist" "$key.enabled")" || enabled=true
+  [[ "$enabled" == true ]] || return 1
   for i in 0 1 2; do
     shortcut+="$(plist_value "$plist" "$key.value.parameters.$i") "
   done
-  if ((kept > 1)) && [[ "$enabled" == true && ("$shortcut" == "32 49 262144 " || -z "${shortcut// /}") ]]; then
+  [[ -z "${shortcut// /}" || "$shortcut" == "$ctrl_space " ]]
+}
+
+# With more than one input source, the hotkey takes Ctrl-Space before tmux gets
+# its prefix.
+check_ctrl_space() {
+  section "macOS"
+  if (($(input_source_count) > 1)) && previous_source_is_ctrl_space; then
     warn "macOS takes Ctrl-Space, the tmux prefix, to switch input sources"  # doctor-warnings.sh greps for "macOS takes Ctrl-Space"
     hint "System Settings > Keyboard > Keyboard Shortcuts > Input Sources: turn off or change \"Select the previous input source\""
   else
