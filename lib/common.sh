@@ -13,11 +13,11 @@ NVIM_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/nvim"
 NVIM_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/nvim"
 MASON_PKGS="$NVIM_DATA/mason/packages"
 TS_PARSERS="$NVIM_DATA/site/parser"
-# Each Mac's own, not the repo's: nvim/lua/configs/lazy.lua points lazy.nvim here.
+# Each machine's own, not the repo's: nvim/lua/configs/lazy.lua points lazy.nvim here.
 NVIM_LOCK="$NVIM_STATE/lazy-lock.json"
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 ZSH_DIR="$HOME/.oh-my-zsh"
-# When this Mac last ran update.sh or saw the reminder; zsh/zshrc reads the same
+# When this machine last ran update.sh or saw the reminder; zsh/zshrc reads the same
 # path.
 UPDATE_STAMP="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/last-update"
 
@@ -212,8 +212,12 @@ raise_to_minimum() {
   source="$(tool_source "$2")"
   if [[ "$source" == brew ]]; then
     info "upgrading $1: $2 $version is older than $3"
-    brew upgrade "$1"
-    ok "$2 $(tool_version "$2") (brew, just upgraded)"
+    if brew upgrade "$1"; then
+      ok "$2 $(tool_version "$2") (brew, just upgraded)"
+    else
+      warn "couldn't upgrade $1; $2 $version is still older than $3"
+      hint "brew upgrade $1"
+    fi
   else
     warn "$2 $version is older than $3 ($source); brew didn't install it"
     hint "upgrade it the way you installed it, or remove it and re-run to get brew's $1"
@@ -225,10 +229,12 @@ tmux_plugins() {
   sed -nE "s/^set -g @plugin '([^'#]+)#?([^']*)'.*/\1 \2/p" "$REPO_DIR/tmux/tmux.conf"
 }
 
-# "name commit" per plugin in this Mac's nvim lockfile.
+# "name commit" per plugin in this machine's nvim lockfile.
 nvim_lock_plugins() {
   sed -nE 's/^  "([^"]+)": \{.*"commit": "([0-9a-f]+)".*/\1 \2/p' "$NVIM_LOCK" 2>/dev/null
 }
+
+pull_command() { echo "cd ${REPO_DIR/#$HOME/~} && git pull && ./install.sh"; }
 
 # Prints "current", "behind" or, offline or after 5 seconds, "unknown", for this
 # clone against main on origin. ls-remote doesn't write to .git. macOS has no

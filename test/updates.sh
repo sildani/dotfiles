@@ -91,11 +91,11 @@ for entry in "${FORMULAE[@]}"; do
   case "$cmd" in
     git) rest='echo "git $*" >>"$CALLS"; exec "$REAL_GIT" "$@"' ;;
     nvim) rest='echo "nvim $*" >>"$CALLS"
-[ -z "$FAIL_NVIM" ] || exit 1
 case "$*" in
-  *nvim-treesitter*) ;;
+  *parsers*) ;;
   *) sed -i "" s/aaaaaaaa/bbbbbbbb/ "$LOCK_FILE" ;;
-esac' ;;
+esac
+[ -z "$FAIL_NVIM" ] || exit 1' ;;
     *) rest='' ;;
   esac
   # shellcheck disable=SC2016  # for the fake tool
@@ -103,7 +103,8 @@ esac' ;;
 done
 chmod +x "$BREW/bin/"* "$TMP/elsewhere/"*
 
-update() { PATH="$BREW/bin:$TMP/elsewhere:$PATH" /bin/bash "$TMP/repo/update.sh" 2>&1; }
+fakes() { PATH="$BREW/bin:$TMP/elsewhere:$PATH" "$@"; }
+update() { fakes /bin/bash "$TMP/repo/update.sh" 2>&1; }
 
 repo_head="$(head_of "$TMP/repo")"
 catppuccin_head="$(head_of "$HOME/.tmux/plugins/tmux")"
@@ -137,7 +138,7 @@ grep -q changed "$HOME/.tmux/plugins/tmux-yank/file" || failed "tmux-yank's loca
 [[ "$out" == *"tmux-yank: skipped"* ]] || failed "no skip note for a changed plugin:"$'\n'"$out"
 [[ "$out" == *"plugin-a aaaaaaa → bbbbbbb"* ]] || failed "no old → new line for an nvim plugin:"$'\n'"$out"
 [[ "$out" != *"plugin-b "* ]] || failed "listed an nvim plugin that didn't change:"$'\n'"$out"
-grep -q '^nvim .*nvim-treesitter' "$CALLS" || failed "update.sh didn't update the treesitter parsers"
+grep -q '^nvim .*parsers' "$CALLS" || failed "update.sh didn't update the treesitter parsers"
 [[ "$out" == *"behind origin"* ]] || failed "no note that the repo is behind origin:"$'\n'"$out"
 [[ "$(head_of "$TMP/repo")" == "$repo_head" ]] || failed "update.sh moved the repo"
 [[ -z "$(git -C "$TMP/repo" status --porcelain)" ]] || failed "update.sh dirtied the repo:"$'\n'"$(git -C "$TMP/repo" status --porcelain)"
@@ -159,6 +160,7 @@ echo "a failing step leaves the others to run, and fails at the end"
 : >"$CALLS"
 new_commit "$TMP/upstream/tmux-sensible" third
 export FAIL_FORMULA=gh FAIL_NVIM=1
+lock aaaaaaaa >"$NVIM_LOCK"
 git -C "$ZSH_DIR" remote set-url origin "$TMP/no-such-repo"
 rc=0
 out="$(update)" || rc=$?
@@ -166,20 +168,33 @@ FAIL_FORMULA="" FAIL_NVIM=""
 ((rc != 0)) || failed "update.sh exited 0 with failing steps:"$'\n'"$out"
 grep -q '^brew upgrade tmux' "$CALLS" || failed "a failed gh upgrade stopped the others"
 [[ "$(head_of "$sensible")" == "$(head_of "$TMP/upstream/tmux-sensible")" ]] || failed "failed steps stopped the tmux plugins"
-grep -q '^nvim .*nvim-treesitter' "$CALLS" || failed "failed steps stopped the treesitter parsers"
-for name in gh 'Oh My Zsh' 'nvim plugins'; do
-  [[ "$out" == *"$name"*failed* ]] || failed "no failure line for $name:"$'\n'"$out"
+grep -q '^nvim .*parsers' "$CALLS" || failed "failed steps stopped the treesitter parsers"
+for name in gh 'Oh My Zsh: update' 'nvim plugins: update' 'treesitter parsers: update'; do
+  [[ "$out" == *"$name failed"* || "$out" == *"$name"*" failed"* ]] || failed "no failure line for $name:"$'\n'"$out"
 done
+[[ "$out" == *"plugin-a aaaaaaa → bbbbbbb"* ]] || failed "a failed nvim step hid the plugins that moved:"$'\n'"$out"
+
+echo "update.sh leaves a local commit in Oh My Zsh alone"
+git -C "$ZSH_DIR" remote set-url origin "file://$TMP/upstream/oh-my-zsh"
+new_commit "$ZSH_DIR" mine
+omz_head="$(head_of "$ZSH_DIR")"
+new_commit "$TMP/upstream/oh-my-zsh" fourth
+out="$(update)" || failed "update.sh failed with a local commit in Oh My Zsh:"$'\n'"$out"
+[[ "$(head_of "$ZSH_DIR")" == "$omz_head" ]] || failed "update.sh dropped a local commit in Oh My Zsh"
+[[ "$out" == *"Oh My Zsh: skipped"* ]] || failed "no skip note for a local commit in Oh My Zsh:"$'\n'"$out"
 
 echo "a tool below its minimum gets brew upgrade only if brew installed it"
 : >"$CALLS"
 echo 1.0 >"$VERSIONS/tmux"
-out="$(PATH="$BREW/bin:$TMP/elsewhere:$PATH" raise_to_minimum tmux tmux 3.5 2>&1)" || failed "raise_to_minimum failed: $out"
+out="$(fakes raise_to_minimum tmux tmux 3.5 2>&1)" || failed "raise_to_minimum failed: $out"
 grep -q '^brew upgrade tmux$' "$CALLS" || failed "a brew tool below its minimum wasn't upgraded"
 : >"$CALLS"
-out="$(PATH="$BREW/bin:$TMP/elsewhere:$PATH" raise_to_minimum tree-sitter-cli tree-sitter 9 2>&1)" || failed "raise_to_minimum failed: $out"
+out="$(fakes raise_to_minimum tree-sitter-cli tree-sitter 9 2>&1)" || failed "raise_to_minimum failed: $out"
 grep -q '^brew upgrade' "$CALLS" && failed "ran brew upgrade on a tool brew didn't install"
 [[ "$out" == *"older than 9"* ]] || failed "no warning for a non-brew tool below its minimum: $out"
+export FAIL_FORMULA=gh
+(set -e; fakes raise_to_minimum gh gh 9 >/dev/null 2>&1) || failed "a failed brew upgrade stopped the install"
+FAIL_FORMULA=""
 
 echo "the update reminder"
 ln -s "$TMP/repo/zsh/zshrc" "$HOME/.zshrc"
@@ -199,8 +214,9 @@ rm "$UPDATE_STAMP"
 out="$(new_shell)"
 [[ -z "$out" && ! -e "$UPDATE_STAMP" ]] || failed "a missing timestamp should stay quiet and missing: $out"
 touch -t 202001010000 "$UPDATE_STAMP"
-out="$(env -i HOME="$HOME" PATH="/usr/bin:/bin" zsh -c true 2>/dev/null)"
-[[ -z "$out" ]] || failed "a non-interactive shell printed: $out"
+# Sourced, since a non-interactive zsh doesn't read ~/.zshrc by itself.
+out="$(env -i HOME="$HOME" PATH="/usr/bin:/bin" zsh -c 'source ~/.zshrc; true' 2>/dev/null)"
+[[ -z "$out" && -n "$(find "$UPDATE_STAMP" -mtime +1)" ]] || failed "a non-interactive shell showed the reminder: $out"
 # shellcheck disable=SC2016  # for the inner zsh
 mode="$(new_shell 'zstyle -s ":omz:update" mode m; print -r -- $m' | tail -1)"
 [[ "$mode" == disabled ]] || failed "Oh My Zsh's update mode is '$mode', not disabled"

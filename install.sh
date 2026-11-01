@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sets up zsh (Oh My Zsh), tmux, nvim and Ghostty from this repo, at the latest
-# versions. Safe to re-run after `git pull`; update.sh keeps a Mac current. Sets core.hooksPath in this
+# versions. Safe to re-run after `git pull`; update.sh keeps a machine current. Sets core.hooksPath in this
 # clone; otherwise never touches git/gh config or auth. Never installs language
 # support (see LANGUAGES.md).
 set -euo pipefail
@@ -260,8 +260,8 @@ install_nvim_plugins() {
   local log="$HOME/.dotfiles-install.log"
   : >"$log"
   # The first installs what's missing at the latest commits. The second writes
-  # this Mac's lockfile in full: the first's misses the plugins NvChad's spec
-  # imports, and an up-to-date Mac doesn't write one at all.
+  # this machine's lockfile in full: the first's misses the plugins NvChad's
+  # spec imports, and an up-to-date machine doesn't write one at all.
   run_logged "$log" nvim --headless +qa
   run_logged "$log" nvim --headless "+Lazy! install" +qa
   ok "plugins installed (versions: ${NVIM_LOCK/#$HOME/~})"
@@ -274,7 +274,7 @@ install_nvim_plugins() {
   ok "parsers installed (details: ${log/#$HOME/~})"
 }
 
-# A first install starts the reminder's clock, so a new Mac stays quiet.
+# A first install starts the reminder's clock, so a new machine stays quiet.
 start_update_clock() {
   [[ -e "$UPDATE_STAMP" ]] && return 0
   mkdir -p "$(dirname "$UPDATE_STAMP")"

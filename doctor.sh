@@ -227,7 +227,7 @@ check_origin() {
     current) ok "up to date with origin" ;;
     behind)
       warn "this clone is behind origin"  # doctor-warnings.sh greps for "behind origin"
-      hint "git -C ${REPO_DIR/#$HOME/~} pull && ./install.sh"
+      hint "$(pull_command)"
       ;;
     *) info "couldn't reach origin, so this clone wasn't compared with it" ;;  # doctor-warnings.sh greps for "couldn't reach origin"
   esac
@@ -243,10 +243,10 @@ check_plugins() {
   fi
 
   if [[ -d "$TPM_DIR" ]]; then
-    local name missing=()
-    while read -r name; do
-      [[ -d "$HOME/.tmux/plugins/$name" ]] || missing+=("$name")
-    done < <(tmux_plugins | sed -E 's/^[^/]+\/([^ ]+) .*/\1/')
+    local repo missing=()
+    while read -r repo _; do
+      [[ -d "$HOME/.tmux/plugins/${repo##*/}" ]] || missing+=("${repo##*/}")
+    done < <(tmux_plugins)
     if ((${#missing[@]})); then
       broken "tmux plugins missing: ${missing[*]}"
       hint "run ./install.sh (or prefix + I inside tmux)"
@@ -271,7 +271,7 @@ check_plugins() {
       ok "all nvim plugins in this machine's lockfile"
     fi
   else
-    broken "no nvim lockfile at ${NVIM_LOCK/#$HOME/~}"
+    warn "no nvim lockfile at ${NVIM_LOCK/#$HOME/~}, so nvim plugins weren't checked"
     hint "run ./install.sh"
   fi
 

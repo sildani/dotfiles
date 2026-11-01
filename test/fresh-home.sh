@@ -115,7 +115,7 @@ zshrc_own=('export PATH="$HOME/bin:$PATH"' "alias ll='ls -la'" 'DISABLE_AUTO_TIT
 # shellcheck disable=SC2016
 printf '%s\n' '# old zsh config' '# If you come from bash you might have to change your $PATH.' '' '' \
   'export ZSH="$HOME/.oh-my-zsh"' 'export ZSH_THEME="robbyrussell"' 'HIST_STAMPS="mm/dd/yyyy"' \
-  'export ZSH_CUSTOM="$HOME/omz-custom"' "zstyle ':omz:update' mode reminder" 'plugins=(' '  git' '  docker' ')' \
+  'export ZSH_CUSTOM="$HOME/omz-custom"' "zstyle ':omz:update' mode disabled" "zstyle ':omz:update' frequency 7" 'plugins=(' '  git' '  docker' ')' \
   'source $ZSH/oh-my-zsh.sh' 'eval "$(/opt/homebrew/bin/brew shellenv)"' "${zshrc_own[@]}" >"$HOME/.zshrc"
 
 # turn_on_extra <tool>/extras/<name>: appends the README's "Line to add" for
@@ -240,8 +240,10 @@ omz_lacks="$(grep 'Oh My Zsh settings the shared zshrc lacks' <<<"$first")" ||
   die "install.sh didn't warn about the old ~/.zshrc's plugins the shared zshrc lacks"
 [[ " $omz_lacks " == *" docker "* && " $omz_lacks " != *" git "* ]] ||
   die "install.sh should name plugin docker, and not git: $omz_lacks"
-[[ "$omz_lacks" == *'HIST_STAMPS="mm/dd/yyyy"'* && "$omz_lacks" == *"zstyle ':omz:update' mode reminder"* ]] ||
+[[ "$omz_lacks" == *'HIST_STAMPS="mm/dd/yyyy"'* && "$omz_lacks" == *"zstyle ':omz:update' frequency 7"* ]] ||
   die "install.sh should name HIST_STAMPS and zstyle ':omz:update', which load too late in ~/.zshrc.local: $omz_lacks"
+[[ "$omz_lacks" != *"mode disabled"* ]] ||
+  die "install.sh shouldn't name zstyle ':omz:update' mode disabled, which the shared zshrc sets: $omz_lacks"
 [[ "$omz_lacks" == *'export ZSH_CUSTOM='* && "$omz_lacks" != *ZSH_THEME* ]] ||
   die "install.sh should name export ZSH_CUSTOM, and not export ZSH_THEME, which matches the shared zshrc: $omz_lacks"
 zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
@@ -354,10 +356,17 @@ load_brew
 # shellcheck disable=SC2016  # for the fake brew
 printf '#!/bin/sh\ncase "$1" in upgrade) echo "$*" >>"%s/calls" ;; *) exec %s "$@" ;; esac\n' \
   "$BREW_SHIM_DIR" "$(command -v brew)" >"$BREW_SHIM_DIR/brew"
+rm -f "$BREW_SHIM_DIR/calls"
+# A changed tracked file, in a plugin lazy would otherwise report as failed.
+changed_plugin="$HOME/.local/share/nvim/lazy/base46"
+echo '-- changed' >>"$changed_plugin/lua/base46/init.lua"
 update_rc=0
 update_out="$(PATH="$BREW_SHIM_DIR:$PATH" "$REPO_DIR/update.sh" 2>&1)" || update_rc=$?
+git -C "$changed_plugin" checkout -q lua/base46/init.lua
 echo "$update_out" >>"$LOG"
 ((update_rc == 0)) || die "update.sh failed:"$'\n'"$update_out"
+[[ "$update_out" == *"base46: skipped"* ]] || die "update.sh didn't skip the changed nvim plugin: $update_out"
+[[ -s "$BREW_SHIM_DIR/calls" ]] || die "update.sh ran no brew upgrade"
 [[ "$update_out" == *"catppuccin/tmux: skipped"* ]] || die "update.sh didn't skip catppuccin: $update_out"
 if grep -vE "^upgrade ($(printf '%s\n' "${FORMULAE[@]}" | cut -d: -f1 | paste -sd '|' -))\$" "$BREW_SHIM_DIR/calls"; then
   die "update.sh upgraded something outside FORMULAE"

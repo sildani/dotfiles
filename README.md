@@ -32,9 +32,10 @@ updates Oh My Zsh, the tmux plugins, nvim plugins and treesitter parsers, and
 shows old → new for each, with a restart note for what changed. It never pulls
 the repo: it ends with a note if the clone is behind `origin`. It leaves Ghostty,
 the font, Rectangle and other brew packages alone, and skips catppuccin, which
-`tmux/tmux.conf` pins to a tag, and any plugin with changed tracked files. A new
-shell reminds you once update.sh hasn't run for 14 days, in place of Oh My Zsh's
-own prompt.
+`tmux/tmux.conf` pins to a tag, any plugin with changed tracked files, and Oh My
+Zsh if it has a commit of your own. A new shell reminds you once `update.sh`
+hasn't run for 14 days, in place of Oh My Zsh's own prompt; `install.sh` starts
+that count.
 
 Get changes to the repo:
 
@@ -177,9 +178,9 @@ After merging a PR, `./prune-merged.sh` deletes the merged branches locally and
 on `origin`.
 
 Each machine keeps its own nvim lockfile, `lazy-lock.json` under
-`~/.local/state/nvim`, outside the repo. `:Lazy restore` puts that machine's plugins back at the versions
-in that file. `update.sh` and `:Lazy update` rewrite it, so copy it first if you
-may want to go back past an update.
+`~/.local/state/nvim`, outside the repo. `:Lazy restore` puts that machine's
+plugins back at the versions in that file. `update.sh` and `:Lazy update` rewrite
+it, so copy it first if you may want to go back past an update.
 
 ### Making changes from any Mac
 

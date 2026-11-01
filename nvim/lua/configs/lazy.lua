@@ -2,7 +2,7 @@ return {
   defaults = { lazy = true },
   install = { colorscheme = { "nvchad" } },
   rocks = { enabled = false },
-  -- Each Mac's own, so updating plugins never changes the repo.
+  -- Each machine's own, so updating plugins never changes the repo.
   lockfile = vim.fn.stdpath "state" .. "/lazy-lock.json",
 
   ui = {

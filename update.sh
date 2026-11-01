@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Brings this Mac up to date, with no repo change needed: the brew formulae in
-# FORMULAE, Oh My Zsh, tmux plugins, nvim plugins (writing this Mac's own
-# lockfile) and treesitter parsers. Never runs git pull. Ghostty, the font and
+# Brings this machine up to date, with no repo change needed: the brew formulae
+# in FORMULAE, Oh My Zsh, tmux plugins, nvim plugins (writing its own lockfile)
+# and treesitter parsers. Never runs git pull. Ghostty, the font and
 # Rectangle stay out: they update themselves or rarely change, and upgrading a
 # cask quits the app. A failing step doesn't stop the others; the script exits
 # non-zero at the end.
@@ -14,6 +14,7 @@ LOG="$HOME/.dotfiles-update.log"
 : >"$LOG"
 failures=0
 to_restart=""
+RESTART_TMUX="tmux (tmux kill-server)"
 
 load_brew || true
 
@@ -25,14 +26,15 @@ step_failed() {
 
 run() { "$@" >>"$LOG" 2>&1; }
 
-# report <name> <old> <new> <what to restart if it changed>
+restart() { [[ ",$to_restart," == *",$1,"* ]] || to_restart+="${to_restart:+,}$1"; }
+
+# report <name> <old> <new>: says whether it changed, and returns 0 if so.
 report() {
   if [[ "$2" == "$3" ]]; then
     ok "$1 $2 (up to date)"
-    return
+    return 1
   fi
   ok "$1 $2 → $3"
-  [[ -z "$4" || ",$to_restart," == *",$4,"* ]] || to_restart+="${to_restart:+,}$4"
 }
 
 update_formulae() {
@@ -50,14 +52,13 @@ update_formulae() {
       continue
     fi
     old="$(tool_version "$cmd")"
-    if run brew upgrade "$formula"; then
-      case "$cmd" in
-        tmux) report "$cmd" "$old" "$(tool_version "$cmd")" "tmux (tmux kill-server)" ;;
-        nvim) report "$cmd" "$old" "$(tool_version "$cmd")" nvim ;;
-        *) report "$cmd" "$old" "$(tool_version "$cmd")" "" ;;
-      esac
-    else
+    if ! run brew upgrade "$formula"; then
       step_failed "$cmd: brew upgrade"
+    elif report "$cmd" "$old" "$(tool_version "$cmd")"; then
+      case "$cmd" in
+        tmux) restart "$RESTART_TMUX" ;;
+        nvim) restart nvim ;;
+      esac
     fi
   done
 }
@@ -66,7 +67,7 @@ update_formulae() {
 # brings the clone up. A change to a tracked file skips it; reset --hard would
 # lose the change. Untracked files are left alone.
 update_clone() {
-  local name="$1" dir="$2" restart="$3" move="$4" old
+  local name="$1" dir="$2" what="$3" move="$4" old
   if [[ ! -d "$dir/.git" ]]; then
     info "$name: skipped, not installed (run ./install.sh)"
     return
@@ -76,16 +77,18 @@ update_clone() {
     return
   fi
   old="$(git -C "$dir" rev-parse --short HEAD)"
-  if "$move" "$dir"; then
-    report "$name" "$old" "$(git -C "$dir" rev-parse --short HEAD)" "$restart"
-  else
+  if ! "$move" "$dir"; then
     step_failed "$name: update"
+  elif report "$name" "$old" "$(git -C "$dir" rev-parse --short HEAD)"; then
+    restart "$what"
   fi
 }
 
-# install.sh's clone is shallow, which a pull can't move.
+# install.sh's clone is shallow, which a pull can't move. Fetching by branch name
+# keeps @{upstream} current, which update_oh_my_zsh checks.
 move_shallow() {
-  run git -C "$1" fetch --depth=1 origin HEAD && run git -C "$1" reset --hard FETCH_HEAD
+  run git -C "$1" fetch --depth=1 origin "$(git -C "$1" symbolic-ref --short HEAD)" &&
+    run git -C "$1" reset --hard FETCH_HEAD
 }
 
 # Not TPM's update-all: it runs git pull, which fails on a detached checkout.
@@ -97,6 +100,12 @@ move_forward() {
 
 update_oh_my_zsh() {
   section "Oh My Zsh"
+  local ahead
+  ahead="$(git -C "$ZSH_DIR" rev-list --count '@{upstream}..HEAD' 2>/dev/null)"
+  if [[ -d "$ZSH_DIR/.git" && "$ahead" != 0 ]]; then
+    warn "Oh My Zsh: skipped, it has local commits or isn't on its branch"
+    return
+  fi
   update_clone "Oh My Zsh" "$ZSH_DIR" "a new shell" move_shallow
 }
 
@@ -107,47 +116,65 @@ update_tmux_plugins() {
     if [[ -n "$ref" ]]; then
       info "$repo: skipped, pinned to $ref in tmux.conf"
     else
-      update_clone "${repo##*/}" "$HOME/.tmux/plugins/${repo##*/}" "tmux (tmux kill-server)" move_forward
+      update_clone "${repo##*/}" "$HOME/.tmux/plugins/${repo##*/}" "$RESTART_TMUX" move_forward
     fi
   done < <(tmux_plugins)
 }
 
-update_nvim() {
-  section "nvim plugins and parsers"
-  if ! command -v nvim >/dev/null; then
-    info "nvim: skipped, not installed (run ./install.sh)"
-    return
-  fi
-  local before name commit old changed=false parsers_before
+update_nvim_plugins() {
+  section "nvim plugins"
+  local before dir name commit old skip="" updated=true changed=false
   before="$(nvim_lock_plugins)"
-  # Headless lazy reports a failed plugin only in its UI.
-  if run nvim --headless \
-    "+lua local lazy = require('lazy'); lazy.update({ wait = true, show = false }); for _, p in ipairs(lazy.plugins()) do if require('lazy.core.plugin').has_errors(p) then vim.cmd('1cquit') end end" \
-    +qa; then
+  for dir in "$NVIM_DATA"/lazy/*/; do
+    [[ -d "$dir.git" && -n "$(git -C "$dir" status --porcelain --untracked-files=no 2>/dev/null)" ]] || continue
+    name="$(basename "$dir")"
+    warn "$name: skipped, its tracked files have local changes"
+    skip+="$name "
+  done
+  SKIP_PLUGINS="$skip" run nvim --headless "+lua require('configs.update').plugins()" +qa || updated=false
+  # Before the failure, if any: the plugins that did move are worth showing.
+  if [[ -n "$before" ]]; then
     while read -r name commit; do
       old="$(awk -v name="$name" '$1 == name { print $2 }' <<<"$before")"
       [[ "$old" == "$commit" ]] && continue
-      report "$name" "${old:0:7}" "${commit:0:7}" nvim
+      old="${old:-none}"
+      ok "$name ${old:0:7} → ${commit:0:7}"
       changed=true
     done < <(nvim_lock_plugins)
-    $changed || ok "nvim plugins up to date"
-  else
+  elif [[ -f "$NVIM_LOCK" ]]; then
+    ok "nvim plugins updated (no earlier lockfile to compare with)"
+    changed=true
+  fi
+  if $changed; then restart nvim; fi
+  if ! $updated; then
     step_failed "nvim plugins: update"
+  elif ! $changed; then
+    ok "nvim plugins up to date"
   fi
+}
 
-  parsers_before="$(ls -lT "$TS_PARSERS" 2>/dev/null)"
-  if run nvim --headless \
-    "+lua require('lazy').load({ plugins = { 'nvim-treesitter' } })" \
-    "+lua require('nvim-treesitter').update():wait(300000)" \
-    +qa; then
-    if [[ "$(ls -lT "$TS_PARSERS" 2>/dev/null)" == "$parsers_before" ]]; then
-      ok "treesitter parsers up to date"
-    else
-      report "treesitter parsers" old new nvim
-    fi
-  else
+update_parsers() {
+  section "treesitter parsers"
+  local before
+  before="$(ls -lT "$TS_PARSERS" 2>/dev/null)"
+  if ! run nvim --headless "+lua require('configs.update').parsers()" +qa; then
     step_failed "treesitter parsers: update"
+  elif [[ "$(ls -lT "$TS_PARSERS" 2>/dev/null)" == "$before" ]]; then
+    ok "treesitter parsers up to date"
+  else
+    ok "treesitter parsers updated"
+    restart nvim
   fi
+}
+
+update_nvim() {
+  if ! command -v nvim >/dev/null; then
+    section "nvim plugins"
+    info "nvim: skipped, not installed (run ./install.sh)"
+    return
+  fi
+  update_nvim_plugins
+  update_parsers
 }
 
 update_formulae
@@ -160,7 +187,7 @@ touch "$UPDATE_STAMP"
 
 echo
 if [[ "$(repo_origin_state)" == behind ]]; then
-  info "this clone is behind origin, which update.sh leaves alone: git -C ${REPO_DIR/#$HOME/~} pull && ./install.sh"
+  info "this clone is behind origin, which update.sh leaves alone: $(pull_command)"
 fi
 if [[ -n "$to_restart" ]]; then
   info "restart to pick this up: ${to_restart//,/, }"
