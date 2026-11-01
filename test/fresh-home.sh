@@ -11,12 +11,12 @@
 # real run backed up the seeded files, copied only the old ~/.zshrc's own lines
 # to ~/.zshrc.local (warning about its plugins the shared zshrc lacks), linked
 # ~/.zshrc.example to Oh My Zsh's template and ~/.tmux/resurrect to resurrect's
-# saves and left nvim/lazy-lock.json and every nvim plugin at its locked commit,
-# the second changed nothing (not even a real ~/.tmux/resurrect), doctor exits
-# 0 and warns about a stray tmux server only while one runs, about a changed
-# nvim/lazy-lock.json only while it's changed, about an nvim plugin off its
-# locked commit only while one is and about ssh-agent in ~/.zprofile only while
-# a line there starts one, zsh starts without errors and exports DOTFILES as
+# saves, wrote this machine's nvim lockfile outside the repo and started the
+# update reminder's clock, the second changed nothing (not even a real
+# ~/.tmux/resurrect or that clock), doctor exits 0, fails naming a missing nvim
+# plugin and warns about a stray tmux server only while one runs and about
+# ssh-agent in ~/.zprofile only while a line there starts one, update.sh runs
+# for real, apart from brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as
 # the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local overrides), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, tmux loads its config and every extra without errors, and every
@@ -69,7 +69,7 @@ unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_
 
 # The real repo's working tree, which a run must leave as it found it: each
 # changed or untracked path with its status and content hash, so a rewrite of
-# an already-changed file (nvim/lazy-lock.json) shows too.
+# an already-changed file shows too.
 repo_state() {
   local line path
   git -C "$REAL_REPO_DIR" status --porcelain -z --untracked-files=all |
@@ -81,8 +81,7 @@ repo_state() {
 }
 
 # The working tree, copied outside ~/code since an installer can clone it
-# anywhere. The install's writes to the repo (nvim/lazy-lock.json) land in the
-# copy.
+# anywhere. Anything the install writes to the repo lands in the copy.
 REAL_REPO_DIR="$REPO_DIR"
 repo_before="$(repo_state)"
 head_before="$(git -C "$REAL_REPO_DIR" rev-parse HEAD)"
@@ -116,7 +115,7 @@ zshrc_own=('export PATH="$HOME/bin:$PATH"' "alias ll='ls -la'" 'DISABLE_AUTO_TIT
 # shellcheck disable=SC2016
 printf '%s\n' '# old zsh config' '# If you come from bash you might have to change your $PATH.' '' '' \
   'export ZSH="$HOME/.oh-my-zsh"' 'export ZSH_THEME="robbyrussell"' 'HIST_STAMPS="mm/dd/yyyy"' \
-  'export ZSH_CUSTOM="$HOME/omz-custom"' "zstyle ':omz:update' mode disabled" 'plugins=(' '  git' '  docker' ')' \
+  'export ZSH_CUSTOM="$HOME/omz-custom"' "zstyle ':omz:update' mode reminder" 'plugins=(' '  git' '  docker' ')' \
   'source $ZSH/oh-my-zsh.sh' 'eval "$(/opt/homebrew/bin/brew shellenv)"' "${zshrc_own[@]}" >"$HOME/.zshrc"
 
 # turn_on_extra <tool>/extras/<name>: appends the README's "Line to add" for
@@ -158,7 +157,6 @@ printf '#!/bin/sh\ncase "$*" in *ohmyzsh*) echo "simulated clone failure" >&2; e
   "$(command -v git)" >"$SHIM_DIR/git"
 chmod +x "$SHIM_DIR/git"
 zshrc_seed="$(cat "$HOME/.zshrc")"
-lock_seed="$(cat "$REPO_DIR/nvim/lazy-lock.json")"
 
 echo "Rectangle installs only if missing, and a failed cask only warns"
 mkdir -p "$BREW_SHIM_DIR" "$HOME/Applications"
@@ -242,21 +240,20 @@ omz_lacks="$(grep 'Oh My Zsh settings the shared zshrc lacks' <<<"$first")" ||
   die "install.sh didn't warn about the old ~/.zshrc's plugins the shared zshrc lacks"
 [[ " $omz_lacks " == *" docker "* && " $omz_lacks " != *" git "* ]] ||
   die "install.sh should name plugin docker, and not git: $omz_lacks"
-[[ "$omz_lacks" == *'HIST_STAMPS="mm/dd/yyyy"'* && "$omz_lacks" == *"zstyle ':omz:update' mode disabled"* ]] ||
+[[ "$omz_lacks" == *'HIST_STAMPS="mm/dd/yyyy"'* && "$omz_lacks" == *"zstyle ':omz:update' mode reminder"* ]] ||
   die "install.sh should name HIST_STAMPS and zstyle ':omz:update', which load too late in ~/.zshrc.local: $omz_lacks"
 [[ "$omz_lacks" == *'export ZSH_CUSTOM='* && "$omz_lacks" != *ZSH_THEME* ]] ||
   die "install.sh should name export ZSH_CUSTOM, and not export ZSH_THEME, which matches the shared zshrc: $omz_lacks"
 zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
-[[ "$(cat "$REPO_DIR/nvim/lazy-lock.json")" == "$lock_seed" ]] ||
-  die "install.sh changed nvim/lazy-lock.json:"$'\n'"$(diff <(echo "$lock_seed") "$REPO_DIR/nvim/lazy-lock.json")"
-# "name commit" per plugin, also read by the off-its-locked-commit step.
-locked_plugins="$(sed -nE 's/^  "([^"]+)": \{ "branch": "[^"]*", "commit": "([0-9a-f]+)" \},?$/\1 \2/p' <<<"$lock_seed")"
-# A lockfile format this sed doesn't know would check nothing.
-[[ -n "$locked_plugins" ]] || die "found no plugins in nvim/lazy-lock.json; has lazy changed its format?"
-while read -r name commit; do
-  head="$(git -C "$HOME/.local/share/nvim/lazy/$name" rev-parse HEAD 2>/dev/null)" || die "nvim plugin $name not installed"
-  [[ "$head" == "$commit" ]] || die "nvim plugin $name is at $head, not its locked $commit"
-done <<<"$locked_plugins"
+nvim_lock="$HOME/.local/state/nvim/lazy-lock.json"
+[[ -s "$nvim_lock" ]] || die "first run didn't write this machine's nvim lockfile at $nvim_lock"
+[[ ! -e "$REPO_DIR/nvim/lazy-lock.json" ]] || die "first run wrote a lockfile into the repo"
+# Written in full: lazy.nvim itself, and a plugin NvChad's spec imports.
+for name in lazy.nvim NvChad base46; do
+  grep -q "^  \"$name\": " "$nvim_lock" || die "the nvim lockfile has no $name"
+done
+[[ -f "$HOME/.local/state/dotfiles/last-update" ]] || die "first run didn't start the update reminder's clock"
+touch -t 202001010000 "$HOME/.local/state/dotfiles/last-update"
 resurrect_saves="$HOME/.local/share/tmux/resurrect"
 [[ -L "$HOME/.tmux/resurrect" && "$(readlink "$HOME/.tmux/resurrect")" == "$resurrect_saves" && -d "$resurrect_saves" ]] ||
   die "first run didn't link ~/.tmux/resurrect to the folder $resurrect_saves"
@@ -282,6 +279,7 @@ grep -qF 'Press Space c h in nvim' <<<"$second" || die "install.sh didn't point 
 [[ "$(cat "$HOME/.zshrc.local")" == "$zshrc_local" ]] || die "second run changed ~/.zshrc.local"
 [[ ! -L "$HOME/.tmux/resurrect" && "$(cat "$HOME/.tmux/resurrect/tmux_resurrect_old.txt")" == 'old save' ]] ||
   die "second run changed the real ~/.tmux/resurrect folder"
+[[ -n "$(find "$HOME/.local/state/dotfiles/last-update" -mtime +1)" ]] || die "second run restarted the update reminder's clock"
 
 echo "doctor.sh --diff after install (links match, backups summed up in one line)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed after install"; }
@@ -311,10 +309,6 @@ for entry in "${FORMULAE[@]}"; do
 done
 grep -qF 'tmux servers besides the default one are running' <<<"$doctor_out" &&
   die "doctor.sh warned about stray tmux servers with none running (stop any left over and rerun)"
-grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" &&
-  die "doctor.sh warned about a changed nvim/lazy-lock.json after a clean install"
-grep -qF 'nvim plugins not at their locked commit' <<<"$doctor_out" &&
-  die "doctor.sh warned about nvim plugins off their locked commit after a clean install"
 grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
   die "doctor.sh warned about ssh-agent in ~/.zprofile with no ~/.zprofile"
 
@@ -345,27 +339,31 @@ counted='[1-9][0-9]* running now'
 grep -qF 'launchd provides an agent on demand' <<<"$doctor_out" ||
   die "doctor.sh didn't say how to fix ssh-agent in ~/.zprofile"
 
-echo "doctor.sh with a changed nvim/lazy-lock.json (should warn, with the fix, and still pass)"
-sed -i '' -E 's/"commit": "[0-9a-f]+"/"commit": "0000000000000000000000000000000000000000"/' "$REPO_DIR/nvim/lazy-lock.json"
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a changed nvim/lazy-lock.json"; }
-git -C "$REPO_DIR" checkout -q nvim/lazy-lock.json
+echo "doctor.sh with an nvim plugin missing (should fail, naming it)"
+mv "$HOME/.local/share/nvim/lazy/base46" "$HOME/base46.away"
+doctor_rc=0
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || doctor_rc=$?
+mv "$HOME/base46.away" "$HOME/.local/share/nvim/lazy/base46"
 echo "$doctor_out" >>"$LOG"
-grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" ||
-  die "doctor.sh didn't warn about the changed nvim/lazy-lock.json"
-grep -qF 'checkout nvim/lazy-lock.json' <<<"$doctor_out" ||
-  die "doctor.sh didn't say how to put nvim/lazy-lock.json back"
+((doctor_rc != 0)) || die "doctor.sh passed with an nvim plugin missing"
+grep -F 'nvim plugins missing' <<<"$doctor_out" | grep -qF base46 ||
+  die "doctor.sh didn't name the missing nvim plugin"
 
-echo "doctor.sh with an nvim plugin off its locked commit (should warn, naming it, and still pass)"
-# lazy's clones are partial, so checking out an older commit needs the network;
-# moving HEAD with reset --soft doesn't, and is undone the same way.
-read -r name commit <<<"$locked_plugins"
-git -C "$HOME/.local/share/nvim/lazy/$name" reset -q --soft HEAD~1
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with nvim plugin $name off its locked commit"; }
-git -C "$HOME/.local/share/nvim/lazy/$name" reset -q --soft "$commit"
-echo "$doctor_out" >>"$LOG"
-drifted="$(sed -n 's/.*nvim plugins not at their locked commit: //p' <<<"$doctor_out")"
-[[ " $drifted " == *" $name "* ]] ||
-  die "doctor.sh didn't warn about nvim plugin $name off its locked commit"
+echo "update.sh for real, with a brew that only records upgrades"
+load_brew
+# shellcheck disable=SC2016  # for the fake brew
+printf '#!/bin/sh\ncase "$1" in upgrade) echo "$*" >>"%s/calls" ;; *) exec %s "$@" ;; esac\n' \
+  "$BREW_SHIM_DIR" "$(command -v brew)" >"$BREW_SHIM_DIR/brew"
+update_rc=0
+update_out="$(PATH="$BREW_SHIM_DIR:$PATH" "$REPO_DIR/update.sh" 2>&1)" || update_rc=$?
+echo "$update_out" >>"$LOG"
+((update_rc == 0)) || die "update.sh failed:"$'\n'"$update_out"
+[[ "$update_out" == *"catppuccin/tmux: skipped"* ]] || die "update.sh didn't skip catppuccin: $update_out"
+if grep -vE "^upgrade ($(printf '%s\n' "${FORMULAE[@]}" | cut -d: -f1 | paste -sd '|' -))\$" "$BREW_SHIM_DIR/calls"; then
+  die "update.sh upgraded something outside FORMULAE"
+fi
+[[ -z "$(git -C "$REPO_DIR" status --porcelain)" ]] || die "update.sh changed the repo: $(git -C "$REPO_DIR" status --porcelain)"
+"$REPO_DIR/doctor.sh" >>"$LOG" 2>&1 || die "doctor.sh failed after update.sh"
 
 echo "doctor.sh with a stray tmux server (should warn, naming it, and still pass)"
 tmux -L "$STRAY_SOCKET" -f /dev/null new-session -d >>"$LOG" 2>&1 || die "tmux didn't start"

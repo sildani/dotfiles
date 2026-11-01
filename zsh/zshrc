@@ -26,6 +26,7 @@ export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 DISABLE_UNTRACKED_FILES_DIRTY="true" # faster git status in big repos
 HIST_STAMPS="yyyy-mm-dd"
+zstyle ':omz:update' mode disabled # update.sh does this, and the reminder below replaces its prompt
 plugins=(git tmux)
 
 if [[ -f $ZSH/oh-my-zsh.sh ]]; then
@@ -34,5 +35,15 @@ else
   print -u2 "zshrc: Oh My Zsh not found at $ZSH; re-run install.sh from the dotfiles repo"
   bindkey -e  # Oh My Zsh sets this; with vi in EDITOR, zsh starts on vi keys
 fi
+
+# One line when update.sh hasn't run for 14 days, with no network call. Showing
+# it restarts the 14 days. install.sh starts the clock; no timestamp stays quiet.
+() {
+  local stamp="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/last-update"
+  local -a overdue=($stamp(Nmd+13))
+  (( $#overdue )) || return 0
+  print -r -- 'dotfiles: 14 days since the last update; run "$DOTFILES/update.sh"'
+  touch $stamp
+}
 
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
