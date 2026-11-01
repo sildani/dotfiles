@@ -29,8 +29,10 @@ cd "$DOTFILES" && git pull && ./install.sh
 
 - installs only what's **missing** with brew: git, gh, ripgrep, shellcheck,
   gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), Ghostty, Hurmit Nerd
-  Font. Anything already installed, however it was installed, is left alone; if
-  it's too old you get a warning with how to upgrade.
+  Font, Rectangle. Anything already installed, however it was installed, is left
+  alone; if it's too old you get a warning with how to upgrade. A failed Rectangle
+  install is only a warning. Grant it Accessibility permission by hand. Its
+  settings stay out of the repo.
 - symlinks the configs (existing files are moved to `~/.dotfiles-backup/<time>/`):
 
   | Repo              | Linked at                   |
@@ -77,7 +79,8 @@ remove the copy: `mv ~/.dotfiles-backup/<time>/.zshrc ~/.zshrc && rm ~/.zshrc.lo
 
 Read-only. Shows tool versions and where they came from, whether the links point
 here, missing plugins/parsers, and which languages are set up, with a fix-it hint
-on every problem.
+on every problem. It also warns if macOS would take Ctrl-Space, the tmux prefix,
+to switch input sources.
 
 Before installing on a machine that already has its own config, see what
 `install.sh` would replace:
@@ -146,6 +149,8 @@ Checks (also run by CI on every push):
   unmarked grep, breaks the extras rows, drops each test script's CI step and
   bullet here and adds an unlisted test script, one at a time, and checks that
   `test/lint.sh` fails on each.
+- `test/doctor-warnings.sh`: runs `doctor.sh` in an empty temporary HOME with a
+  fake `defaults`, and checks when it warns.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
 
 After merging a PR, `./prune-merged.sh` deletes the merged branches locally and

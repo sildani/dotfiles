@@ -91,6 +91,48 @@ zprofile_ssh_agent() {
   hint "delete those lines (launchd provides an agent on demand), then stop the leftovers, and any keys loaded in them: pkill -f '$leftovers'"  # fresh-home.sh greps for "launchd provides an agent on demand"
 }
 
+# plist_value <plist text> <key path>: fails if the key isn't there. An array
+# gives its length.
+plist_value() { plutil -extract "$2" raw -o - - <<<"$1" 2>/dev/null; }
+
+# Enabled input sources, leaving out Non Keyboard Input Method entries such as
+# emoji.
+input_source_count() {
+  local plist count i kept=0
+  plist="$(defaults export com.apple.HIToolbox - 2>/dev/null)"
+  count="$(plist_value "$plist" AppleEnabledInputSources)" || count=0
+  for ((i = 0; i < count; i++)); do
+    [[ "$(plist_value "$plist" "AppleEnabledInputSources.$i.InputSourceKind")" == "Non Keyboard Input Method" ]] || kept=$((kept + 1))
+  done
+  echo "$kept"
+}
+
+# Hotkey 60, "select previous input source", is on and Ctrl-Space. Both are the
+# default, so an absent key counts.
+previous_source_is_ctrl_space() {
+  local ctrl_space="32 49 262144" key=AppleSymbolicHotKeys.60
+  local plist enabled i shortcut=""
+  plist="$(defaults export com.apple.symbolichotkeys - 2>/dev/null)"
+  enabled="$(plist_value "$plist" "$key.enabled")" || enabled=true
+  [[ "$enabled" == true ]] || return 1
+  for i in 0 1 2; do
+    shortcut+="$(plist_value "$plist" "$key.value.parameters.$i") "
+  done
+  [[ -z "${shortcut// /}" || "$shortcut" == "$ctrl_space " ]]
+}
+
+# With more than one input source, the hotkey takes Ctrl-Space before tmux gets
+# its prefix.
+check_ctrl_space() {
+  section "macOS"
+  if (($(input_source_count) > 1)) && previous_source_is_ctrl_space; then
+    warn "macOS takes Ctrl-Space, the tmux prefix, to switch input sources"  # doctor-warnings.sh greps for "macOS takes Ctrl-Space"
+    hint "System Settings > Keyboard > Keyboard Shortcuts > Input Sources: turn off or change \"Select the previous input source\""
+  else
+    ok "macOS leaves Ctrl-Space to tmux"
+  fi
+}
+
 check_links() {
   section "Config links"
   local entry src dest
@@ -393,6 +435,7 @@ esac
 
 check_tools
 check_shell
+check_ctrl_space
 check_links
 check_plugins
 check_languages

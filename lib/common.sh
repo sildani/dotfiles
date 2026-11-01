@@ -118,12 +118,31 @@ tool_source() {
   fi
 }
 
-ghostty_app() {
-  local app
-  for app in /Applications/Ghostty.app "$HOME/Applications/Ghostty.app"; do
-    [[ -d "$app" ]] && { echo "$app"; return 0; }
+APP_DIRS=(/Applications "$HOME/Applications")
+
+# mac_app <name>: prints the path of <name>.app, however it got there.
+mac_app() {
+  local dir
+  for dir in "${APP_DIRS[@]}"; do
+    [[ -d "$dir/$1.app" ]] && { echo "$dir/$1.app"; return 0; }
   done
   return 1
+}
+
+ghostty_app() { mac_app Ghostty; }
+
+# Ghostty has no title bar here, so a window manager moves its windows. A
+# failed cask is only a warning: the rest of the setup doesn't need it.
+install_rectangle() {
+  if mac_app Rectangle >/dev/null; then
+    ok "Rectangle ($(mac_app Rectangle))"
+  else
+    info "installing rectangle"
+    brew install --cask rectangle || {
+      warn "couldn't install Rectangle; Ghostty's windows need a window manager to move"
+      hint "brew install --cask rectangle"
+    }
+  fi
 }
 
 # enable_commit_hook <repo>: turns on hooks/pre-commit in that clone's own git

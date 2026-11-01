@@ -100,6 +100,8 @@ install_tools() {
     info "installing font-hurmit-nerd-font"
     brew install --cask font-hurmit-nerd-font
   fi
+
+  install_rectangle
 }
 
 # A machine's own ~/.zshrc (PATH, nvm, ...) keeps working as ~/.zshrc.local,
@@ -292,6 +294,7 @@ next_steps() {
   info "check this machine anytime:   $REPO_DIR/doctor.sh"
   info "update later:                 cd $REPO_DIR && git pull && ./install.sh"
   info "nvim comes set up with NvChad. Press Space c h in nvim for a cheatsheet of the keyboard shortcuts."  # fresh-home.sh greps for "Press Space c h in nvim"
+  info "Rectangle needs Accessibility permission, which you grant by hand: System Settings > Privacy & Security > Accessibility"
   local f files=""
   for f in "${LOCAL_FILES[@]}"; do files+="${files:+, }${f/#$HOME/~}"; done
   info "per-machine tweaks (not in git): $files"

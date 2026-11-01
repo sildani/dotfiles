@@ -8,7 +8,7 @@ macOS-only zsh (Oh My Zsh), tmux, nvim (NvChad) and Ghostty config. Start with `
 - Any Mac can commit shared changes. Put changes for one Mac in `~/.zshrc.local`, `nvim/lua/local.lua`, `~/.tmux.local.conf` or `~/.config/ghostty/local`.
 - Optional per-machine tweaks: `<tool>/extras/`, turned on from that tool's per-machine file (README "Optional extras").
 - Scripts must run on stock macOS bash 3.2 (a new machine has no newer bash): expand possibly-empty arrays as `${arr[@]+"${arr[@]}"}`.
-- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker or extras checks) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all three on macOS. `test/fresh-home.sh` takes minutes: run it in the background as `test/fresh-home.sh > "$log" 2>&1; rc=$?; tail -5 "$log"; exit $rc` with `log` set to a file in your scratchpad, so the notification carries the test's exit code, and leave the repo alone until it finishes. Run it again after any change to what it installs or checks; docs-only changes skip it.
+- Checks: `test/lint.sh` (fast), `test/lint-selftest.sh` (after changing lint's marker or extras checks), `test/doctor-warnings.sh` (`doctor.sh` warnings, in seconds) and `test/fresh-home.sh` (full install in a temp HOME); CI runs all four on macOS. `test/fresh-home.sh` takes minutes: run it in the background as `test/fresh-home.sh > "$log" 2>&1; rc=$?; tail -5 "$log"; exit $rc` with `log` set to a file in your scratchpad, so the notification carries the test's exit code, and leave the repo alone until it finishes. Run it again after any change to what it installs or checks; docs-only changes skip it.
 
 ## Agent skills
 

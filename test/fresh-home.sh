@@ -3,7 +3,8 @@
 # HOME and runs its install.sh (once with the Oh My Zsh clone failing, then
 # twice for real), then doctor.sh and an interactive zsh. Passes when a throwaway
 # clone gets the commit hook and keeps a core.hooksPath of its own with a
-# warning, the install sets the hook in the copy, which then refuses a commit on
+# warning, Rectangle is installed only if missing and a failed cask only warns,
+# the install sets the hook in the copy, which then refuses a commit on
 # main, without writing ~/.gitconfig, doctor.sh lists every tool, doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
@@ -32,6 +33,7 @@ FAKE_HOME="$(mktemp -d)"
 LOG="$FAKE_HOME.log"
 SHIM_DIR="$FAKE_HOME.bin"
 HOOK_CLONE="$FAKE_HOME.clone"
+BREW_SHIM_DIR="$FAKE_HOME.brew"
 TMUX_SOCKET="fresh-home-$$"
 STRAY_SOCKET="fresh-home-stray-$$"
 
@@ -41,7 +43,7 @@ cleanup() {
   if [[ "${KEEP:-}" == 1 ]]; then
     echo "kept: $FAKE_HOME (log: $LOG)"
   else
-    rm -rf "$FAKE_HOME" "$LOG" "$SHIM_DIR" "$HOOK_CLONE"
+    rm -rf "$FAKE_HOME" "$LOG" "$SHIM_DIR" "$HOOK_CLONE" "$BREW_SHIM_DIR"
   fi
 }
 trap cleanup EXIT
@@ -157,6 +159,22 @@ printf '#!/bin/sh\ncase "$*" in *ohmyzsh*) echo "simulated clone failure" >&2; e
 chmod +x "$SHIM_DIR/git"
 zshrc_seed="$(cat "$HOME/.zshrc")"
 lock_seed="$(cat "$REPO_DIR/nvim/lazy-lock.json")"
+
+echo "Rectangle installs only if missing, and a failed cask only warns"
+mkdir -p "$BREW_SHIM_DIR" "$HOME/Applications"
+printf '#!/bin/sh\necho "$*" >>"%s/calls"\nexit 1\n' "$BREW_SHIM_DIR" >"$BREW_SHIM_DIR/brew"
+chmod +x "$BREW_SHIM_DIR/brew"
+# Run in a subshell: this changes PATH and APP_DIRS.
+rectangle_with_fake_brew() { PATH="$BREW_SHIM_DIR:$PATH" APP_DIRS=("$HOME/Applications"); install_rectangle 2>&1; }
+rectangle_out="$(rectangle_with_fake_brew)" ||
+  die "a failed Rectangle cask stopped the install"
+[[ "$(cat "$BREW_SHIM_DIR/calls")" == 'install --cask rectangle' ]] || die "install_rectangle ran brew as: $(cat "$BREW_SHIM_DIR/calls")"
+[[ "$rectangle_out" == *"couldn't install Rectangle"* ]] || die "a failed Rectangle cask didn't warn: $rectangle_out"
+mkdir "$HOME/Applications/Rectangle.app"
+rm "$BREW_SHIM_DIR/calls"
+rectangle_out="$(rectangle_with_fake_brew)"
+[[ ! -e "$BREW_SHIM_DIR/calls" ]] || die "install_rectangle ran brew with Rectangle.app present: $rectangle_out"
+rm -rf "$HOME/Applications/Rectangle.app"
 
 echo "doctor.sh --diff before install (should show the seeded files and change nothing)"
 diff_out="$("$REPO_DIR/doctor.sh" --diff 2>&1)" || { echo "$diff_out" >>"$LOG"; die "doctor.sh --diff failed"; }
@@ -417,6 +435,7 @@ echo "Ghostty reads the shared config's window settings"
 ghostty_expect "shared config" window-decoration none
 ghostty_expect "shared config" macos-window-shadow false
 ghostty_expect "shared config" macos-titlebar-style hidden
+ghostty_expect "shared config" macos-option-as-alt left
 
 echo "every extra turned on with its README line"
 for f in "$REPO_DIR"/*/extras/*; do turn_on_extra "${f#"$REPO_DIR"/}"; done

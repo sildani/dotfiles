@@ -20,6 +20,7 @@ jobs:
       - run: brew install shellcheck gitleaks
       - run: test/lint.sh
       - run: test/lint-selftest.sh
+      - run: test/doctor-warnings.sh
 
   fresh-home:
     runs-on: macos-latest
