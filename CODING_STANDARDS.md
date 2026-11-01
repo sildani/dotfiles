@@ -20,16 +20,19 @@ machine. A test that reuses real state for speed no longer tests a fresh install
 
 ## A fake proves the script's logic, not the tool's
 
-A fake chooses its own exit codes, so it can't show how the real tool reports failure. When a
-script trusts a tool's exit code or output to detect failure, one real run shows that signal on a
-real failure (`nvim --headless` exits 0 after a Lua error), or the PR says it's unchecked.
+A fake chooses its own exit codes, so it can't show how the real tool reports failure. A new or
+changed check that trusts a tool's exit code or output to detect failure has one real run showing
+that signal on a real failure (`nvim --headless "+lua ..." +qa` exits 0 after a Lua error), or the
+report or PR says it's unchecked.
 
-## A test is seen failing
+## A test that asserts absence is seen failing
 
 A test that asserts something didn't happen (no reminder, no warning, nothing changed) can pass
-without reaching the code (`zsh -c true` never reads `~/.zshrc`). The PR reports a mutation that
-made it fail. A changed test fixture gets a reason in the PR: a new seed can hide the regression
-the old one caught.
+without reaching the code (`zsh -c true` never reads `~/.zshrc`). The report or PR names a mutation
+that made it fail.
+
+A changed test seed has its reason in the report or PR: a new seed can hide the regression the old
+one caught.
 
 ## A user's existing config is migrated, not just moved
 
