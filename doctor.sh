@@ -76,6 +76,17 @@ check_shell() {
     warn "login shell is ${shell:-unknown}, so ~/.zshrc isn't used"
     hint "chsh -s /bin/zsh"
   fi
+  zprofile_ssh_agent
+}
+
+# ~/.zprofile runs in every login shell, tmux panes included, and an ssh-agent
+# started there outlives its shell, so they pile up until a reboot.
+zprofile_ssh_agent() {
+  grep -Eq '^[^#]*ssh-agent' "$HOME/.zprofile" 2>/dev/null || return 0
+  local running
+  running="$(pgrep -x ssh-agent | wc -l | tr -d ' ')"
+  warn "ssh-agent in ~/.zprofile leaves one running per login shell ($running running now)"  # fresh-home.sh greps for "ssh-agent in ~/.zprofile"
+  hint "delete those lines (launchd already runs one), then: pkill -f '^ssh-agent -s'"  # fresh-home.sh greps for "launchd already runs one"
 }
 
 check_links() {

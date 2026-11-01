@@ -10,9 +10,9 @@
 # saves and left nvim/lazy-lock.json and every nvim plugin at its locked commit,
 # the second changed nothing (not even a real ~/.tmux/resurrect), doctor exits
 # 0 and warns about a stray tmux server only while one runs, about a changed
-# nvim/lazy-lock.json only while it's changed and about an nvim plugin off its
-# locked commit only while one is, zsh starts without
-# errors and exports DOTFILES as the repo, tmux loads its config and every extra
+# nvim/lazy-lock.json only while it's changed, about an nvim plugin off its
+# locked commit only while one is and about ssh-agent in ~/.zprofile only while
+# a line there starts one, zsh starts without errors and exports DOTFILES as the repo, tmux loads its config and every extra
 # without errors, and every extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
@@ -269,6 +269,25 @@ grep -qF 'nvim/lazy-lock.json has uncommitted changes' <<<"$doctor_out" &&
   die "doctor.sh warned about a changed nvim/lazy-lock.json after a clean install"
 grep -qF 'nvim plugins not at their locked commit' <<<"$doctor_out" &&
   die "doctor.sh warned about nvim plugins off their locked commit after a clean install"
+grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
+  die "doctor.sh warned about ssh-agent in ~/.zprofile with no ~/.zprofile"
+
+echo "doctor.sh with ssh-agent in ~/.zprofile (should warn, with the fix, and still pass; a commented-out line shouldn't)"
+# shellcheck disable=SC2016  # literal lines for ~/.zprofile
+echo '# eval "$(ssh-agent -s)"' >"$HOME/.zprofile"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a commented-out ssh-agent line"; }
+echo "$doctor_out" >>"$LOG"
+grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
+  die "doctor.sh warned about a commented-out ssh-agent line"
+# shellcheck disable=SC2016  # literal lines for ~/.zprofile
+echo 'eval "$(ssh-agent -s)" > /dev/null 2>&1' >>"$HOME/.zprofile"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with ssh-agent in ~/.zprofile"; }
+rm "$HOME/.zprofile"
+echo "$doctor_out" >>"$LOG"
+grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" ||
+  die "doctor.sh didn't warn about ssh-agent in ~/.zprofile"
+grep -qF 'launchd already runs one' <<<"$doctor_out" ||
+  die "doctor.sh didn't say how to fix ssh-agent in ~/.zprofile"
 
 echo "doctor.sh with a changed nvim/lazy-lock.json (should warn, with the fix, and still pass)"
 sed -i '' -E 's/"commit": "[0-9a-f]+"/"commit": "0000000000000000000000000000000000000000"/' "$REPO_DIR/nvim/lazy-lock.json"
