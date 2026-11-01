@@ -2,9 +2,9 @@
 # Simulates a new machine: copies the repo to ~/src/dotfiles in an empty, seeded
 # HOME and runs its install.sh (once with the Oh My Zsh clone failing, then
 # twice for real), then doctor.sh and an interactive zsh. Passes when a throwaway
-# clone gets the commit hook, which refuses a commit on main, and keeps a
-# core.hooksPath of its own with a warning, the install sets the hook in the
-# copy without writing ~/.gitconfig, doctor.sh lists every tool, doctor.sh
+# clone gets the commit hook and keeps a core.hooksPath of its own with a
+# warning, the install sets the hook in the copy, which then refuses a commit on
+# main, without writing ~/.gitconfig, doctor.sh lists every tool, doctor.sh
 # --diff shows the seeded files before the install and sums up their backups
 # after it (--backups diffs them), the failed run left ~/.zshrc alone, the first
 # real run backed up the seeded files, copied only the old ~/.zshrc's own lines
@@ -141,13 +141,8 @@ echo "fresh HOME: $HOME"
 
 echo "a clone gets the commit hook, and keeps a core.hooksPath of its own"
 git clone -q "$REPO_DIR" "$HOOK_CLONE"
-git -C "$HOOK_CLONE" switch -q -c main
-git -C "$HOOK_CLONE" config --local --unset-all core.hooksPath || true
 enable_commit_hook "$HOOK_CLONE" >>"$LOG"
 [[ "$(git -C "$HOOK_CLONE" config --local core.hooksPath)" == hooks ]] || die "enable_commit_hook didn't set core.hooksPath to hooks"
-refused="$(git -C "$HOOK_CLONE" -c user.name=t -c user.email=t@localhost commit --allow-empty -m refused 2>&1)" &&
-  die "a commit on main in a clone with the hook wasn't refused"
-[[ "$refused" == *"refusing to commit on main"* ]] || die "the commit failed, but not through the hook: $refused"
 git -C "$HOOK_CLONE" config --local core.hooksPath other-hooks
 hook_out="$(enable_commit_hook "$HOOK_CLONE")"
 [[ "$(git -C "$HOOK_CLONE" config --local core.hooksPath)" == other-hooks ]] || die "enable_commit_hook replaced a core.hooksPath of the clone's own"
@@ -207,6 +202,10 @@ expect_predicted "copied" "$(grep -q '^  • copied ~/.zshrc ' <<<"$first" && ec
 [[ "$(backups)" == 1 ]] || die "expected 1 backup folder after the first run, found $(backups)"
 [[ "$(git -C "$REPO_DIR" config --local core.hooksPath)" == hooks ]] || die "install.sh didn't set core.hooksPath in the clone"
 [[ ! -e "$HOME/.gitconfig" ]] || die "install.sh wrote ~/.gitconfig"
+git -C "$REPO_DIR" switch -q -C main
+refused="$(git -C "$REPO_DIR" -c user.name=t -c user.email=t@localhost commit --allow-empty -m refused 2>&1)" &&
+  die "a commit on main in the installed clone wasn't refused"
+[[ "$refused" == *"refusing to commit on main"* ]] || die "the commit failed, but not through the hook: $refused"
 backup="$(find "$HOME/.dotfiles-backup" -mindepth 1 -maxdepth 1)"
 for f in .tmux.conf .zshrc .config/nvim/init.lua "Library/Application Support/com.mitchellh.ghostty/config.ghostty"; do
   [[ -e "$backup/$f" ]] || die "seeded file was not backed up: $f"

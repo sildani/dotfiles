@@ -29,9 +29,8 @@ cd "$DOTFILES" && git pull && ./install.sh
 
 - installs only what's **missing** with brew: git, gh, ripgrep, shellcheck,
   gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), Ghostty, Hurmit Nerd
-  Font. Anything already
-  installed, however it was installed, is left alone; if it's too old you get a
-  warning with how to upgrade.
+  Font. Anything already installed, however it was installed, is left alone; if
+  it's too old you get a warning with how to upgrade.
 - symlinks the configs (existing files are moved to `~/.dotfiles-backup/<time>/`):
 
   | Repo              | Linked at                   |
@@ -133,29 +132,7 @@ link instead.
 Edit the repo from any Mac (the links mean you're editing it already), then
 commit on a branch and open a PR.
 
-### Making changes from any Mac
-
-`install.sh` makes a clone ready to commit, but signing in is yours to do:
-
-```sh
-gh auth login      # as the repo's owner
-gh auth setup-git  # the remote is HTTPS, so git pushes through gh
-```
-
-On a Mac signed in to another account, add this one with `gh auth login`, then
-move between them with `gh auth switch`.
-
-A Mac's global git identity may not be the one to use in a public repo, so set
-it for this clone only:
-
-```sh
-git -C "$DOTFILES" config user.name "Your Name"
-git -C "$DOTFILES" config user.email "you@example.com"
-```
-
-### Checks
-
-Also run by CI on every push:
+Checks (also run by CI on every push):
 
 - `test/lint.sh`: shellcheck, secret scan (gitleaks), that the extras are
   documented, that CI runs every `test/*.sh` and this list names it, and that
@@ -177,6 +154,26 @@ on `origin`.
 To update nvim plugins: `:Lazy update`, test, then commit
 `nvim/lazy-lock.json`. Other machines get the same versions on their next
 `./install.sh`.
+
+### Making changes from any Mac
+
+`install.sh` makes a clone ready to commit, but signing in is yours to do:
+
+```sh
+gh auth login      # as the repo's owner
+gh auth setup-git  # the remote is HTTPS, so git pushes through gh
+```
+
+On a Mac signed in to another account, add this one with `gh auth login`, then
+move between them with `gh auth switch`.
+
+A Mac's global git identity may not be the one to use in a public repo, so set
+it for this clone only:
+
+```sh
+git -C "$DOTFILES" config user.name "Your Name"
+git -C "$DOTFILES" config user.email "you@example.com"
+```
 
 ## Cheatsheets
 
