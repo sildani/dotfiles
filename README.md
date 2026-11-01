@@ -90,6 +90,13 @@ To go back to a machine's own zsh config, replace the link with the backup and
 remove the copy: `mv ~/.dotfiles-backup/<time>/.zshrc ~/.zshrc && rm ~/.zshrc.local`
 (`~/.oh-my-zsh` can stay; nothing loads it unless your `~/.zshrc` does).
 
+The other links go back the same way. A backup keeps its path under `~/`, and a
+machine can have several, so look for the one that holds your file. Remove the
+link first, or `mv` puts a folder inside the repo:
+`rm ~/.config/nvim && mv ~/.dotfiles-backup/<time>/.config/nvim ~/.config/nvim`.
+If there's no backup, removing the link is enough. Running `./install.sh` again
+moves what you restored back to a backup and relinks.
+
 ## Check a machine
 
 ```sh
