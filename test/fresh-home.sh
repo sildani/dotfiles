@@ -54,8 +54,10 @@ die() {
 #   pops a "Keychain Not Found" dialog for a HOME with no keychain.
 # - Running inside tmux leaks TMUX_PLUGIN_MANAGER_PATH, which sends TPM's
 #   installs to the real ~/.tmux/plugins.
+# - An inherited SSH_AGENT_PID or SSH_AUTH_SOCK reaches the real agent, and
+#   ssh-agent -k would stop it.
 export HOME="$FAKE_HOME" GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0
-unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME DOTFILES
+unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME DOTFILES SSH_AGENT_PID SSH_AUTH_SOCK
 
 # The real repo's working tree, which a run must leave as it found it: each
 # changed or untracked path with its status and content hash, so a rewrite of
@@ -283,8 +285,7 @@ grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
 # shellcheck disable=SC2016  # literal lines for ~/.zprofile
 echo 'eval "$(ssh-agent -s)" > /dev/null 2>&1' >>"$HOME/.zprofile"
 # One real agent for doctor to count. Its socket goes under its HOME, and the
-# temp HOME's path is too long for a socket. Without the check, a failed start
-# would leave ssh-agent -k aiming at an agent inherited from the caller.
+# temp HOME's path is too long for a socket.
 agent_home="$(mktemp -d /tmp/fresh-home-agent.XXXXXX)"
 agent_env="$(HOME="$agent_home" ssh-agent -s)" || die "ssh-agent didn't start"
 eval "$agent_env" >/dev/null
