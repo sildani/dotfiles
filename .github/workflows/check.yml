@@ -1,10 +1,14 @@
 name: check
 
-# Pushes to main, plus every PR: one run per change instead of one per event.
+# Pushes to main and every PR, one run per change instead of one per event, plus
+# a weekly run of main: Oh My Zsh, the plugins and the runner image's Homebrew
+# formulae move upstream, so a fresh install can break with no commit here.
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, 06:17 UTC
 
 env:
   HOMEBREW_NO_AUTO_UPDATE: 1
