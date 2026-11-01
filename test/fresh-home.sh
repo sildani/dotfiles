@@ -381,14 +381,18 @@ nested_path="$(izsh "$PATH" 'zsh -i -c "print -rl -- \$path"')"
 [[ "$nested_path" == "$outer_path" ]] || die "a nested zsh has a different PATH:"$'\n'"$nested_path"
 keymap="$(izsh "$PATH" "zsh -i -c 'bindkey -lL main'")"
 [[ "$keymap" == 'bindkey -A emacs main' ]] || die "a nested zsh, with EDITOR inherited, isn't on the emacs keymap: $keymap"
+mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.away"
+keymap="$(izsh "$PATH" "zsh -i -c 'bindkey -lL main'")"
+mv "$HOME/.oh-my-zsh.away" "$HOME/.oh-my-zsh"
+[[ "$keymap" == *'bindkey -A emacs main' ]] || die "without Oh My Zsh, a nested zsh isn't on the emacs keymap: $keymap"
 
-echo "the per-machine zshrc overrides EDITOR and VISUAL, and its PATH entries stay unique"
+echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"
 # shellcheck disable=SC2016  # literal lines for ~/.zshrc.local
 printf '%s\n' 'export EDITOR=vi VISUAL=vi' 'export PATH="/p/b:$PATH"' >>"$HOME/.zshrc.local"
 editors="$(izsh "$PATH" "$read_editors")"
-[[ "$editors" == '[vi][vi]' ]] || die "the per-machine zshrc didn't override EDITOR and VISUAL: $editors"
+[[ "$editors" == '[vi][vi]' ]] || die "the per-machine file didn't override EDITOR and VISUAL: $editors"
 path_order="$(izsh "/p/a:/p/b:$PATH" "$read_path")"
-[[ -z "$(sort <<<"$path_order" | uniq -d)" ]] || die "an entry from the per-machine zshrc duplicated PATH:"$'\n'"$path_order"
+[[ -z "$(sort <<<"$path_order" | uniq -d)" ]] || die "an entry from the per-machine file duplicated PATH:"$'\n'"$path_order"
 printf '%s\n' "$zshrc_local" >"$HOME/.zshrc.local"
 
 # Commands, not -f: a server started with -f exits 0 even when the file has

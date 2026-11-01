@@ -32,6 +32,7 @@ if [[ -f $ZSH/oh-my-zsh.sh ]]; then
   source $ZSH/oh-my-zsh.sh
 else
   print -u2 "zshrc: Oh My Zsh not found at $ZSH; re-run install.sh from the dotfiles repo"
+  bindkey -e  # Oh My Zsh sets this; with vi in EDITOR, zsh starts on vi keys
 fi
 
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
