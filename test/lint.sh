@@ -97,14 +97,15 @@ while IFS= read -r hit; do
 done < <(grep -rF --exclude-dir=.git --exclude-dir=.scratch -- "$clone_path" . | sed 's|^\./||')
 
 # Text uses the glossary's terms: no multi-word _Avoid_ entry in any other
-# tracked file, across a line break or comment leader too. Review covers the
-# single words, since most uses of them are fine.
+# tracked file, wrapped over lines or `#` comments too. Review covers the single
+# words, since most uses of them are fine.
 phrases=()
 while IFS= read -r phrase; do phrases+=("$phrase"); done < <(avoid_phrases)
+((${#phrases[@]})) || err "no multi-word _Avoid_ entries in GLOSSARY.md"
 while IFS= read -r file; do
-  text="$(tr -s ' \n#' ' ' <"$file" | tr '[:upper:]' '[:lower:]')"
+  text=" $(LC_ALL=C tr -s ' \t\n#' ' ' <"$file" | LC_ALL=C tr '[:upper:]' '[:lower:]') "
   for phrase in ${phrases[@]+"${phrases[@]}"}; do
-    if [[ "$text" == *"$phrase"* ]]; then
+    if [[ "$text" == *[![:alnum:]]"$phrase"[![:alnum:]]* ]]; then
       err "$file says \"$phrase\", which GLOSSARY.md lists under _Avoid_"
     fi
   done

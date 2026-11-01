@@ -144,7 +144,7 @@ rm "$COPY/guard-check.sh"
 
 # Each multi-word _Avoid_ entry, split over a commented line break, as wrapped
 # text splits one. No entries would leave the check empty.
-[[ -n "$(avoid_phrases)" ]] || { echo "FAIL: no multi-word _Avoid_ entries in GLOSSARY.md" >&2; exit 1; }
+mutate GLOSSARY.md 's/^_Avoid_: .*//' "no _Avoid_ entries" "no multi-word _Avoid_ entries"
 line_break=$'\n# '
 while IFS= read -r phrase; do
   runs=$((runs + 1))
