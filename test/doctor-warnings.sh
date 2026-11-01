@@ -5,6 +5,8 @@
 # bare repo as the copy's origin. doctor.sh's own result isn't checked, except
 # that a warning doesn't fail it: the empty HOME fails the rest.
 set -euo pipefail
+# shellcheck source=lib/test-guard.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
 
 REAL_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP="$(mktemp -d)"

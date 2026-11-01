@@ -5,9 +5,12 @@
 # a <placeholder> marker from test/fresh-home.sh, adds an unmarked grep there,
 # empties or drops each extras row's cells, drops each test script's CI step
 # and README "Checks" bullet, and adds an unlisted test script, one mutation
-# at a time, and expects lint to fail naming the mutated text.
+# at a time, and expects lint to fail naming the mutated text. Also drops each
+# test script's lib/test-guard.sh, and runs the guard itself.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 set -euo pipefail
+# shellcheck source=lib/test-guard.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
 
 # shellcheck source=lib/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
@@ -102,6 +105,41 @@ for f in "$REPO_DIR"/test/*.sh; do
     "check.yml step dropped for $f" "$f"
   mutate README.md "/^- \`${path_re}\`:/d" "README Checks bullet dropped for $f" "$f"
 done
+
+# A test script without the guard, which would otherwise stop silently.
+for f in "$REPO_DIR"/test/*.sh; do
+  f="test/${f##*/}"
+  mutate "$f" '/^source .*lib\/test-guard\.sh/d' "no guard in $f" "$f doesn't source lib/test-guard.sh"
+done
+
+# The guard itself, on stock bash: it names a stop at the top level, and inside
+# a function by its caller, and an expected failure stays quiet.
+cat >"$COPY/guard-check.sh" <<GUARD
+set -euo pipefail
+source "$REPO_DIR/lib/test-guard.sh"
+fails() { false; }
+out="\$(fails)" || true
+if fails; then :; fi
+stops() {
+  :
+  false
+}
+[ "\$1" = function ] || false
+stops
+GUARD
+# expect_guard <argument> <message>
+expect_guard() {
+  local out rc=0
+  runs=$((runs + 1))
+  out="$(/bin/bash "$COPY/guard-check.sh" "$1" 2>&1)" || rc=$?
+  if ((rc == 0)) || [[ "$out" != "$2" ]]; then
+    echo "FAIL: the guard printed '$out' (exit $rc), not '$2'" >&2
+    survived=$((survived + 1))
+  fi
+}
+expect_guard top "guard-check.sh: died at line 10: false"
+expect_guard function "guard-check.sh: died in stops, called from line 11: false"
+rm "$COPY/guard-check.sh"
 
 # A test script in neither list.
 runs=$((runs + 1))

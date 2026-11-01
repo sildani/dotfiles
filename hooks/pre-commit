@@ -5,4 +5,15 @@ if [[ "$(git symbolic-ref --short -q HEAD)" == main ]]; then
   echo "pre-commit: refusing to commit on main; branch first: git switch -c <name>" >&2
   exit 1
 fi
-LINT_STAGED=1 exec "$(git rev-parse --show-toplevel)/test/lint.sh"
+root="$(git rev-parse --show-toplevel)"
+LINT_STAGED=1 "$root/test/lint.sh" || exit 1
+
+# The secret scan above needs this commit's index. The tests don't: git's
+# variables would point their temp repos at this one.
+# shellcheck disable=SC2046  # one name per word
+unset $(git rev-parse --local-env-vars)
+
+# passes <test>: only a final "<test>: ok" counts, because on stock bash a test
+# stopped by set -u can still exit 0. Its failures go to stderr.
+passes() { [[ "$("$root/test/$1.sh" | tail -1)" == *": ok" ]]; }
+passes doctor-warnings && passes updates
