@@ -154,7 +154,7 @@ link instead.
 Edit the repo from any Mac (the links mean you're editing it already), then
 commit on a branch and open a PR.
 
-Checks (also run by CI on every push):
+Checks (also run by CI on every push and weekly):
 
 - `test/lint.sh`: shellcheck, secret scan (gitleaks), that the extras are
   documented, that CI runs every `test/*.sh` and this list names it, and that
