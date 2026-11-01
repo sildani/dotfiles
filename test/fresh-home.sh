@@ -12,8 +12,9 @@
 # 0 and warns about a stray tmux server only while one runs, about a changed
 # nvim/lazy-lock.json only while it's changed, about an nvim plugin off its
 # locked commit only while one is and about ssh-agent in ~/.zprofile only while
-# a line there starts one, zsh starts without errors and exports DOTFILES as the repo, tmux loads its config and every extra
-# without errors, and every extra turns on from its README line, pasted as is
+# a line there starts one, zsh starts without errors and exports DOTFILES as
+# the repo, tmux loads its config and every extra without errors, and every
+# extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
 # undoes them, and the real repo's working tree is as it was. Set KEEP=1 to keep
@@ -272,21 +273,25 @@ grep -qF 'nvim plugins not at their locked commit' <<<"$doctor_out" &&
 grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
   die "doctor.sh warned about ssh-agent in ~/.zprofile with no ~/.zprofile"
 
-echo "doctor.sh with ssh-agent in ~/.zprofile (should warn, with the fix, and still pass; a commented-out line shouldn't)"
+echo "doctor.sh with ssh-agent in ~/.zprofile (should warn, counting agents, with the fix, and still pass; a comment or a socket path shouldn't)"
 # shellcheck disable=SC2016  # literal lines for ~/.zprofile
-echo '# eval "$(ssh-agent -s)"' >"$HOME/.zprofile"
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a commented-out ssh-agent line"; }
+printf '%s\n' '# eval "$(ssh-agent -s)"' 'export SSH_AUTH_SOCK=~/.ssh/ssh-agent.sock' >"$HOME/.zprofile"
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a comment and a socket path in ~/.zprofile"; }
 echo "$doctor_out" >>"$LOG"
 grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
-  die "doctor.sh warned about a commented-out ssh-agent line"
+  die "doctor.sh warned about a comment or a socket path in ~/.zprofile"
 # shellcheck disable=SC2016  # literal lines for ~/.zprofile
 echo 'eval "$(ssh-agent -s)" > /dev/null 2>&1' >>"$HOME/.zprofile"
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with ssh-agent in ~/.zprofile"; }
+eval "$(ssh-agent -s)" >/dev/null  # one to count; doctor reports it
+doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { eval "$(ssh-agent -k)" >/dev/null; echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with ssh-agent in ~/.zprofile"; }
+eval "$(ssh-agent -k)" >/dev/null
 rm "$HOME/.zprofile"
 echo "$doctor_out" >>"$LOG"
 grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" ||
   die "doctor.sh didn't warn about ssh-agent in ~/.zprofile"
-grep -qF 'launchd already runs one' <<<"$doctor_out" ||
+counted='[1-9][0-9]* running now'
+[[ "$doctor_out" =~ $counted ]] || die "doctor.sh didn't count the running ssh-agent"
+grep -qF 'launchd provides an agent on demand' <<<"$doctor_out" ||
   die "doctor.sh didn't say how to fix ssh-agent in ~/.zprofile"
 
 echo "doctor.sh with a changed nvim/lazy-lock.json (should warn, with the fix, and still pass)"

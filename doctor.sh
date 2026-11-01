@@ -80,13 +80,15 @@ check_shell() {
 }
 
 # ~/.zprofile runs in every login shell, tmux panes included, and an ssh-agent
-# started there outlives its shell, so they pile up until a reboot.
+# started there outlives its shell, so they pile up until a reboot. A guarded
+# start may not, hence "can". The launchd agent runs as ssh-agent -l, which
+# the pattern spares.
 zprofile_ssh_agent() {
-  grep -Eq '^[^#]*ssh-agent' "$HOME/.zprofile" 2>/dev/null || return 0
-  local running
-  running="$(pgrep -x ssh-agent | wc -l | tr -d ' ')"
-  warn "ssh-agent in ~/.zprofile leaves one running per login shell ($running running now)"  # fresh-home.sh greps for "ssh-agent in ~/.zprofile"
-  hint "delete those lines (launchd already runs one), then: pkill -f '^ssh-agent -s'"  # fresh-home.sh greps for "launchd already runs one"
+  grep -Eq '^[^#]*ssh-agent( |\)|`|$)' "$HOME/.zprofile" 2>/dev/null || return 0
+  local leftovers='(^|/)ssh-agent( -s)?$' running
+  running="$(pgrep -f "$leftovers" | wc -l | tr -d ' ')"
+  warn "ssh-agent in ~/.zprofile can leave one per login shell ($running running now)"  # fresh-home.sh greps for "ssh-agent in ~/.zprofile<count> running now"
+  hint "delete those lines (launchd provides an agent on demand), then stop the leftovers, and any keys loaded in them: pkill -f '$leftovers'"  # fresh-home.sh greps for "launchd provides an agent on demand"
 }
 
 check_links() {
