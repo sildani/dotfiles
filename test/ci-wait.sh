@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Fast checks of ci-wait.sh, on stock bash, against a fake gh on PATH that
-# records its calls and runs the script's --jq expressions through jq: a short
-# SHA refused, no run yet then success, failure, and no run at all.
+# records its calls and runs the script's --jq expressions through jq: --help,
+# a short SHA refused, no run yet then success, failure, gh run view failing,
+# and no run at all.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
@@ -14,8 +15,9 @@ failures=0
 failed() { echo "FAIL: $1" >&2; failures=$((failures + 1)); }
 
 SHA=0123456789abcdef0123456789abcdef01234567
-# EMPTY_LISTS: how many `gh run list` calls find no run yet. CONCLUSION: the run's.
-export CALLS="$TMP/calls" LISTS="$TMP/lists" SHA EMPTY_LISTS CONCLUSION
+# EMPTY_LISTS: how many `gh run list` calls find no run yet. CONCLUSION: the
+# run's. FAIL_VIEW: set to make `gh run view` fail.
+export CALLS="$TMP/calls" LISTS="$TMP/lists" SHA EMPTY_LISTS CONCLUSION FAIL_VIEW=""
 mkdir "$TMP/bin"
 # shellcheck disable=SC2016  # for the fake gh
 cat >"$TMP/bin/gh" <<'FAKE'
@@ -37,6 +39,7 @@ case "$1 $2" in
     [ "$CONCLUSION" = success ]
     exit ;;
   "run view")
+    [ -z "$FAIL_VIEW" ] || exit 1
     json="{\"databaseId\":$3,\"conclusion\":\"$CONCLUSION\",\"headSha\":\"$SHA\",\"jobs\":[{\"name\":\"lint\",\"conclusion\":\"success\"},{\"name\":\"fresh-home\",\"conclusion\":\"$CONCLUSION\"}]}" ;;
   *)
     echo "fake gh: unexpected call: $*" >&2
@@ -55,6 +58,13 @@ ci_wait() {
   err="$(cat "$TMP/err")"
 }
 calls() { grep -c "^gh $1" "$CALLS" 2>/dev/null || true; }
+
+echo "--help"
+ci_wait --help
+((rc == 0)) || failed "--help should exit 0, exited $rc"
+[[ "$out" == "Usage: ./ci-wait.sh <full-sha>"* && "$out" == *"it watches the newest"* ]] ||
+  failed "--help should print the usage and say which run it watches: $out"
+[[ ! -e "$CALLS" ]] || failed "--help called gh: $(cat "$CALLS")"
 
 echo "a short SHA is refused"
 EMPTY_LISTS=0 CONCLUSION=success
@@ -85,11 +95,18 @@ ci_wait "$SHA"
 [[ "$err" == *"gh run view 222 --log-failed"* ]] || failed "failure should name the failed-steps command: $err"
 [[ "$out$err" != *"watch noise"* ]] || failed "gh run watch's output reached the terminal: $out $err"
 
+echo "gh run view failing"
+EMPTY_LISTS=0 CONCLUSION=success FAIL_VIEW=1
+ci_wait "$SHA"
+FAIL_VIEW=""
+((rc == 1)) || failed "a failed gh run view should exit 1, exited $rc"
+[[ "$out" == "ci-wait: run 222: gh run view failed" ]] || failed "a failed gh run view should still print one line: $out"
+
 echo "no run at all"
 EMPTY_LISTS=99 CONCLUSION=success
 ci_wait "$SHA"
 ((rc == 1)) || failed "no run should exit 1, exited $rc"
-[[ "$err" == *"no CI run for $SHA"* ]] || failed "no run should say so: $err"
+[[ "$err" == *"no CI run for $SHA"*"is a PR open"* ]] || failed "no run should say so and ask about a PR: $err"
 [[ "$(calls 'run list')" == 3 ]] || failed "should give up after CI_WAIT_TRIES polls: $(cat "$CALLS")"
 [[ "$(calls 'run watch')" == 0 ]] || failed "nothing to watch, but watched: $(cat "$CALLS")"
 

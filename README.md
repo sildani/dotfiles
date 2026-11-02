@@ -189,8 +189,8 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   refused, no run yet, success and failure.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
 
-After pushing, `./ci-wait.sh <full-sha>` waits for that commit's CI run and
-prints one line with its result. After merging a PR, `./prune-merged.sh`
+After pushing to a PR, `./ci-wait.sh <full-sha>` waits for that commit's CI run
+and prints one line with its result. After merging a PR, `./prune-merged.sh`
 deletes the merged branches locally and on `origin`.
 
 Each machine keeps its own nvim lockfile, `lazy-lock.json` under

@@ -5,10 +5,9 @@
 # drops one piece of a <placeholder> marker from test/fresh-home.sh, adds an
 # unmarked grep there, empties or drops each extras row's cells, drops each
 # test script's CI step and README "Checks" bullet, and adds an unlisted test
-# script, one mutation
-# at a time, and expects lint to fail naming the mutated text. Also drops each
-# test script's lib/test-guard.sh, runs the guard itself, and adds each
-# multi-word _Avoid_ entry from GLOSSARY.md.
+# script, one mutation at a time, and expects lint to fail naming the mutated
+# text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
+# and adds each multi-word _Avoid_ entry from GLOSSARY.md.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
@@ -84,11 +83,11 @@ mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-ho
   "marker reworded" "lint-selftest reworded"
 
 # Near-miss markers: joined to another comment, and with text after the quote.
-n="$(grep -nF '# fresh-home.sh greps for "optional extras"' "$REPO_DIR/lib/common.sh" | cut -d: -f1)"
+line="$(grep -nF '# fresh-home.sh greps for "optional extras"' "$REPO_DIR/lib/common.sh" | cut -d: -f1)"
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# doctor-warnings.sh checks this text; fresh-home.sh greps for "optional extras"/' \
-  "near-miss marker after another comment" "lib/common.sh:$n has a malformed marker"
+  "near-miss marker after another comment" "lib/common.sh:$line has a malformed marker"
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "optional extras", too/' \
-  "near-miss marker with text after it" "lib/common.sh:$n has a malformed marker"
+  "near-miss marker with text after it" "lib/common.sh:$line has a malformed marker"
 
 # One piece of a <placeholder> marker gone from test/fresh-home.sh: the first
 # fixed piece of the first such marker, so the target follows the markers.
