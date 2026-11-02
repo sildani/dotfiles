@@ -64,6 +64,10 @@ mutate() {
   cp "$REPO_DIR/$file" "$COPY/$file"
 }
 
+# sed_literal <text>: the text as a sed -E pattern that matches it literally,
+# with `/` escaped for the s/// delimiter.
+sed_literal() { sed -E 's#[][\/.^$*+?(){}|]#\\&#g' <<<"$1"; }
+
 # Each marker removed. Lint names its line when another marker keeps the text,
 # else the text through fresh-home.sh's grep: each fixed piece of a
 # <placeholder> marker counts.
@@ -78,8 +82,24 @@ done < <(cd "$REPO_DIR" && grep -nF '# fresh-home.sh greps for "' install.sh doc
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "lint-selftest reworded"/' \
   "marker reworded" "lint-selftest reworded"
 
-mutate test/fresh-home.sh 's/ extra on: / lint-selftest on: /' \
-  "one piece of a <placeholder> marker gone from test/fresh-home.sh" 'no longer greps for " extra on: "'
+# One piece of a <placeholder> marker gone from test/fresh-home.sh: the first
+# fixed piece of the first such marker, so the target follows the markers.
+piece=""
+placeholder_re='<[^>]+>'
+while IFS= read -r marker; do
+  [[ "$marker" =~ $placeholder_re ]] || continue
+  while IFS= read -r p; do
+    [[ -n "$p" ]] && { piece="$p"; break; }
+  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
+  [[ -n "$piece" ]] && break
+done < <(cd "$REPO_DIR" && sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' install.sh doctor.sh lib/common.sh)
+if [[ -n "$piece" ]]; then
+  mutate test/fresh-home.sh "s/$(sed_literal "$piece")/ lint-selftest piece /g" \
+    "one piece of a <placeholder> marker gone from test/fresh-home.sh" "no longer greps for \"$piece\""
+else
+  runs=$((runs + 1)) survived=$((survived + 1))
+  echo "FAIL: no <placeholder> marker in install.sh, doctor.sh or lib/common.sh to drop a piece of from test/fresh-home.sh" >&2
+fi
 
 mutate test/fresh-home.sh "\$a\\
 grep -q 'lint-selftest unmarked' <<<\"\$doctor_out\" || die x
