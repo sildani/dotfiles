@@ -78,8 +78,8 @@ done < <(cd "$REPO_DIR" && grep -nF '# fresh-home.sh greps for "' install.sh doc
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "lint-selftest reworded"/' \
   "marker reworded" "lint-selftest reworded"
 
-mutate test/fresh-home.sh 's/ running now/ lint-selftest count/' \
-  "one piece of a <placeholder> marker gone from test/fresh-home.sh" 'no longer greps for " running now"'
+mutate test/fresh-home.sh 's/ extra on: / lint-selftest on: /' \
+  "one piece of a <placeholder> marker gone from test/fresh-home.sh" 'no longer greps for " extra on: "'
 
 mutate test/fresh-home.sh "\$a\\
 grep -q 'lint-selftest unmarked' <<<\"\$doctor_out\" || die x
