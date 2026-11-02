@@ -9,17 +9,25 @@
 # text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
 # and adds each multi-word _Avoid_ entry from GLOSSARY.md.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
+
+# One group, ended by exit: bash reads all of it before running any, so an
+# edit to this file mid-run can't change the run.
+{
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
 
 # shellcheck source=lib/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
+SNAP="$(mktemp -d)"
+trap 'rm -rf "$SNAP" "${COPY-}"' EXIT
 COPY="$(mktemp -d)"
-trap 'rm -rf "$COPY"' EXIT
 
-# The working tree, as fresh-home.sh copies it. Mutations are made here only.
-copy_worktree "$REPO_DIR" "$COPY"
+# The working tree, as fresh-home.sh copies it, taken once: every read and
+# restore after this uses the snapshot, so the repo can change mid-run.
+# Mutations are made in the copy only.
+copy_worktree "$REPO_DIR" "$SNAP"
+copy_worktree "$SNAP" "$COPY"
 [[ -z "$(git -C "$COPY" status --porcelain)" ]] || { echo "FAIL: copy_worktree left the copy with changes" >&2; exit 1; }
 
 # The copy has only a snapshot commit to scan; CI's test/lint.sh run scans the
@@ -55,13 +63,13 @@ mutate() {
   shift 3
   runs=$((runs + 1))
   sed -i '' -E "$program" "$COPY/$file"
-  if cmp -s "$REPO_DIR/$file" "$COPY/$file"; then
+  if cmp -s "$SNAP/$file" "$COPY/$file"; then
     echo "FAIL: mutation didn't change $file: $desc" >&2
     survived=$((survived + 1))
   else
     expect_caught "$desc" "$@"
   fi
-  cp "$REPO_DIR/$file" "$COPY/$file"
+  cp "$SNAP/$file" "$COPY/$file"
 }
 
 # sed_literal <text>: the text as a sed -E pattern that matches it literally,
@@ -77,13 +85,13 @@ while IFS=: read -r file n code; do
   while IFS= read -r piece; do pieces+=("$piece"); done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
   mutate "$file" "${n}s/[[:space:]]*# fresh-home\\.sh greps for \".*\"\$//" \
     "marker removed at $file:$n" "$file:$n" ${pieces[@]+"${pieces[@]}"}
-done < <(cd "$REPO_DIR" && grep -nF '# fresh-home.sh greps for "' install.sh doctor.sh lib/common.sh)
+done < <(cd "$SNAP" && grep -nF '# fresh-home.sh greps for "' install.sh doctor.sh lib/common.sh)
 
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "lint-selftest reworded"/' \
   "marker reworded" "lint-selftest reworded"
 
 # Near-miss markers: joined to another comment, and with text after the quote.
-line="$(grep -nF '# fresh-home.sh greps for "optional extras"' "$REPO_DIR/lib/common.sh" | cut -d: -f1)"
+line="$(grep -nF '# fresh-home.sh greps for "optional extras"' "$SNAP/lib/common.sh" | cut -d: -f1)"
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# doctor-warnings.sh checks this text; fresh-home.sh greps for "optional extras"/' \
   "near-miss marker after another comment" "lib/common.sh:$line has a malformed marker"
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "optional extras", too/' \
@@ -99,7 +107,7 @@ while IFS= read -r marker; do
     [[ -n "$p" ]] && { piece="$p"; break; }
   done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
   [[ -n "$piece" ]] && break
-done < <(cd "$REPO_DIR" && sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' install.sh doctor.sh lib/common.sh)
+done < <(cd "$SNAP" && sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' install.sh doctor.sh lib/common.sh)
 if [[ -n "$piece" ]]; then
   mutate test/fresh-home.sh "s/$(sed_literal "$piece")/ lint-selftest piece /g" \
     "one piece of a <placeholder> marker gone from test/fresh-home.sh" "no longer greps for \"$piece\""
@@ -122,10 +130,10 @@ while IFS= read -r extra; do
     "README extras file cell emptied for $extra" "$extra"
   mutate README.md "${row}s/^(.*\\|)[^|]+\\|[[:space:]]*\$/\\1/" \
     "README extras last cell dropped for $extra" "$extra"
-done < <(cd "$REPO_DIR" && printf '%s\n' */extras/*)
+done < <(cd "$SNAP" && printf '%s\n' */extras/*)
 
 # Each test script: its CI step dropped, its README "Checks" bullet dropped.
-for f in "$REPO_DIR"/test/*.sh; do
+for f in "$SNAP"/test/*.sh; do
   f="test/${f##*/}"
   path_re="${f//./\\.}"
   path_re="${path_re//\//\\/}"
@@ -135,7 +143,7 @@ for f in "$REPO_DIR"/test/*.sh; do
 done
 
 # A test script without the guard, which would otherwise stop silently.
-for f in "$REPO_DIR"/test/*.sh; do
+for f in "$SNAP"/test/*.sh; do
   f="test/${f##*/}"
   mutate "$f" '/^source .*lib\/test-guard\.sh/d' "no guard in $f" "$f doesn't source lib/test-guard.sh"
 done
@@ -144,7 +152,7 @@ done
 # a function by its caller, and an expected failure stays quiet.
 cat >"$COPY/guard-check.sh" <<GUARD
 set -euo pipefail
-source "$REPO_DIR/lib/test-guard.sh"
+source "$SNAP/lib/test-guard.sh"
 fails() { false; }
 out="\$(fails)" || true
 if fails; then :; fi
@@ -177,8 +185,8 @@ while IFS= read -r phrase; do
   runs=$((runs + 1))
   printf '%s\n' "${phrase/ /$line_break}" >>"$COPY/README.md"
   expect_caught "_Avoid_ entry: $phrase" "$phrase"
-  cp "$REPO_DIR/README.md" "$COPY/README.md"
-done < <(avoid_phrases)
+  cp "$SNAP/README.md" "$COPY/README.md"
+done < <(avoid_phrases "$SNAP/GLOSSARY.md")
 
 # A test script in neither list.
 runs=$((runs + 1))
@@ -192,3 +200,5 @@ if ((survived)); then
   exit 1
 fi
 echo "lint-selftest: ok ($runs mutations caught)"
+exit
+}
