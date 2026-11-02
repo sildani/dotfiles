@@ -76,19 +76,22 @@ check_shell() {
     warn "login shell is ${shell:-unknown}, so ~/.zshrc isn't used"
     hint "chsh -s /bin/zsh"
   fi
-  zprofile_ssh_agent
+  shell_startup_ssh_agent
 }
 
-# ~/.zprofile runs in every login shell, tmux panes included, and an ssh-agent
-# started there outlives its shell, so they pile up until a reboot. A guarded
-# start may not, hence "can". The launchd agent runs as ssh-agent -l, which
-# the pattern spares.
-zprofile_ssh_agent() {
-  grep -Eq '^[^#]*ssh-agent( |\)|`|$)' "$HOME/.zprofile" 2>/dev/null || return 0
-  local leftovers='(^|/)ssh-agent( -s)?$' running
-  running="$(pgrep -f "$leftovers" | wc -l | tr -d ' ')"
-  warn "ssh-agent in ~/.zprofile can leave one per login shell ($running running now)"  # fresh-home.sh greps for "ssh-agent in ~/.zprofile<count> running now"
-  hint "delete those lines (launchd provides an agent on demand), then stop the leftovers, and any keys loaded in them: pkill -f '$leftovers'"  # fresh-home.sh greps for "launchd provides an agent on demand"
+# ~/.zprofile runs in every login shell and ~/.zshrc.local in every interactive
+# one, tmux panes included, and an ssh-agent started there outlives its shell,
+# so they pile up until a reboot. A guarded start may not, hence "can". The
+# launchd agent runs as ssh-agent -l, which the pattern spares.
+# test/doctor-warnings.sh checks the warning's and hint's text.
+shell_startup_ssh_agent() {
+  local leftovers='(^|/)ssh-agent( -s)?$' file running=''
+  for file in .zprofile .zshrc.local; do
+    grep -Eq '^[^#]*ssh-agent( |\)|`|$)' "$HOME/$file" 2>/dev/null || continue
+    [[ -n "$running" ]] || running="$(pgrep -f "$leftovers" | wc -l | tr -d ' ')"
+    warn "ssh-agent in ~/$file can leave one per shell ($running running now)"  # fresh-home.sh greps for "ssh-agent in ~/"
+    hint "delete those lines (launchd provides an agent on demand), then stop the leftovers, and any keys loaded in them: pkill -f '$leftovers'"
+  done
 }
 
 # plist_value <plist text> <key path>: fails if the key isn't there. An array

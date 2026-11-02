@@ -16,8 +16,8 @@
 # update reminder's clock, the second changed nothing (not even a real
 # ~/.tmux/resurrect or that clock), doctor exits 0, fails naming a missing nvim
 # plugin and warns about a stray tmux server only while one runs and about
-# ssh-agent in ~/.zprofile only while a line there starts one, update.sh runs
-# for real, apart from brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as
+# ssh-agent in ~/.zprofile without failing, update.sh runs for real, apart from
+# brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as
 # the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local can change), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, tmux loads its config and every extra without errors, and every
@@ -65,8 +65,7 @@ die() {
 #   pops a "Keychain Not Found" dialog for a HOME with no keychain.
 # - Running inside tmux leaks TMUX_PLUGIN_MANAGER_PATH, which sends TPM's
 #   installs to the real ~/.tmux/plugins.
-# - An inherited SSH_AGENT_PID or SSH_AUTH_SOCK reaches the real agent, and
-#   ssh-agent -k would stop it.
+# - An inherited SSH_AGENT_PID or SSH_AUTH_SOCK reaches the real agent.
 export HOME="$FAKE_HOME" GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0
 unset TMUX TMUX_PANE TMUX_PLUGIN_MANAGER_PATH XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME DOTFILES SSH_AGENT_PID SSH_AUTH_SOCK
 
@@ -341,35 +340,16 @@ for entry in "${FORMULAE[@]}"; do
 done
 grep -qF 'tmux servers besides the default one are running' <<<"$doctor_out" &&
   die "doctor.sh warned about stray tmux servers with none running (stop any left over and rerun)"
-grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
-  die "doctor.sh warned about ssh-agent in ~/.zprofile with no ~/.zprofile"
-
-echo "doctor.sh with ssh-agent in ~/.zprofile (should warn, counting agents, with the fix, and still pass; a comment or a socket path shouldn't)"
-# shellcheck disable=SC2016  # literal lines for ~/.zprofile
-printf '%s\n' '# eval "$(ssh-agent -s)"' 'export SSH_AUTH_SOCK=~/.ssh/ssh-agent.sock' >"$HOME/.zprofile"
-doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || { echo "$doctor_out" >>"$LOG"; die "doctor.sh failed with a comment and a socket path in ~/.zprofile"; }
-echo "$doctor_out" >>"$LOG"
-grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" &&
-  die "doctor.sh warned about a comment or a socket path in ~/.zprofile"
-# shellcheck disable=SC2016  # literal lines for ~/.zprofile
-echo 'eval "$(ssh-agent -s)" > /dev/null 2>&1' >>"$HOME/.zprofile"
-# One real agent for doctor to count. Its socket goes under its HOME, and the
-# temp HOME's path is too long for a socket.
-agent_home="$(mktemp -d /tmp/fresh-home-agent.XXXXXX)"
-agent_env="$(HOME="$agent_home" ssh-agent -s)" || die "ssh-agent didn't start"
-eval "$agent_env" >/dev/null
+echo "doctor.sh with ssh-agent in ~/.zprofile (should still pass; test/doctor-warnings.sh checks the warning)"
+# shellcheck disable=SC2016  # a literal line for ~/.zprofile
+echo 'eval "$(ssh-agent -s)" > /dev/null 2>&1' >"$HOME/.zprofile"
 doctor_rc=0
 doctor_out="$("$REPO_DIR/doctor.sh" 2>&1)" || doctor_rc=$?
-eval "$(ssh-agent -k)" >/dev/null
-rm -rf "$agent_home" "$HOME/.zprofile"
+rm "$HOME/.zprofile"
 echo "$doctor_out" >>"$LOG"
 ((doctor_rc == 0)) || die "doctor.sh failed with ssh-agent in ~/.zprofile"
 grep -qF 'ssh-agent in ~/.zprofile' <<<"$doctor_out" ||
-  die "doctor.sh didn't warn about ssh-agent in ~/.zprofile"
-counted='[1-9][0-9]* running now'
-[[ "$doctor_out" =~ $counted ]] || die "doctor.sh didn't count the running ssh-agent"
-grep -qF 'launchd provides an agent on demand' <<<"$doctor_out" ||
-  die "doctor.sh didn't say how to fix ssh-agent in ~/.zprofile"
+  die "doctor.sh didn't warn about ssh-agent in ~/.zprofile, so this step checked nothing"
 
 echo "doctor.sh with an nvim plugin missing (should fail, naming it)"
 mv "$HOME/.local/share/nvim/lazy/base46" "$HOME/base46.away"
