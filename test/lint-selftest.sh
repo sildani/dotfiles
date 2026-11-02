@@ -9,14 +9,19 @@
 # text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
 # and adds each multi-word _Avoid_ entry from GLOSSARY.md.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
+
+# One group, ended by exit: bash reads all of it before running any, so an
+# edit to this file mid-run can't change the run.
+{
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
 
 # shellcheck source=lib/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
-SNAP="$(mktemp -d)" COPY="$(mktemp -d)"
-trap 'rm -rf "$SNAP" "$COPY"' EXIT
+SNAP="$(mktemp -d)"
+trap 'rm -rf "$SNAP" "${COPY-}"' EXIT
+COPY="$(mktemp -d)"
 
 # The working tree, as fresh-home.sh copies it, taken once: every read and
 # restore after this uses the snapshot, so the repo can change mid-run.
@@ -195,3 +200,5 @@ if ((survived)); then
   exit 1
 fi
 echo "lint-selftest: ok ($runs mutations caught)"
+exit
+}
