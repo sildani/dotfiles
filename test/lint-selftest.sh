@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Checks that test/lint.sh's marker, extras and test-script checks still catch
 # what they exist for: in a copy of the working tree, it removes each
-# `# fresh-home.sh greps for "<text>"` marker, rewords one, drops one piece of
-# a <placeholder> marker from test/fresh-home.sh, adds an unmarked grep there,
-# empties or drops each extras row's cells, drops each test script's CI step
-# and README "Checks" bullet, and adds an unlisted test script, one mutation
-# at a time, and expects lint to fail naming the mutated text. Also drops each
-# test script's lib/test-guard.sh, runs the guard itself, and adds each
-# multi-word _Avoid_ entry from GLOSSARY.md.
+# `# fresh-home.sh greps for "<text>"` marker, rewords one, malforms one twice,
+# drops one piece of a <placeholder> marker from test/fresh-home.sh, adds an
+# unmarked grep there, empties or drops each extras row's cells, drops each
+# test script's CI step and README "Checks" bullet, and adds an unlisted test
+# script, one mutation at a time, and expects lint to fail naming the mutated
+# text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
+# and adds each multi-word _Avoid_ entry from GLOSSARY.md.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
@@ -64,6 +64,10 @@ mutate() {
   cp "$REPO_DIR/$file" "$COPY/$file"
 }
 
+# sed_literal <text>: the text as a sed -E pattern that matches it literally,
+# with `/` escaped for the s/// delimiter.
+sed_literal() { sed -E 's#[][\/.^$*+?(){}|]#\\&#g' <<<"$1"; }
+
 # Each marker removed. Lint names its line when another marker keeps the text,
 # else the text through fresh-home.sh's grep: each fixed piece of a
 # <placeholder> marker counts.
@@ -78,8 +82,31 @@ done < <(cd "$REPO_DIR" && grep -nF '# fresh-home.sh greps for "' install.sh doc
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "lint-selftest reworded"/' \
   "marker reworded" "lint-selftest reworded"
 
-mutate test/fresh-home.sh 's/ extra on: / lint-selftest on: /' \
-  "one piece of a <placeholder> marker gone from test/fresh-home.sh" 'no longer greps for " extra on: "'
+# Near-miss markers: joined to another comment, and with text after the quote.
+line="$(grep -nF '# fresh-home.sh greps for "optional extras"' "$REPO_DIR/lib/common.sh" | cut -d: -f1)"
+mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# doctor-warnings.sh checks this text; fresh-home.sh greps for "optional extras"/' \
+  "near-miss marker after another comment" "lib/common.sh:$line has a malformed marker"
+mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "optional extras", too/' \
+  "near-miss marker with text after it" "lib/common.sh:$line has a malformed marker"
+
+# One piece of a <placeholder> marker gone from test/fresh-home.sh: the first
+# fixed piece of the first such marker, so the target follows the markers.
+piece=""
+placeholder_re='<[^>]+>'
+while IFS= read -r marker; do
+  [[ "$marker" =~ $placeholder_re ]] || continue
+  while IFS= read -r p; do
+    [[ -n "$p" ]] && { piece="$p"; break; }
+  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
+  [[ -n "$piece" ]] && break
+done < <(cd "$REPO_DIR" && sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' install.sh doctor.sh lib/common.sh)
+if [[ -n "$piece" ]]; then
+  mutate test/fresh-home.sh "s/$(sed_literal "$piece")/ lint-selftest piece /g" \
+    "one piece of a <placeholder> marker gone from test/fresh-home.sh" "no longer greps for \"$piece\""
+else
+  runs=$((runs + 1)) survived=$((survived + 1))
+  echo "FAIL: no <placeholder> marker in install.sh, doctor.sh or lib/common.sh to drop a piece of from test/fresh-home.sh" >&2
+fi
 
 mutate test/fresh-home.sh "\$a\\
 grep -q 'lint-selftest unmarked' <<<\"\$doctor_out\" || die x

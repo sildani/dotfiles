@@ -16,7 +16,7 @@ CONFIGS=nvim/lua/configs
 errors=0
 err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 
-shellcheck -x install.sh doctor.sh update.sh prune-merged.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
+shellcheck -x install.sh doctor.sh update.sh prune-merged.sh ci-wait.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
 
 # One file per call: zsh -n treats any extra files as arguments to the first.
 for f in zsh/* zsh/extras/*; do
@@ -119,6 +119,12 @@ marker_files=(install.sh doctor.sh lib/common.sh)
 markers=()
 while IFS= read -r marker; do markers+=("$marker"); done < <(
   sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' "${marker_files[@]}" | sort -u)
+# A marker not in that exact end-of-line form would be skipped silently.
+marker_re='# fresh-home\.sh greps for "(.*)"$'
+while IFS=: read -r file n code; do
+  [[ "$code" =~ $marker_re ]] ||
+    err "$file:$n has a malformed marker; end the line with: # fresh-home.sh greps for \"<text>\""
+done < <(grep -nF 'fresh-home.sh greps for' "${marker_files[@]}" || true)
 for marker in ${markers[@]+"${markers[@]}"}; do
   # <placeholders> are gaps: each fixed piece must appear.
   while IFS= read -r piece; do

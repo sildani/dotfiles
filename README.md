@@ -175,20 +175,23 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   half a minute. The hook also refuses commits on `main`; changes go through a
   PR.
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
-  fresh-home.sh markers, drops one marker's text from fresh-home.sh, adds an
-  unmarked grep, breaks the extras rows, drops each test script's CI step and
-  bullet here, adds an unlisted test script, blanks the glossary's _Avoid_ lines
-  and adds each multi-word entry, one at a time, and checks that `test/lint.sh`
-  fails on each. It also runs `lib/test-guard.sh` on a test that
+  fresh-home.sh markers, malforms one, drops one marker's text from
+  fresh-home.sh, adds an unmarked grep, breaks the extras rows, drops each test
+  script's CI step and bullet here, adds an unlisted test script, blanks the
+  glossary's _Avoid_ lines and adds each multi-word entry, one at a time, and
+  checks that `test/lint.sh` fails on each. It also runs `lib/test-guard.sh` on a test that
   stops. Takes minutes.
 - `test/doctor-warnings.sh`: runs `doctor.sh` in an empty temporary HOME with a
   fake `defaults`, and checks when it warns.
 - `test/updates.sh`: runs `update.sh` against a fake Homebrew and nvim and local
   repos, and checks brew upgrades below a minimum and the update reminder.
+- `test/ci-wait.sh`: runs `ci-wait.sh` against a fake `gh`: a short SHA
+  refused, no run yet, success and failure.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
 
-After merging a PR, `./prune-merged.sh` deletes the merged branches locally and
-on `origin`.
+After pushing to a PR, `./ci-wait.sh <full-sha>` waits for that commit's CI run
+and prints one line with its result. After merging a PR, `./prune-merged.sh`
+deletes the merged branches locally and on `origin`.
 
 Each machine keeps its own nvim lockfile, `lazy-lock.json` under
 `~/.local/state/nvim`, outside the repo. `:Lazy restore` puts that machine's

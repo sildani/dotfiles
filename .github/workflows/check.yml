@@ -26,6 +26,7 @@ jobs:
       - run: test/lint-selftest.sh
       - run: test/doctor-warnings.sh
       - run: test/updates.sh
+      - run: test/ci-wait.sh
 
   fresh-home:
     runs-on: macos-latest
