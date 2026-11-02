@@ -127,6 +127,52 @@ expect_origin "$NO_ORIGIN" "$BEHIND" "origin hangs"
 ((SECONDS - started < 20)) || failed "doctor.sh took $((SECONDS - started))s with a hanging origin"
 rm "$TMP/bin/git"
 
+SSH_AGENT_HINT='launchd provides an agent on demand'
+
+# expect_ssh_agent <files it warns about, e.g. ".zprofile .zshrc.local"> <case>
+expect_ssh_agent() {
+  local out file
+  out="$(doctor)"
+  for file in .zprofile .zshrc.local; do
+    if [[ " $1 " == *" $file "* ]]; then
+      [[ "$out" =~ ssh-agent\ in\ ~/$file\ can\ leave\ one\ per\ shell\ \([1-9][0-9]*\ running\ now\) ]] ||
+        failed "$2: no counted warning about ssh-agent in ~/$file:"$'\n'"$out"
+    else
+      [[ "$out" != *"ssh-agent in ~/$file"* ]] || failed "$2: warned about ssh-agent in ~/$file"
+    fi
+  done
+  if [[ -n "$1" ]]; then
+    [[ "$out" == *"$SSH_AGENT_HINT"* ]] || failed "$2: no '$SSH_AGENT_HINT'"
+  else
+    [[ "$out" != *"$SSH_AGENT_HINT"* ]] || failed "$2: printed '$SSH_AGENT_HINT'"
+  fi
+}
+
+# One real agent for doctor.sh to count. Its socket goes under its HOME, and
+# $TMP's path is too long for a socket.
+agent_home="$(mktemp -d /tmp/doctor-warnings-agent.XXXXXX)"
+eval "$(HOME="$agent_home" ssh-agent -s)" >/dev/null || failed "ssh-agent didn't start"
+trap 'ssh-agent -k >/dev/null 2>&1; rm -rf "$TMP" "$agent_home"' EXIT
+# shellcheck disable=SC2016  # literal lines for the startup files
+AGENT_LINE='eval "$(ssh-agent -s)" > /dev/null 2>&1'
+
+expect_ssh_agent "" "neither startup file"
+
+# shellcheck disable=SC2016  # literal lines for the startup files
+printf '%s\n' '# eval "$(ssh-agent -s)"' 'export SSH_AUTH_SOCK=~/.ssh/ssh-agent.sock' |
+  tee "$HOME/.zprofile" >"$HOME/.zshrc.local"
+expect_ssh_agent "" "a comment and a socket path in both files"
+
+echo "$AGENT_LINE" >>"$HOME/.zshrc.local"
+expect_ssh_agent .zshrc.local "agent line in ~/.zshrc.local"
+
+echo "$AGENT_LINE" >>"$HOME/.zprofile"
+expect_ssh_agent ".zprofile .zshrc.local" "agent lines in both files"
+
+rm "$HOME/.zshrc.local"
+expect_ssh_agent .zprofile "agent line in ~/.zprofile"
+rm "$HOME/.zprofile"
+
 if ((failures)); then
   echo "doctor-warnings: $failures failed" >&2
   exit 1
