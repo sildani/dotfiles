@@ -16,8 +16,8 @@
 # update reminder's clock, the second changed nothing (not even a real
 # ~/.tmux/resurrect or that clock), doctor exits 0, fails naming a missing nvim
 # plugin and warns about a stray tmux server only while one runs and about
-# ssh-agent in ~/.zprofile without failing, update.sh runs
-# for real, apart from brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as
+# ssh-agent in ~/.zprofile without failing, update.sh runs for real, apart from
+# brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as
 # the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local can change), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, tmux loads its config and every extra without errors, and every

@@ -83,6 +83,7 @@ check_shell() {
 # one, tmux panes included, and an ssh-agent started there outlives its shell,
 # so they pile up until a reboot. A guarded start may not, hence "can". The
 # launchd agent runs as ssh-agent -l, which the pattern spares.
+# test/doctor-warnings.sh checks the warning's and hint's text.
 shell_startup_ssh_agent() {
   local leftovers='(^|/)ssh-agent( -s)?$' file running=''
   for file in .zprofile .zshrc.local; do

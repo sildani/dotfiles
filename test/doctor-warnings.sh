@@ -141,17 +141,18 @@ expect_ssh_agent() {
       [[ "$out" != *"ssh-agent in ~/$file"* ]] || failed "$2: warned about ssh-agent in ~/$file"
     fi
   done
-  if [[ -n "$1" ]]; then
-    [[ "$out" == *"$SSH_AGENT_HINT"* ]] || failed "$2: no '$SSH_AGENT_HINT'"
-  else
-    [[ "$out" != *"$SSH_AGENT_HINT"* ]] || failed "$2: printed '$SSH_AGENT_HINT'"
-  fi
+  # One hint under each warning.
+  local hints expected
+  hints="$(grep -cF "$SSH_AGENT_HINT" <<<"$out" || true)"
+  expected="$(wc -w <<<"$1" | tr -d ' ')"
+  ((hints == expected)) || failed "$2: '$SSH_AGENT_HINT' $hints times, expected $expected"
 }
 
 # One real agent for doctor.sh to count. Its socket goes under its HOME, and
 # $TMP's path is too long for a socket.
 agent_home="$(mktemp -d /tmp/doctor-warnings-agent.XXXXXX)"
-eval "$(HOME="$agent_home" ssh-agent -s)" >/dev/null || failed "ssh-agent didn't start"
+agent_env="$(HOME="$agent_home" ssh-agent -s)" || failed "ssh-agent didn't start"
+eval "$agent_env" >/dev/null
 trap 'ssh-agent -k >/dev/null 2>&1; rm -rf "$TMP" "$agent_home"' EXIT
 # shellcheck disable=SC2016  # literal lines for the startup files
 AGENT_LINE='eval "$(ssh-agent -s)" > /dev/null 2>&1'
