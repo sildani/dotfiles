@@ -171,9 +171,9 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   `.github/workflows/check.yml` and a bullet here, and must source
   `lib/test-guard.sh`, which names the line that stopped it; sourced helpers go
   in `lib/`. Runs before each commit through the hook `install.sh` turns on,
-  with `test/doctor-warnings.sh` and `test/updates.sh`, so a commit takes about
-  half a minute. The hook also refuses commits on `main`; changes go through a
-  PR.
+  with `test/doctor-warnings.sh`, `test/updates.sh` and `test/ci-wait.sh`, so a
+  commit takes about half a minute. The hook also refuses commits on `main`;
+  changes go through a PR.
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
   fresh-home.sh markers, malforms one, drops one marker's text from
   fresh-home.sh, adds an unmarked grep, breaks the extras rows, drops each test

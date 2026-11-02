@@ -16,4 +16,4 @@ unset $(git rev-parse --local-env-vars)
 # passes <test>: only a final "<test>: ok" counts, because on stock bash a test
 # stopped by set -u can still exit 0. Its failures go to stderr.
 passes() { [[ "$("$root/test/$1.sh" | tail -1)" == *": ok" ]]; }
-passes doctor-warnings && passes updates
+passes doctor-warnings && passes updates && passes ci-wait
