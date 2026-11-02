@@ -119,6 +119,12 @@ marker_files=(install.sh doctor.sh lib/common.sh)
 markers=()
 while IFS= read -r marker; do markers+=("$marker"); done < <(
   sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' "${marker_files[@]}" | sort -u)
+# A marker not in that exact end-of-line form would be skipped silently.
+marker_re='# fresh-home\.sh greps for "(.*)"$'
+while IFS=: read -r file n code; do
+  [[ "$code" =~ $marker_re ]] ||
+    err "$file:$n has a malformed marker; end the line with: # fresh-home.sh greps for \"<text>\""
+done < <(grep -nF 'fresh-home.sh greps for' "${marker_files[@]}" || true)
 for marker in ${markers[@]+"${markers[@]}"}; do
   # <placeholders> are gaps: each fixed piece must appear.
   while IFS= read -r piece; do
