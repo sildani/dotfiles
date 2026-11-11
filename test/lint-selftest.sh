@@ -81,12 +81,12 @@ sed_literal() { sed -E 's#[][\/.^$*+?(){}|]#\\&#g' <<<"$1"; }
 # else the text through fresh-home.sh's grep: each fixed piece of a
 # <placeholder> marker counts.
 while IFS=: read -r file n code; do
-  marker="$(sed -E 's/.*# fresh-home\.sh greps for "(.*)"$/\1/' <<<"$code")"
+  [[ "$code" =~ $MARKER_RE ]]
   pieces=()
-  while IFS= read -r piece; do pieces+=("$piece"); done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
+  while IFS= read -r piece; do pieces+=("$piece"); done < <(marker_pieces "${BASH_REMATCH[1]}")
   mutate "$file" "${n}s/[[:space:]]*# fresh-home\\.sh greps for \".*\"\$//" \
     "marker removed at $file:$n" "$file:$n" ${pieces[@]+"${pieces[@]}"}
-done < <(cd "$SNAP" && grep -nF '# fresh-home.sh greps for "' install.sh doctor.sh lib/common.sh)
+done < <(cd "$SNAP" && grep -nF '# fresh-home.sh greps for "' "${MARKER_FILES[@]}")
 
 mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-home.sh greps for "lint-selftest reworded"/' \
   "marker reworded" "lint-selftest reworded"
@@ -104,17 +104,15 @@ piece=""
 placeholder_re='<[^>]+>'
 while IFS= read -r marker; do
   [[ "$marker" =~ $placeholder_re ]] || continue
-  while IFS= read -r p; do
-    [[ -n "$p" ]] && { piece="$p"; break; }
-  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
+  IFS= read -r piece < <(marker_pieces "$marker") || true
   [[ -n "$piece" ]] && break
-done < <(cd "$SNAP" && sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' install.sh doctor.sh lib/common.sh)
+done < <(marker_texts "$SNAP")
 if [[ -n "$piece" ]]; then
   mutate test/fresh-home.sh "s/$(sed_literal "$piece")/ lint-selftest piece /g" \
     "one piece of a <placeholder> marker gone from test/fresh-home.sh" "no longer greps for \"$piece\""
 else
   runs=$((runs + 1)) survived=$((survived + 1))
-  echo "FAIL: no <placeholder> marker in install.sh, doctor.sh or lib/common.sh to drop a piece of from test/fresh-home.sh" >&2
+  echo "FAIL: no <placeholder> marker in ${MARKER_FILES[*]} to drop a piece of from test/fresh-home.sh" >&2
 fi
 
 mutate test/fresh-home.sh "\$a\\

@@ -131,27 +131,23 @@ done < <(git grep -Il '' -- . ':!GLOSSARY.md')
 # "<text>"` marker where they're printed, so whoever rewords one updates the
 # test: each marker is still in the test, each script line with a marker's
 # text carries one, and each grep on script output is covered by a marker.
-marker_files=(install.sh doctor.sh lib/common.sh)
 markers=()
-while IFS= read -r marker; do markers+=("$marker"); done < <(
-  sed -nE 's/.*# fresh-home\.sh greps for "(.*)"$/\1/p' "${marker_files[@]}" | sort -u)
+while IFS= read -r marker; do markers+=("$marker"); done < <(marker_texts | sort -u)
 # A marker not in that exact end-of-line form would be skipped silently.
-marker_re='# fresh-home\.sh greps for "(.*)"$'
 while IFS=: read -r file n code; do
-  [[ "$code" =~ $marker_re ]] ||
+  [[ "$code" =~ $MARKER_RE ]] ||
     err "$file:$n has a malformed marker; end the line with: # fresh-home.sh greps for \"<text>\""
-done < <(grep -nF 'fresh-home.sh greps for' "${marker_files[@]}" || true)
+done < <(grep -nF 'fresh-home.sh greps for' "${MARKER_FILES[@]}" || true)
 for marker in ${markers[@]+"${markers[@]}"}; do
   # <placeholders> are gaps: each fixed piece must appear.
   while IFS= read -r piece; do
-    [[ -z "$piece" ]] && continue
     grep -qF -- "$piece" test/fresh-home.sh ||
-      err "test/fresh-home.sh no longer greps for \"$piece\", from marker \"$marker\" (${marker_files[*]})"
+      err "test/fresh-home.sh no longer greps for \"$piece\", from marker \"$marker\" (${MARKER_FILES[*]})"
     while IFS=: read -r file n code; do
       [[ "$code" == *"# fresh-home.sh greps for"* || "$code" == *"# fresh-home.sh doesn't grep for this"* ]] ||
         err "$file:$n prints \"$piece\" without its marker: # fresh-home.sh greps for \"$marker\""
-    done < <(grep -nF -- "$piece" "${marker_files[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
-  done < <(sed -E 's/<[^>]+>/\n/g' <<<"$marker")
+    done < <(grep -nF -- "$piece" "${MARKER_FILES[@]}" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+  done < <(marker_pieces "$marker")
 done
 
 # grep_texts <grep arguments>: the texts the grep matches, one per line: each

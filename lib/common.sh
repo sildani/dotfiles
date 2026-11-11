@@ -234,6 +234,21 @@ nvim_lock_plugins() {
   sed -nE 's/^  "([^"]+)": \{.*"commit": "([0-9a-f]+)".*/\1 \2/p' "$NVIM_LOCK" 2>/dev/null
 }
 
+# Messages test/fresh-home.sh checks for carry a marker at the end of their line
+# in these files, in the form MARKER_RE matches; the text in quotes can have
+# <placeholders>. test/lint.sh checks the markers, and test/lint-selftest.sh
+# mutates them.
+MARKER_FILES=(install.sh doctor.sh lib/common.sh)
+MARKER_RE='# fresh-home\.sh greps for "(.*)"$'
+
+# marker_texts [dir]: each marker's text in dir's marker files (default: this
+# repo's), one per line, in file order.
+marker_texts() { (cd "${1:-$REPO_DIR}" && sed -nE "s/.*${MARKER_RE}/\\1/p" "${MARKER_FILES[@]}"); }
+
+# marker_pieces <marker>: its fixed pieces, one per line: the text between its
+# <placeholders>, which are gaps.
+marker_pieces() { sed -E 's/<[^>]+>/\n/g' <<<"$1" | grep -v '^$' || true; }
+
 # avoid_phrases [glossary]: the multi-word _Avoid_ entries in the glossary
 # (default: this repo's GLOSSARY.md), lower case, one per line.
 avoid_phrases() {
