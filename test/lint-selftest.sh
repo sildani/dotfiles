@@ -81,10 +81,10 @@ sed_literal() { sed -E 's#[][\/.^$*+?(){}|]#\\&#g' <<<"$1"; }
 # else the text through fresh-home.sh's grep: each fixed piece of a
 # <placeholder> marker counts.
 while IFS=: read -r file n code; do
-  [[ "$code" =~ $MARKER_RE ]]
+  [[ "$code" =~ $MARKER_RE ]] || { echo "FAIL: $file:$n doesn't match MARKER_RE (lib/common.sh)" >&2; exit 1; }
   pieces=()
   while IFS= read -r piece; do pieces+=("$piece"); done < <(marker_pieces "${BASH_REMATCH[1]}")
-  mutate "$file" "${n}s/[[:space:]]*# fresh-home\\.sh greps for \".*\"\$//" \
+  mutate "$file" "${n}s/[[:space:]]*${MARKER_RE}//" \
     "marker removed at $file:$n" "$file:$n" ${pieces[@]+"${pieces[@]}"}
 done < <(cd "$SNAP" && grep -nF '# fresh-home.sh greps for "' "${MARKER_FILES[@]}")
 
@@ -101,9 +101,8 @@ mutate lib/common.sh 's/# fresh-home\.sh greps for "optional extras"$/# fresh-ho
 # One piece of a <placeholder> marker gone from test/fresh-home.sh: the first
 # fixed piece of the first such marker, so the target follows the markers.
 piece=""
-placeholder_re='<[^>]+>'
 while IFS= read -r marker; do
-  [[ "$marker" =~ $placeholder_re ]] || continue
+  [[ "$marker" =~ $MARKER_PLACEHOLDER_RE ]] || continue
   IFS= read -r piece < <(marker_pieces "$marker") || true
   [[ -n "$piece" ]] && break
 done < <(marker_texts "$SNAP")

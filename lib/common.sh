@@ -240,6 +240,7 @@ nvim_lock_plugins() {
 # mutates them.
 MARKER_FILES=(install.sh doctor.sh lib/common.sh)
 MARKER_RE='# fresh-home\.sh greps for "(.*)"$'
+MARKER_PLACEHOLDER_RE='<[^>]+>'
 
 # marker_texts [dir]: each marker's text in dir's marker files (default: this
 # repo's), one per line, in file order.
@@ -247,7 +248,7 @@ marker_texts() { (cd "${1:-$REPO_DIR}" && sed -nE "s/.*${MARKER_RE}/\\1/p" "${MA
 
 # marker_pieces <marker>: its fixed pieces, one per line: the text between its
 # <placeholders>, which are gaps.
-marker_pieces() { sed -E 's/<[^>]+>/\n/g' <<<"$1" | grep -v '^$' || true; }
+marker_pieces() { sed -E "s/${MARKER_PLACEHOLDER_RE}/\\n/g" <<<"$1" | grep -v '^$' || true; }
 
 # avoid_phrases [glossary]: the multi-word _Avoid_ entries in the glossary
 # (default: this repo's GLOSSARY.md), lower case, one per line.
