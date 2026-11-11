@@ -7,7 +7,8 @@
 # test script's CI step and README "Checks" bullet, and adds an unlisted test
 # script, one mutation at a time, and expects lint to fail naming the mutated
 # text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
-# and adds each multi-word _Avoid_ entry from GLOSSARY.md.
+# adds each multi-word _Avoid_ entry from GLOSSARY.md, and checks that lint as
+# the commit hook runs it passes an untracked test script it isn't committing.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
 
 # One group, ended by exit: bash reads all of it before running any, so an
@@ -194,9 +195,12 @@ printf '#!/usr/bin/env bash\ntrue\n' >"$COPY/test/lint-selftest-new.sh"
 chmod +x "$COPY/test/lint-selftest-new.sh"
 expect_caught "unlisted test/lint-selftest-new.sh" test/lint-selftest-new.sh
 # The commit hook's lint lists test scripts from the index, so the same
-# untracked script doesn't block a commit it isn't part of.
+# untracked script doesn't block a commit it isn't part of, even one that
+# fails shellcheck.
 runs=$((runs + 1))
-if ! out="$(cd "$COPY" && LINT_STAGED=1 LINT_SKIP_SECRETS=1 test/lint.sh 2>&1)"; then
+# shellcheck disable=SC2016  # the error is for lint's shellcheck to find
+printf '[ $lint_selftest_unset = x ]\n' >>"$COPY/test/lint-selftest-new.sh"
+if ! out="$(LINT_STAGED=1 lint)"; then
   echo "FAIL: lint with LINT_STAGED=1 failed on an untracked test/lint-selftest-new.sh:" >&2
   echo "$out" >&2
   survived=$((survived + 1))

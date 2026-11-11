@@ -16,12 +16,17 @@ CONFIGS=nvim/lua/configs
 errors=0
 err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 
-# The commit hook sets LINT_STAGED=1: test scripts come from the index, so an
-# untracked one that isn't part of the commit doesn't block it. Elsewhere they
-# come from the disk, so a new one is flagged before it's added.
+# The commit hook sets LINT_STAGED=1: the test scripts' names come from the
+# index, so an untracked one that isn't part of the commit doesn't block it
+# (their content is still read from the disk). Elsewhere the names come from
+# the disk, so a new script is flagged before it's added.
 if [[ -n "${LINT_STAGED:-}" ]]; then
   test_scripts=()
-  while IFS= read -r f; do test_scripts+=("$f"); done < <(git ls-files 'test/*.sh')
+  indexed="$(git ls-files ':(glob)test/*.sh')" || err "git ls-files couldn't list the test scripts"
+  while IFS= read -r f; do
+    # Skip a deletion that isn't staged yet.
+    if [[ -f "$f" ]]; then test_scripts+=("$f"); fi
+  done <<<"$indexed"
 else
   test_scripts=(test/*.sh)
 fi
