@@ -193,6 +193,14 @@ runs=$((runs + 1))
 printf '#!/usr/bin/env bash\ntrue\n' >"$COPY/test/lint-selftest-new.sh"
 chmod +x "$COPY/test/lint-selftest-new.sh"
 expect_caught "unlisted test/lint-selftest-new.sh" test/lint-selftest-new.sh
+# The commit hook's lint lists test scripts from the index, so the same
+# untracked script doesn't block a commit it isn't part of.
+runs=$((runs + 1))
+if ! out="$(cd "$COPY" && LINT_STAGED=1 LINT_SKIP_SECRETS=1 test/lint.sh 2>&1)"; then
+  echo "FAIL: lint with LINT_STAGED=1 failed on an untracked test/lint-selftest-new.sh:" >&2
+  echo "$out" >&2
+  survived=$((survived + 1))
+fi
 rm "$COPY/test/lint-selftest-new.sh"
 
 if ((survived)); then

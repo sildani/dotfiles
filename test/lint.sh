@@ -16,7 +16,18 @@ CONFIGS=nvim/lua/configs
 errors=0
 err() { echo "lint: $1" >&2; errors=$((errors + 1)); }
 
-shellcheck -x install.sh doctor.sh update.sh prune-merged.sh ci-wait.sh lib/common.sh test/*.sh hooks/* || err "shellcheck failed"
+# The commit hook sets LINT_STAGED=1: test scripts come from the index, so an
+# untracked one that isn't part of the commit doesn't block it. Elsewhere they
+# come from the disk, so a new one is flagged before it's added.
+if [[ -n "${LINT_STAGED:-}" ]]; then
+  test_scripts=()
+  while IFS= read -r f; do test_scripts+=("$f"); done < <(git ls-files 'test/*.sh')
+else
+  test_scripts=(test/*.sh)
+fi
+
+shellcheck -x install.sh doctor.sh update.sh prune-merged.sh ci-wait.sh lib/common.sh \
+  ${test_scripts[@]+"${test_scripts[@]}"} hooks/* || err "shellcheck failed"
 
 # One file per call: zsh -n treats any extra files as arguments to the first.
 for f in zsh/* zsh/extras/*; do
@@ -57,7 +68,7 @@ done
 
 # Every test script runs in CI, is in the README "Checks" list and has the guard.
 # Sourced helpers go in lib/, not test/, so every test/*.sh is a script CI runs.
-for f in test/*.sh; do
+for f in ${test_scripts[@]+"${test_scripts[@]}"}; do
   path_re="${f//./\\.}"
   grep -Eq "^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${path_re}[[:space:]]*\$" .github/workflows/check.yml ||
     err ".github/workflows/check.yml doesn't run $f"
