@@ -12,7 +12,8 @@
 # real run backed up the seeded files, copied only the old ~/.zshrc's own lines
 # to ~/.zshrc.local (warning about its plugins the shared zshrc lacks), linked
 # ~/.zshrc.example to Oh My Zsh's template and ~/.tmux/resurrect to resurrect's
-# saves, wrote this machine's nvim lockfile outside the repo and started the
+# saves, wrote this machine's nvim lockfile outside the repo (nvim then loads
+# render-markdown and maps Space m r for markdown buffers only) and started the
 # update reminder's clock, the second changed nothing (not even a real
 # ~/.tmux/resurrect or that clock), doctor exits 0, fails naming a missing nvim
 # plugin and warns about a stray tmux server only while one runs and about
@@ -279,10 +280,25 @@ zsh -n "$HOME/.zshrc.local" || die ".zshrc.local is not valid zsh"
 nvim_lock="$HOME/.local/state/nvim/lazy-lock.json"
 [[ -s "$nvim_lock" ]] || die "first run didn't write this machine's nvim lockfile at $nvim_lock"
 [[ ! -e "$REPO_DIR/nvim/lazy-lock.json" ]] || die "first run wrote a lockfile into the repo"
-# Written in full: lazy.nvim itself, and a plugin NvChad's spec imports.
-for name in lazy.nvim NvChad base46; do
+# Written in full: lazy.nvim itself, a plugin NvChad's spec imports, and a
+# plugin of ours that loads only for markdown.
+for name in lazy.nvim NvChad base46 render-markdown.nvim; do
   grep -q "^  \"$name\": " "$nvim_lock" || die "the nvim lockfile has no $name"
 done
+
+echo "nvim renders markdown, with Space m r in markdown buffers only"
+printf '# Notes\n\n| a | b |\n| - | - |\n| 1 | 2 |\n' >"$HOME/notes.md"
+echo 'return {}' >"$HOME/notes.lua"
+md_check="$HOME/md-check.out"
+nvim --headless "$HOME/notes.md" \
+  "+lua local function mr() return vim.fn.maparg('<leader>mr', 'n', false, true).buffer == 1 end
+    local out = { 'loaded=' .. tostring(package.loaded['render-markdown'] ~= nil), 'md_map=' .. tostring(mr()) }
+    vim.cmd.edit(vim.fn.expand '~/notes.lua')
+    out[#out + 1] = 'lua_map=' .. tostring(mr())
+    vim.fn.writefile(out, '$md_check')" +qa >>"$LOG" 2>&1 || die "nvim failed opening a markdown file"
+md_result="$(tr '\n' ' ' <"$md_check" 2>/dev/null || true)"
+[[ "$md_result" == 'loaded=true md_map=true lua_map=false ' ]] ||
+  die "nvim should load render-markdown and map Space m r for markdown buffers only, got: $md_result"
 [[ -f "$HOME/.local/state/dotfiles/last-update" ]] || die "first run didn't start the update reminder's clock"
 touch -t 202001010000 "$HOME/.local/state/dotfiles/last-update"
 resurrect_saves="$HOME/.local/share/tmux/resurrect"

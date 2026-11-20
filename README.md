@@ -226,4 +226,6 @@ git -C "$DOTFILES" config user.email "you@example.com"
   (not Ctrl-b); `prefix k` clears the screen and scrollback. Sessions come
   back after a reboot or `tmux kill-server`: see [tmux/README.md](tmux/README.md).
 - nvim comes set up with NvChad. Press **Space c h** in nvim for a cheatsheet
-  of the keyboard shortcuts.
+  of the keyboard shortcuts. Markdown files open rendered for reading (raw on
+  the cursor line and in insert mode); **Space m r** switches the current file
+  between rendered and raw.
