@@ -35,7 +35,7 @@ The user runs `/mattpocock-skills:implement` from `main`. Carry it through to a 
 2. Build with `tdd`, picking the seams yourself and naming them in the report, then commit, staging files by name (`code-review` diffs `main...HEAD`). With several items, commit each before starting the next.
 3. Once `git log` shows the commit, run `code-review`. Apply the fixes that hold up in a follow-up commit; report the findings left unfixed, with why. Docs-only edits the user approved verbatim skip `code-review`. Before proposing docs text for verbatim approval, run its commands on throwaway files, or say which claims are unrun. Then run `test/fresh-home.sh` once for green, unless the change is docs-only.
 4. Push the branch, report, and stop. When the user runs `/mattpocock-skills:pr`, create the PR (`gh pr create`) with a body that follows that skill.
-5. Run `./ci-wait.sh <full-sha>` in the background; its exit status is the run's result. Green: run `gh pr merge --merge --match-head-commit <full-sha>` with the commit CI passed, then `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`), then report. Red: stop and report.
+5. Run `./ci-wait.sh <full-sha>` in the background; its exit status is the run's result, or, when the exit status is lost, its `ci-wait: run <id> <conclusion> <full-sha>` line. Green: run `gh pr merge --merge --match-head-commit <full-sha>` with the commit CI passed, then `./prune-merged.sh` (it switches to `main`, pulls, and deletes every merged branch locally and on `origin`), then report. Red: stop and report.
 6. With no tasks left in the session, suggest `/mattpocock-skills:retro`; the user runs it.
 
 Several issues in one session: follow `docs/agents/batch.md`.
