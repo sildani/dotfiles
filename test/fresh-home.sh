@@ -291,11 +291,13 @@ printf '# Notes\n\n| a | b |\n| - | - |\n| 1 | 2 |\n' >"$HOME/notes.md"
 echo 'return {}' >"$HOME/notes.lua"
 md_check="$HOME/md-check.out"
 nvim --headless "$HOME/notes.md" \
-  "+lua local function mr() return vim.fn.maparg('<leader>mr', 'n', false, true).buffer == 1 end
-    local out = { 'loaded=' .. tostring(package.loaded['render-markdown'] ~= nil), 'md_map=' .. tostring(mr()) }
+  "+lua local function buffer_mapped() return vim.fn.maparg('<leader>mr', 'n', false, true).buffer == 1 end
+    local function any_mapping() return vim.fn.maparg('<leader>mr', 'n') ~= '' end
+    local out = { 'loaded=' .. tostring(package.loaded['render-markdown'] ~= nil), 'md_map=' .. tostring(buffer_mapped()) }
     vim.cmd.edit(vim.fn.expand '~/notes.lua')
-    out[#out + 1] = 'lua_map=' .. tostring(mr())
-    vim.fn.writefile(out, '$md_check')" +qa >>"$LOG" 2>&1 || die "nvim failed opening a markdown file"
+    out[#out + 1] = 'lua_map=' .. tostring(any_mapping())
+    vim.fn.writefile(out, '$md_check')" +qa >>"$LOG" 2>&1 || die "nvim exited non-zero opening a markdown file"
+# A Lua error still exits 0, but then the file isn't written and this fails.
 md_result="$(tr '\n' ' ' <"$md_check" 2>/dev/null || true)"
 [[ "$md_result" == 'loaded=true md_map=true lua_map=false ' ]] ||
   die "nvim should load render-markdown and map Space m r for markdown buffers only, got: $md_result"
