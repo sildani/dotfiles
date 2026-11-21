@@ -164,12 +164,15 @@ git -C "$HOOK_CLONE" config --local core.hooksPath hooks
 git -C "$HOOK_CLONE" switch -q -c hook-check
 # Stand-ins: lint needs the commit's index for its secret scan, and the tests
 # must not see git's variables, which would reach their temp repos.
+# shellcheck source=lib/hook-tests.sh
+source "$HOOK_CLONE/lib/hook-tests.sh"
 hook_stand_ins() {
   # shellcheck disable=SC2016  # for the stand-ins to expand
   printf '#!/bin/sh\n[ -n "$GIT_INDEX_FILE" ]\n' >"$HOOK_CLONE/test/lint.sh"
-  for name in doctor-warnings updates ci-wait; do
+  for name in "${HOOK_TESTS[@]}"; do
     # shellcheck disable=SC2016  # for the stand-ins to expand
     printf '#!/bin/sh\n[ -z "$GIT_INDEX_FILE$GIT_DIR" ] && echo "%s: ok"\n' "$name" >"$HOOK_CLONE/test/$name.sh"
+    chmod +x "$HOOK_CLONE/test/$name.sh"
   done
 }
 hook_stand_ins
@@ -177,7 +180,7 @@ hook_commit 2>>"$LOG" || die "the commit hook refused a commit with every test p
 printf '#!/bin/sh\nexit 1\n' >"$HOOK_CLONE/test/lint.sh"
 hook_commit 2>>"$LOG" && die "the commit hook let a commit through with test/lint.sh failing"
 # Exit 0 with no verdict is how a test stopped by set -u ends on stock bash.
-for name in doctor-warnings updates ci-wait; do
+for name in "${HOOK_TESTS[@]}"; do
   hook_stand_ins
   printf '#!/bin/sh\n' >"$HOOK_CLONE/test/$name.sh"
   hook_commit 2>>"$LOG" && die "the commit hook let a commit through with test/$name.sh giving no verdict"
