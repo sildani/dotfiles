@@ -46,8 +46,8 @@ cd "$DOTFILES" && git pull && ./install.sh
 `install.sh` is safe to re-run. It:
 
 - installs only what's **missing** with brew: git, gh, ripgrep, shellcheck,
-  gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), Ghostty, Hurmit Nerd
-  Font, Rectangle. Anything already installed is left alone unless it's below
+  gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), ffmpeg (for
+  `shrink`), Ghostty, Hurmit Nerd Font, Rectangle. Anything already installed is left alone unless it's below
   its minimum: brew's then gets `brew upgrade`, and anything else gets a warning
   with how to upgrade. A failed Rectangle
   install is only a warning. Grant it Accessibility permission by hand. Its
@@ -61,6 +61,7 @@ cd "$DOTFILES" && git pull && ./install.sh
   | `nvim/`           | `~/.config/nvim`            |
   | `ghostty/config`  | `~/.config/ghostty/config`  |
   | `ghostty/extras/` | `~/.config/ghostty/extras`  |
+  | `bin/shrink`      | `~/.local/bin/shrink`       |
 
   It also moves away Ghostty's `~/Library/Application Support/com.mitchellh.ghostty/config*`,
   which would otherwise override the repo's file. A machine's own `~/.zshrc` is
@@ -121,6 +122,28 @@ that's all ✓. It then counts the originals in `~/.dotfiles-backup/` that diffe
 from the repo. Those never come to match; `--diff --backups` shows their diffs,
 for settings you may want to move into the per-machine files below.
 
+## Utilities
+
+Commands `install.sh` puts on `PATH` (in `~/.local/bin`) on every Mac.
+
+### shrink
+
+Makes a Shrunk copy of each file next to it and leaves the original untouched:
+
+```sh
+shrink a.mov b.mp4        # writes a.shrunk.mp4 and b.shrunk.mp4
+shrink -o ~/Desktop *.mov # into a folder
+shrink -n a.mov           # print the ffmpeg command instead of running it
+```
+
+Videos (`mov mp4 m4v mkv avi webm`) come out as H.264 `.mp4` at CRF 23, with
+AAC stereo at 128k, the short side capped at 1080, the frame rate capped at 30
+and the metadata kept. `-f` replaces an existing output, and a result that
+isn't smaller is deleted. `shrink -h` lists the options and `shrink --help
+video` every setting. A flag beats a `SHRINK_*` variable, which beats the
+default, so a Mac can set its own defaults in `~/.zshrc.local`, such as
+`export SHRINK_CRF=28`.
+
 ## Languages (Java, Python, Go)
 
 **Not installed by the script, on purpose.** When you need one, follow
@@ -172,7 +195,8 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   `.github/workflows/check.yml` and a bullet here, and must source
   `lib/test-guard.sh`, which names the line that stopped it; sourced helpers go
   in `lib/`. Runs before each commit through the hook `install.sh` turns on,
-  with `test/doctor-warnings.sh`, `test/updates.sh` and `test/ci-wait.sh`, so a
+  with `test/doctor-warnings.sh`, `test/updates.sh`, `test/ci-wait.sh` and
+  `test/shrink.sh`, so a
   commit takes about half a minute. The hook also refuses commits on `main`;
   changes go through a PR.
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
@@ -189,7 +213,10 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   repos, and checks brew upgrades below a minimum and the update reminder.
 - `test/ci-wait.sh`: runs `ci-wait.sh` against a fake `gh`: a short SHA
   refused, no run yet, success and failure.
-- `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then doctor.
+- `test/shrink.sh`: runs `shrink` against a fake `ffmpeg` and `ffprobe`, and
+  checks the commands it builds, its outputs and its errors.
+- `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then
+  doctor, then one real `shrink` of a small generated video.
 
 After pushing to a PR, `./ci-wait.sh <full-sha>` waits for that commit's CI run
 and prints one line with its result. After merging a PR, `./prune-merged.sh`

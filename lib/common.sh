@@ -32,6 +32,7 @@ LINKS=(
   "nvim:$HOME/.config/nvim"
   "ghostty/config:$HOME/.config/ghostty/config"
   "ghostty/extras:$HOME/.config/ghostty/extras"
+  "bin/shrink:$HOME/.local/bin/shrink"
 )
 
 # Per-machine overrides the shared configs load if present. Not in git.
@@ -67,6 +68,7 @@ FORMULAE=(
   "tree-sitter-cli:tree-sitter:$MIN_TREE_SITTER"
   "tmux:tmux:$MIN_TMUX"
   "neovim:nvim:$MIN_NVIM"
+  "ffmpeg:ffmpeg:" # shrink
 )
 
 if [[ -t 1 ]]; then
@@ -107,6 +109,7 @@ tool_version() {
     tmux) out="$(tmux -V 2>/dev/null)" ;;
     nvim) out="$(nvim --version 2>/dev/null | head -1)" ;;
     shellcheck) out="$(shellcheck --version 2>/dev/null | sed -n 's/^version: //p')" ;;
+    ffmpeg) out="$(ffmpeg -version 2>/dev/null | head -1)" ;;  # --version is an error
     *) out="$("$1" --version 2>/dev/null | head -1)" ;;
   esac
   grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?[a-z]?' <<<"$out" | head -1
