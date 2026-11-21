@@ -46,8 +46,8 @@ cd "$DOTFILES" && git pull && ./install.sh
 `install.sh` is safe to re-run. It:
 
 - installs only what's **missing** with brew: git, gh, ripgrep, shellcheck,
-  gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), ffmpeg (for
-  `shrink`), Ghostty, Hurmit Nerd Font, Rectangle. Anything already installed is left alone unless it's below
+  gitleaks, tree-sitter-cli, tmux (≥ 3.5), neovim (≥ 0.12), ffmpeg, imagemagick and
+  pngquant (for `shrink`), Ghostty, Hurmit Nerd Font, Rectangle. Anything already installed is left alone unless it's below
   its minimum: brew's then gets `brew upgrade`, and anything else gets a warning
   with how to upgrade. A failed Rectangle
   install is only a warning. Grant it Accessibility permission by hand. Its
@@ -140,6 +140,7 @@ Makes a Shrunk copy of each file next to it and leaves the original untouched:
 ```sh
 shrink a.mov b.mp4        # writes a.shrunk.mp4 and b.shrunk.mp4
 shrink -o ~/Desktop *.mov # into a folder
+shrink IMG_0042.HEIC      # writes IMG_0042.shrunk.jpg
 shrink -n a.mov           # print the ffmpeg command instead of running it
 ```
 
@@ -148,9 +149,17 @@ AAC stereo at 128k, the short side capped at 1080, the frame rate capped at 30
 and the metadata kept; `--crf`, `--audio-bitrate`, `--max-res` and `--fps`
 change those. On a terminal it shows ffmpeg's progress line. An HDR video (as
 iPhones record) gets a warning: the shrunk copy is standard range and looks
-washed out. `-f` replaces an existing output, and a result that
+washed out.
+
+Images (`jpg jpeg png heic heif webp tif tiff`) keep their format, except HEIC,
+HEIF and TIFF, which become `.jpg`. ImageMagick resizes them so the long edge is
+at most 2560 (never enlarging) at quality 80, and PNGs go through `pngquant`;
+`--max-edge` and `--quality` change those. Metadata stays, the EXIF
+orientation tag included, and pixels aren't rotated.
+
+`-f` replaces an existing output, and a result that
 isn't smaller is deleted. `shrink -h` lists the options and `shrink --help
-video` every setting. A flag beats a `SHRINK_*` variable, which beats the
+TYPE` every setting for `video` or `image`. A flag beats a `SHRINK_*` variable, which beats the
 default, so a Mac can set its own defaults in `~/.zshrc.local`, such as
 `export SHRINK_CRF=28`.
 
@@ -223,10 +232,11 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   repos, and checks brew upgrades below a minimum and the update reminder.
 - `test/ci-wait.sh`: runs `ci-wait.sh` against a fake `gh`: a short SHA
   refused, no run yet, success and failure.
-- `test/shrink.sh`: runs `shrink` against a fake `ffmpeg` and `ffprobe`, and
+- `test/shrink.sh`: runs `shrink` against a fake `ffmpeg`, `ffprobe`, `magick`
+  and `pngquant`, and
   checks the commands it builds, its outputs and its errors.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then
-  doctor, then one real `shrink` of a small generated video.
+  doctor, then a real `shrink` of a small generated video, JPEG and PNG.
 
 After pushing to a PR, `./ci-wait.sh <full-sha>` waits for that commit's CI run
 and prints one line with its result. After merging a PR, `./prune-merged.sh`

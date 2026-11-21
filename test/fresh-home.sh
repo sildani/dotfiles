@@ -22,7 +22,7 @@
 # the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local can change), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, finds shrink, which makes a real Shrunk copy of a generated video
-# with both caps applied, tmux loads its config and every extra without errors, and every
+# with both caps applied and of a generated JPEG and PNG, tmux loads its config and every extra without errors, and every
 # extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
@@ -460,6 +460,22 @@ shrunk_stream="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec
 [[ "$(stat -f %m "$video_dir/clip.shrunk.mp4")" == "$(stat -f %m "$video_dir/clip.mov")" ]] ||
   die "the Shrunk copy doesn't have the original's modification time"
 rm -rf "$video_dir"
+
+echo "shrink makes a real Shrunk copy of a JPEG and a PNG"
+image_dir="$HOME/images"
+mkdir "$image_dir"
+# Noise at top quality and in full color, so both copies come out smaller; the
+# JPEG is big enough for the long-edge cap.
+magick -size 3000x2000 plasma: -quality 98 "$image_dir/photo.jpg" >>"$LOG" 2>&1 || die "magick couldn't make a sample JPEG"
+magick -size 600x400 plasma: "$image_dir/chart.png" >>"$LOG" 2>&1 || die "magick couldn't make a sample PNG"
+shrink_out="$(cd "$image_dir" && "$shrink_path" photo.jpg chart.png 2>&1)" || { echo "$shrink_out" >>"$LOG"; die "shrink photo.jpg chart.png failed"; }
+echo "$shrink_out" >>"$LOG"
+[[ "$shrink_out" == *"→ photo.shrunk.jpg"* && "$shrink_out" == *"→ chart.shrunk.png"* ]] ||
+  die "shrink didn't report both image copies: $shrink_out"
+shrunk_images="$(magick identify -format '%m %wx%h %[type]\n' "$image_dir/photo.shrunk.jpg" "$image_dir/chart.shrunk.png")"
+[[ "$shrunk_images" == $'JPEG 2560x1707 TrueColor\nPNG 600x400 Palette' ]] ||
+  die "the image copies should be a 2560x1707 JPEG and a 600x400 palette PNG, got: $shrunk_images"
+rm -rf "$image_dir"
 
 echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"
 # shellcheck disable=SC2016  # literal lines for ~/.zshrc.local

@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 # shrink: makes a Shrunk copy of each file it's given, next to the original,
 # which stays untouched. install.sh links it to ~/.local/bin/shrink. Runs on
-# stock macOS bash 3.2. test/shrink.sh tests it against a fake ffmpeg.
+# stock macOS bash 3.2. test/shrink.sh tests it against fakes of the tools it
+# runs.
 set -uo pipefail
 
-# Video settings. A SHRINK_* variable overrides each default, and a flag
-# overrides that.
+# Settings. A SHRINK_* variable overrides each default, and a flag overrides
+# that.
 DEFAULT_CRF=23
 DEFAULT_MAX_RES=1080
 DEFAULT_FPS=30
 DEFAULT_AUDIO_BITRATE=128k
+DEFAULT_MAX_EDGE=2560
+DEFAULT_QUALITY=80
 VIDEO_EXTS="mov mp4 m4v mkv avi webm"
-TYPES="video"
+IMAGE_EXTS="jpg jpeg png heic heif webp tif tiff"
+TYPES="video image"
 
 usage() {
   cat <<EOF
@@ -44,9 +48,26 @@ video: ${VIDEO_EXTS// /, } -> .mp4 (H.264 and AAC)
 EOF
 }
 
+help_image() {
+  cat <<EOF
+image: ${IMAGE_EXTS// /, } -> the same format, except HEIC, HEIF and TIFF -> .jpg
+  --max-edge N        caps the long edge, never enlarges         \$SHRINK_MAX_EDGE       default $DEFAULT_MAX_EDGE
+  --quality N         1-100: JPEG and WebP quality, PNG's top    \$SHRINK_QUALITY        default $DEFAULT_QUALITY
+                      quality for pngquant
+  fixed:      metadata kept, the EXIF orientation tag included, and pixels not
+              rotated; a TIFF's orientation is a tag a JPEG can't carry, so it's
+              turned upright
+  runs:       JPEG, WebP, HEIC, TIFF: magick IN -resize NxN\> -quality Q OUT
+              PNG: magick IN -resize NxN\> TMP.png, then
+                pngquant --quality=0-Q --output OUT TMP.png, then copies TMP's
+                EXIF chunk, which pngquant drops, into OUT
+EOF
+}
+
 help_type() {
   case "$1" in
     video) help_video ;;
+    image) help_image ;;
   esac
 }
 
@@ -62,6 +83,8 @@ crf="${SHRINK_CRF:-$DEFAULT_CRF}" crf_from="$(from SHRINK_CRF)"
 max_res="${SHRINK_MAX_RES:-$DEFAULT_MAX_RES}" max_res_from="$(from SHRINK_MAX_RES)"
 fps="${SHRINK_FPS:-$DEFAULT_FPS}" fps_from="$(from SHRINK_FPS)"
 audio_bitrate="${SHRINK_AUDIO_BITRATE:-$DEFAULT_AUDIO_BITRATE}" audio_bitrate_from="$(from SHRINK_AUDIO_BITRATE)"
+max_edge="${SHRINK_MAX_EDGE:-$DEFAULT_MAX_EDGE}" max_edge_from="$(from SHRINK_MAX_EDGE)"
+quality="${SHRINK_QUALITY:-$DEFAULT_QUALITY}" quality_from="$(from SHRINK_QUALITY)"
 output="" force=false dry=false
 files=()
 while (($#)); do
@@ -79,14 +102,17 @@ while (($#)); do
     -o) (($# > 1)) || die_usage "-o needs a path"; output="$2"; shift ;;
     -f) force=true ;;
     -n) dry=true ;;
-    --crf=* | --max-res=* | --fps=* | --audio-bitrate=*) set -- "${1%%=*}" "${1#*=}" "${@:2}"; continue ;;
-    --crf | --max-res | --fps | --audio-bitrate)
+    --crf=* | --max-res=* | --fps=* | --audio-bitrate=* | --max-edge=* | --quality=*)
+      set -- "${1%%=*}" "${1#*=}" "${@:2}"; continue ;;
+    --crf | --max-res | --fps | --audio-bitrate | --max-edge | --quality)
       (($# > 1)) || die_usage "$1 needs a value"
       case "$1" in
         --crf) crf="$2" crf_from="--crf" ;;
         --max-res) max_res="$2" max_res_from="--max-res" ;;
         --fps) fps="$2" fps_from="--fps" ;;
         --audio-bitrate) audio_bitrate="$2" audio_bitrate_from="--audio-bitrate" ;;
+        --max-edge) max_edge="$2" max_edge_from="--max-edge" ;;
+        --quality) quality="$2" quality_from="--quality" ;;
       esac
       shift ;;
     --) shift; files+=("$@"); break ;;
@@ -108,7 +134,13 @@ if ! [[ "$fps" =~ ^[0-9]+$ ]] || ((10#$fps == 0)); then
 fi
 [[ "$audio_bitrate" =~ ^[1-9][0-9]*k$ ]] ||
   die_usage "$audio_bitrate_from must be a rate in kbit/s such as 96k, not '$audio_bitrate'"
-crf=$((10#$crf)) max_res=$((10#$max_res)) fps=$((10#$fps))
+if ! [[ "$max_edge" =~ ^[0-9]+$ ]] || ((10#$max_edge == 0)); then
+  die_usage "$max_edge_from must be a whole number above 0, not '$max_edge'"
+fi
+if ! [[ "$quality" =~ ^[0-9]+$ ]] || ((10#$quality == 0 || 10#$quality > 100)); then
+  die_usage "$quality_from must be a whole number from 1 to 100, not '$quality'"
+fi
+crf=$((10#$crf)) max_res=$((10#$max_res)) fps=$((10#$fps)) max_edge=$((10#$max_edge)) quality=$((10#$quality))
 out_dir=""
 if [[ -n "$output" ]]; then
   if [[ -d "$output" ]]; then
@@ -137,6 +169,15 @@ lower() { tr '[:upper:]' '[:lower:]' <<<"$1"; }
 ff_path() {
   case "$1" in
     *:*) printf 'file:%s' "$1" ;;
+    -*) printf './%s' "$1" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+# A path as magick, pngquant or touch should get it: they read a leading - as
+# an option. magick reads an existing file's name as is, even with a : or [.
+dash_path() {
+  case "$1" in
     -*) printf './%s' "$1" ;;
     *) printf '%s' "$1" ;;
   esac
@@ -214,10 +255,76 @@ shrink_video() {
     -movflags +faststart+use_metadata_tags -f mp4 "$(ff_path "$2")"
 }
 
-# shrink_type <type> <input> <part file>
+# copy_exif <from.png> <to.png>: copies from's eXIf chunk (its EXIF, with the
+# orientation tag) into to, after IHDR, since pngquant drops it on a Mac. The
+# chunk goes over as is, CRC and all. Chunks are walked up to the image data,
+# where the EXIF has to come before.
+# shellcheck disable=SC2329  # called through run
+copy_exif() {
+  local at=8 size len type
+  size="$(stat -f %z "$1")" || return 1
+  while ((at + 8 <= size)); do
+    read -r len type < <(od -An -tu1 -j "$at" -N8 "$1" |
+      awk '{ printf "%d %c%c%c%c\n", (($1 * 256 + $2) * 256 + $3) * 256 + $4, $5, $6, $7, $8 }')
+    case "$type" in
+      eXIf)
+        # 33 bytes: the signature and IHDR, always first. dd, since a head
+        # closing a pipe early fails it under pipefail.
+        { head -c 33 "$2" && dd if="$1" bs=1 skip="$at" count=$((len + 12)) 2>/dev/null && tail -c +34 "$2"; } >"$2.exif" &&
+          mv -f "$2.exif" "$2"
+        return ;;
+      IDAT | IEND) return 0 ;;
+    esac
+    at=$((at + len + 12))
+  done
+}
+
+# shrink_image <input> <part file> <output format: jpg, png or webp>. magick
+# keeps metadata and doesn't rotate pixels unless asked to.
+shrink_image() {
+  local resize=(-resize "${max_edge}x${max_edge}>") orient=()
+  needs "$1" magick || return 1
+  if [[ "$3" == png ]]; then
+    needs "$1" pngquant || return 1
+    run magick "$(dash_path "$1")" "${resize[@]}" "png:$2.png" &&
+      run pngquant "--quality=0-$quality" --force --output "$(dash_path "$2")" "$(dash_path "$2.png")" &&
+      run copy_exif "$2.png" "$2" &&
+      run rm -f "$2.png"
+    return
+  fi
+  case "$(lower "${1##*.}")" in
+    tif | tiff) orient=(-auto-orient) ;;
+  esac
+  run magick "$(dash_path "$1")" ${orient[@]+"${orient[@]}"} "${resize[@]}" -quality "$quality" "$3:$2"
+}
+
+# type_of <name>: video, image, or nothing for an unsupported type.
+type_of() {
+  local ext
+  [[ "$1" == *.* ]] || return 0
+  ext="$(lower "${1##*.}")"
+  if [[ " $VIDEO_EXTS " == *" $ext "* ]]; then
+    echo video
+  elif [[ " $IMAGE_EXTS " == *" $ext "* ]]; then
+    echo image
+  fi
+}
+
+# format_of <type> <name>: the format its Shrunk copy comes out in.
+format_of() {
+  case "$1:$(lower "${2##*.}")" in
+    video:*) echo mp4 ;;
+    image:jpeg) echo jpg ;;
+    image:heic | image:heif | image:tif | image:tiff) echo jpg ;;
+    image:*) lower "${2##*.}" ;;
+  esac
+}
+
+# shrink_type <type> <input> <part file> <format>
 shrink_type() {
   case "$1" in
     video) shrink_video "$2" "$3" ;;
+    image) shrink_image "$2" "$3" "$4" ;;
   esac
 }
 
@@ -225,7 +332,7 @@ shrink_type() {
 # fails, so no half-written output is left.
 part=""
 drop_part() {
-  [[ -z "$part" ]] || rm -f "$part"
+  [[ -z "$part" ]] || rm -f "$part" "$part.png" "$part.exif"
   part=""
 }
 trap 'drop_part; exit 129' HUP
@@ -238,12 +345,9 @@ written=""
 
 # shrink_file <input>: makes its Shrunk copy and prints one summary line.
 shrink_file() {
-  local in="$1" name ext type out before after
+  local in="$1" name type format out_ext out before after
   name="$(basename "$in")"
-  ext="$(lower "${name##*.}")"
-  [[ "$name" == *.* ]] || ext=""
-  type=""
-  [[ -n "$ext" && " $VIDEO_EXTS " == *" $ext "* ]] && type=video
+  type="$(type_of "$name")"
   if [[ -z "$type" ]]; then
     echo "shrink: $in: unsupported type" >&2
     return 1
@@ -254,12 +358,21 @@ shrink_file() {
     return 0
   fi
 
+  format="$(format_of "$type" "$name")"
+  # A copy in the input's own format keeps its extension as written: a.JPEG
+  # becomes a.shrunk.JPEG.
+  out_ext="$format"
+  case "$type:$(lower "${name##*.}")" in
+    image:jpg | image:jpeg | image:png | image:webp) out_ext="${name##*.}" ;;
+  esac
   if [[ -n "$output" && -z "$out_dir" ]]; then
     out="$output"
-    [[ "$(lower "${out##*.}")" == mp4 ]] ||
-      { echo "shrink: $in: -o $output must end in .mp4, the format a $type comes out in" >&2; return 1; }
+    case "$format:$(lower "${out##*.}")" in
+      mp4:mp4 | jpg:jpg | jpg:jpeg | png:png | webp:webp) ;;
+      *) echo "shrink: $in: -o $output must end in .$format, the format $name comes out in" >&2; return 1 ;;
+    esac
   else
-    out="${out_dir:-$(dirname "$in")}/${name%.*}.shrunk.mp4"
+    out="${out_dir:-$(dirname "$in")}/${name%.*}.shrunk.$out_ext"
     [[ -n "$out_dir" || "$in" == */* ]] || out="${out#./}"
   fi
   if [[ "$out" -ef "$in" ]]; then
@@ -276,7 +389,7 @@ shrink_file() {
   fi
 
   part="$(dirname "$out")/.$(basename "$out").part"
-  if ! shrink_type "$type" "$in" "$part"; then
+  if ! shrink_type "$type" "$in" "$part" "$format"; then
     drop_part
     echo "shrink: $in: failed" >&2
     return 1
