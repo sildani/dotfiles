@@ -2,8 +2,9 @@
 # Fast checks of bin/shrink, on stock bash, against a fake ffmpeg and ffprobe on
 # PATH: the commands it builds (seen through -n and the fake's log), naming,
 # -o, -f, *.shrunk.* inputs, a result that isn't smaller, an interrupted run,
-# the modification time, flag > SHRINK_* > default, a missing tool, an
-# unsupported type, several files with one failing, and help.
+# the modification time, flag > SHRINK_* > default for every setting, the
+# progress line, the HDR warning, a missing tool, an unsupported type, several
+# files with one failing, and help.
 set -euo pipefail
 # shellcheck source=lib/test-guard.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/test-guard.sh"
@@ -15,16 +16,21 @@ trap 'rm -rf "$TMP"' EXIT
 failures=0
 failed() { echo "FAIL: $1" >&2; failures=$((failures + 1)); }
 
-# PROBE: what the fake ffprobe prints for the video stream (width,height,rate).
+# PROBE: the video stream the fake ffprobe describes (width,height,rate), and
+# TRC its transfer function; it prints them as key=value lines, in ffprobe's
+# own order, as the real one does whatever order they're asked for.
 # OUT_BYTES: the size of what the fake ffmpeg writes. FFMPEG_MODE: ok, fail,
 # or interrupt; each writes its output first, as a real one stopped midway
 # does, and interrupt then signals shrink as Ctrl-C would.
-export CALLS="$TMP/calls" PROBE OUT_BYTES FFMPEG_MODE
+export CALLS="$TMP/calls" PROBE TRC OUT_BYTES FFMPEG_MODE
 mkdir "$TMP/bin" "$TMP/work"
 cat >"$TMP/bin/ffprobe" <<'FAKE'
 #!/bin/sh
 echo "ffprobe $*" >>"$CALLS"
-echo "$PROBE"
+IFS=, read -r w h r <<EOF
+$PROBE
+EOF
+printf 'width=%s\nheight=%s\ncolor_transfer=%s\navg_frame_rate=%s\n' "$w" "$h" "$TRC" "$r"
 FAKE
 # shellcheck disable=SC2016  # for the fake ffmpeg
 cat >"$TMP/bin/ffmpeg" <<'FAKE'
@@ -45,18 +51,22 @@ video() {
   touch -t 202001020304 "$TMP/work/$1"
 }
 
+# clean: env with no SHRINK_* setting from the caller's shell and the fakes
+# first on PATH. A test's own VAR=value goes after it.
+clean=(env -u SHRINK_CRF -u SHRINK_MAX_RES -u SHRINK_FPS -u SHRINK_AUDIO_BITRATE PATH="$TMP/bin:/usr/bin:/bin")
+
 # shrink <args>: runs bin/shrink in the work folder with the fakes and a
 # defaults-only environment; sets out (stdout and stderr) and rc.
 shrink() {
   rm -f "$CALLS"
   rc=0
-  out="$(cd "$TMP/work" && env -u SHRINK_CRF PATH="$TMP/bin:/usr/bin:/bin" /bin/bash "$REPO_DIR/bin/shrink" "$@" 2>&1)" || rc=$?
+  out="$(cd "$TMP/work" && "${clean[@]}" /bin/bash "$REPO_DIR/bin/shrink" "$@" 2>&1)" || rc=$?
 }
-# reset: an empty work folder and the fakes' defaults: a 1920x1080 30 fps
+# reset: an empty work folder and the fakes' defaults: a 1920x1080 30 fps SDR
 # video that shrinks to 100 kB.
 reset() {
   rm -rf "$TMP/work" && mkdir "$TMP/work"
-  PROBE="1920,1080,30/1" OUT_BYTES=100000 FFMPEG_MODE=ok
+  PROBE="1920,1080,30/1" TRC=bt709 OUT_BYTES=100000 FFMPEG_MODE=ok
 }
 ffmpeg_call() { grep '^ffmpeg ' "$CALLS" 2>/dev/null || true; }
 
@@ -212,15 +222,88 @@ reset
 video a.mov
 shrink -n a.mov
 [[ "$out" == *"-crf 23 "* ]] || failed "default crf isn't 23: $out"
-SHRINK_CRF=28
-export SHRINK_CRF
-out="$(cd "$TMP/work" && PATH="$TMP/bin:/usr/bin:/bin" /bin/bash "$REPO_DIR/bin/shrink" -n a.mov 2>&1)"
+out="$(cd "$TMP/work" && "${clean[@]}" SHRINK_CRF=28 /bin/bash "$REPO_DIR/bin/shrink" -n a.mov 2>&1)"
 [[ "$out" == *"-crf 28 "* ]] || failed "SHRINK_CRF=28 didn't set crf: $out"
-out="$(cd "$TMP/work" && PATH="$TMP/bin:/usr/bin:/bin" /bin/bash "$REPO_DIR/bin/shrink" -n --crf 30 a.mov 2>&1)"
+out="$(cd "$TMP/work" && "${clean[@]}" SHRINK_CRF=28 /bin/bash "$REPO_DIR/bin/shrink" -n --crf 30 a.mov 2>&1)"
 [[ "$out" == *"-crf 30 "* ]] || failed "--crf 30 didn't beat SHRINK_CRF=28: $out"
-unset SHRINK_CRF
 shrink --crf 99 a.mov
 [[ "$rc" == 2 ]] || failed "--crf 99 wasn't refused: $out"
+
+echo "video settings: --max-res, --fps and --audio-bitrate, each beating its SHRINK_* variable"
+reset
+video a.mov
+shrink -n --max-res 720 a.mov
+out="${out//\\/}"  # -n quotes for a shell
+[[ "$rc" == 0 && "$out" == *"-vf scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)' "* ]] ||
+  failed "--max-res 720 didn't cap a 1920x1080 clip's short side at 720: $out"
+PROBE="1080,1920,30/1"
+shrink -n --max-res 720 a.mov
+out="${out//\\/}"
+[[ "$out" == *"-vf scale='if(gt(iw,ih),-2,720)':'if(gt(iw,ih),720,-2)' "* ]] ||
+  failed "--max-res 720 didn't cap a portrait clip's short side at 720: $out"
+PROBE="1280,720,60/1"
+shrink -n --fps 24 a.mov
+[[ "$out" == *"-vf fps=24 "* ]] || failed "--fps 24 didn't cap a 60 fps clip at 24: $out"
+PROBE="1280,720,15/1"
+shrink -n --fps 24 a.mov
+[[ "$out" != *fps=* ]] || failed "--fps 24 raised a 15 fps clip: $out"
+reset
+video a.mov
+shrink -n --audio-bitrate 96k a.mov
+[[ "$out" == *"-b:a 96k "* ]] || failed "--audio-bitrate 96k didn't reach ffmpeg: $out"
+# setting <variable=value> <flag> <value> <want>: the variable alone gives
+# want; with the flag too, the flag's value wins.
+setting() {
+  out="$(cd "$TMP/work" && "${clean[@]}" "$1" /bin/bash "$REPO_DIR/bin/shrink" -n a.mov 2>&1)"
+  out="${out//\\/}"
+  [[ "$out" == *"$4"* ]] || failed "$1 didn't give $4: $out"
+  out="$(cd "$TMP/work" && "${clean[@]}" "$1" /bin/bash "$REPO_DIR/bin/shrink" -n "$2" "$3" a.mov 2>&1)"
+  out="${out//\\/}"
+  [[ "$out" != *"$4"* ]] || failed "$2 $3 didn't beat $1: $out"
+}
+PROBE="3840,2160,60/1"
+setting SHRINK_MAX_RES=720 --max-res 480 "-2,720)"
+setting SHRINK_FPS=24 --fps 25 "fps=24"
+setting SHRINK_AUDIO_BITRATE=96k --audio-bitrate 64k "-b:a 96k "
+for bad in "--max-res 0" "--max-res big" "--fps 0" "--fps x" "--audio-bitrate loud" "--audio-bitrate 96"; do
+  # shellcheck disable=SC2086  # flag and value
+  shrink -n $bad a.mov
+  [[ "$rc" == 2 ]] || failed "$bad wasn't refused: rc $rc: $out"
+done
+rc=0
+out="$(cd "$TMP/work" && "${clean[@]}" SHRINK_FPS=fast /bin/bash "$REPO_DIR/bin/shrink" -n a.mov 2>&1)" || rc=$?
+[[ "$rc" == 2 && "$out" == *SHRINK_FPS* ]] || failed "SHRINK_FPS=fast wasn't refused by name: rc $rc: $out"
+
+echo "progress: ffmpeg's progress line on a terminal, none when piped"
+reset
+video a.mov
+shrink a.mov
+[[ "$(ffmpeg_call)" == *" -nostats "* && "$(ffmpeg_call)" != *" -stats "* ]] ||
+  failed "piped output didn't turn ffmpeg's progress off: $(ffmpeg_call)"
+reset
+video a.mov
+rm -f "$CALLS"
+(cd "$TMP/work" && "${clean[@]}" script -q /dev/null /bin/bash "$REPO_DIR/bin/shrink" a.mov </dev/null >/dev/null 2>&1) || true
+[[ "$(ffmpeg_call)" == *" -stats "* ]] || failed "a terminal didn't get ffmpeg's progress line: $(ffmpeg_call)"
+[[ -f "$TMP/work/a.shrunk.mp4" ]] || failed "the terminal run didn't shrink a.mov"
+
+echo "HDR: PQ and HLG inputs are warned about on stderr, and still shrink"
+for trc in smpte2084:PQ arib-std-b67:HLG; do
+  reset
+  video a.mov
+  TRC="${trc%%:*}"
+  rc=0
+  err="$(cd "$TMP/work" && "${clean[@]}" /bin/bash "$REPO_DIR/bin/shrink" a.mov 2>&1 >/dev/null)" || rc=$?
+  [[ "$rc" == 0 && -f "$TMP/work/a.shrunk.mp4" ]] || failed "an HDR ($TRC) input didn't shrink: rc $rc: $err"
+  [[ "$err" == "shrink: a.mov is HDR (${trc#*:}); the shrunk copy is standard range and will look washed out" ]] ||
+    failed "no HDR (${trc#*:}) warning on stderr: $err"
+  shrink -n -f a.mov
+  [[ "$out" == *"is HDR (${trc#*:})"* ]] || failed "-n didn't show the HDR warning: $out"
+done
+reset
+video a.mov
+shrink a.mov
+[[ "$out" != *HDR* ]] || failed "an SDR input got an HDR warning: $out"
 
 echo "a missing ffmpeg is named, with install.sh"
 reset
@@ -233,7 +316,8 @@ echo "help: -h is short; --help video lists every setting"
 shrink -h
 [[ "$rc" == 0 && "$(wc -l <<<"$out")" -le 12 && "$out" == *usage:* ]] || failed "-h isn't a short usage screen: $out"
 shrink --help video
-for want in --crf SHRINK_CRF 23 128k 1080 30 ffmpeg; do
+for want in --crf SHRINK_CRF 23 --max-res SHRINK_MAX_RES 1080 --fps SHRINK_FPS 30 \
+  --audio-bitrate SHRINK_AUDIO_BITRATE 128k ffmpeg HDR; do
   [[ "$out" == *"$want"* ]] || failed "--help video doesn't mention $want: $out"
 done
 help_video="$out"

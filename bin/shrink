@@ -7,9 +7,9 @@ set -uo pipefail
 # Video settings. A SHRINK_* variable overrides each default, and a flag
 # overrides that.
 DEFAULT_CRF=23
-AUDIO_BITRATE=128k
-MAX_SHORT_SIDE=1080
-MAX_FPS=30
+DEFAULT_MAX_RES=1080
+DEFAULT_FPS=30
+DEFAULT_AUDIO_BITRATE=128k
 VIDEO_EXTS="mov mp4 m4v mkv avi webm"
 TYPES="video"
 
@@ -30,12 +30,17 @@ EOF
 help_video() {
   cat <<EOF
 video: ${VIDEO_EXTS// /, } -> .mp4 (H.264 and AAC)
-  --crf N     quality, 0-51, lower is better and bigger   \$SHRINK_CRF   default $DEFAULT_CRF
-  fixed:      audio AAC stereo at $AUDIO_BITRATE; short side capped at $MAX_SHORT_SIDE;
-              frame rate capped at $MAX_FPS; 8-bit 4:2:0 color; metadata kept; +faststart
-  runs:       ffprobe (size and frame rate), then
+  --crf N             quality, 0-51, lower is better and bigger  \$SHRINK_CRF            default $DEFAULT_CRF
+  --max-res N         caps the short side (an even number)       \$SHRINK_MAX_RES        default $DEFAULT_MAX_RES
+  --fps N             caps the frame rate, never raises it       \$SHRINK_FPS            default $DEFAULT_FPS
+  --audio-bitrate R   AAC stereo bitrate, such as 96k            \$SHRINK_AUDIO_BITRATE  default $DEFAULT_AUDIO_BITRATE
+  fixed:      never enlarged; 8-bit 4:2:0 color; metadata kept; +faststart
+  HDR:        an HDR input (PQ or HLG, as iPhones record) is warned about and still
+              shrunk: the copy is standard range and looks washed out
+  progress:   ffmpeg's progress line, when stderr is a terminal
+  runs:       ffprobe (size, frame rate and transfer function), then
               ffmpeg -i IN -map_metadata 0 -c:v libx264 -crf N -pix_fmt yuv420p [-vf caps]
-                -c:a aac -b:a $AUDIO_BITRATE -ac 2 -movflags +faststart+use_metadata_tags OUT
+                -c:a aac -b:a R -ac 2 -movflags +faststart+use_metadata_tags OUT
 EOF
 }
 
@@ -51,8 +56,12 @@ die_usage() {
   exit 2
 }
 
-crf="${SHRINK_CRF:-$DEFAULT_CRF}" crf_from="SHRINK_CRF"
-[[ -n "${SHRINK_CRF:-}" ]] || crf_from="default"
+# from <variable>: names where a setting came from, for error messages.
+from() { if [[ -n "${!1:-}" ]]; then echo "$1"; else echo default; fi; }
+crf="${SHRINK_CRF:-$DEFAULT_CRF}" crf_from="$(from SHRINK_CRF)"
+max_res="${SHRINK_MAX_RES:-$DEFAULT_MAX_RES}" max_res_from="$(from SHRINK_MAX_RES)"
+fps="${SHRINK_FPS:-$DEFAULT_FPS}" fps_from="$(from SHRINK_FPS)"
+audio_bitrate="${SHRINK_AUDIO_BITRATE:-$DEFAULT_AUDIO_BITRATE}" audio_bitrate_from="$(from SHRINK_AUDIO_BITRATE)"
 output="" force=false dry=false
 files=()
 while (($#)); do
@@ -70,8 +79,16 @@ while (($#)); do
     -o) (($# > 1)) || die_usage "-o needs a path"; output="$2"; shift ;;
     -f) force=true ;;
     -n) dry=true ;;
-    --crf) (($# > 1)) || die_usage "--crf needs a number"; crf="$2" crf_from="--crf"; shift ;;
-    --crf=*) crf="${1#--crf=}" crf_from="--crf" ;;
+    --crf=* | --max-res=* | --fps=* | --audio-bitrate=*) set -- "${1%%=*}" "${1#*=}" "${@:2}"; continue ;;
+    --crf | --max-res | --fps | --audio-bitrate)
+      (($# > 1)) || die_usage "$1 needs a value"
+      case "$1" in
+        --crf) crf="$2" crf_from="--crf" ;;
+        --max-res) max_res="$2" max_res_from="--max-res" ;;
+        --fps) fps="$2" fps_from="--fps" ;;
+        --audio-bitrate) audio_bitrate="$2" audio_bitrate_from="--audio-bitrate" ;;
+      esac
+      shift ;;
     --) shift; files+=("$@"); break ;;
     -?*) die_usage "unknown option $1" ;;
     *) files+=("$1") ;;
@@ -82,6 +99,16 @@ done
 if ! [[ "$crf" =~ ^[0-9]+$ ]] || ((10#$crf > 51)); then
   die_usage "$crf_from must be a whole number from 0 to 51, not '$crf'"
 fi
+# yuv420p needs even sizes, so the short side's cap is even too.
+if ! [[ "$max_res" =~ ^[0-9]+$ ]] || ((10#$max_res == 0 || 10#$max_res % 2)); then
+  die_usage "$max_res_from must be an even number above 0, not '$max_res'"
+fi
+if ! [[ "$fps" =~ ^[0-9]+$ ]] || ((10#$fps == 0)); then
+  die_usage "$fps_from must be a whole number above 0, not '$fps'"
+fi
+[[ "$audio_bitrate" =~ ^[1-9][0-9]*k$ ]] ||
+  die_usage "$audio_bitrate_from must be a rate in kbit/s such as 96k, not '$audio_bitrate'"
+crf=$((10#$crf)) max_res=$((10#$max_res)) fps=$((10#$fps))
 out_dir=""
 if [[ -n "$output" ]]; then
   if [[ -d "$output" ]]; then
@@ -133,24 +160,40 @@ needs() {
   return 1
 }
 
-# video_filters <input>: the -vf value capping the short side and frame rate,
-# empty when neither cap applies. ffmpeg rotates phone video upright before
-# the filters, so the scale expression picks the short side after rotation.
-# yuv420p needs even sizes: the cap's -2 keeps them even, and an odd size
-# below the cap loses a pixel.
-video_filters() {
-  local probe width height rate filters=()
-  probe="$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,avg_frame_rate \
-    -of csv=p=0 "$(ff_path "$1")")" || return 1
-  IFS=, read -r width height rate <<<"$probe"
+# probe_video <input>: warns on stderr when the video is HDR, and prints the
+# -vf value capping the short side and frame rate, empty when neither cap
+# applies. ffprobe prints fields in its own order, whatever order they're
+# asked for, so they're read by name. ffmpeg rotates phone video upright
+# before the filters, so the scale expression picks the short side after
+# rotation. yuv420p needs even sizes: the cap's -2 keeps them even, and an odd
+# size below the cap loses a pixel.
+probe_video() {
+  local probe key value width="" height="" rate="" transfer="" filters=()
+  probe="$(ffprobe -v error -select_streams v:0 \
+    -show_entries stream=width,height,avg_frame_rate,color_transfer -of default=nw=1 "$(ff_path "$1")")" || return 1
+  while IFS='=' read -r key value; do
+    case "$key" in
+      width) width="$value" ;;
+      height) height="$value" ;;
+      avg_frame_rate) rate="$value" ;;
+      color_transfer) transfer="$value" ;;
+    esac
+  done <<<"$probe"
   [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || { echo "shrink: $1: no video stream found" >&2; return 1; }
-  if (((width < height ? width : height) > MAX_SHORT_SIDE)); then
-    filters+=("scale='if(gt(iw,ih),-2,$MAX_SHORT_SIDE)':'if(gt(iw,ih),$MAX_SHORT_SIDE,-2)'")
+  case "$transfer" in
+    smpte2084) transfer=PQ ;;
+    arib-std-b67) transfer=HLG ;;
+    *) transfer="" ;;
+  esac
+  [[ -z "$transfer" ]] ||
+    echo "shrink: $1 is HDR ($transfer); the shrunk copy is standard range and will look washed out" >&2
+  if (((width < height ? width : height) > max_res)); then
+    filters+=("scale='if(gt(iw,ih),-2,$max_res)':'if(gt(iw,ih),$max_res,-2)'")
   elif ((width % 2 || height % 2)); then
     filters+=("scale='trunc(iw/2)*2':'trunc(ih/2)*2'")
   fi
-  if awk -v r="$rate" -v max="$MAX_FPS" 'BEGIN { split(r, p, "/"); exit !(p[2] > 0 && p[1] / p[2] > max + 0.01) }'; then
-    filters+=("fps=$MAX_FPS")
+  if awk -v r="$rate" -v max="$fps" 'BEGIN { split(r, p, "/"); exit !(p[2] > 0 && p[1] / p[2] > max + 0.01) }'; then
+    filters+=("fps=$fps")
   fi
   local IFS=,
   echo "${filters[*]-}"
@@ -158,14 +201,16 @@ video_filters() {
 
 # shrink_video <input> <part file>. use_metadata_tags keeps tags such as
 # Apple's location, which a plain -map_metadata 0 drops. yuv420p turns 10-bit
-# and 4:4:4 input into the 8-bit 4:2:0 H.264 that Apple's players open.
+# and 4:4:4 input into the 8-bit 4:2:0 H.264 that Apple's players open. At
+# -loglevel error, ffmpeg prints its progress line only when given -stats.
 shrink_video() {
-  local filters vf=()
+  local filters vf=() stats=-nostats
   needs "$1" ffmpeg && needs "$1" ffprobe || return 1
-  filters="$(video_filters "$1")" || return 1
+  filters="$(probe_video "$1")" || return 1
   [[ -z "$filters" ]] || vf=(-vf "$filters")
-  run ffmpeg -nostdin -hide_banner -loglevel error -y -i "$(ff_path "$1")" -map_metadata 0 \
-    -c:v libx264 -crf "$crf" -pix_fmt yuv420p ${vf[@]+"${vf[@]}"} -c:a aac -b:a "$AUDIO_BITRATE" -ac 2 \
+  [[ ! -t 2 ]] || stats=-stats
+  run ffmpeg -nostdin -hide_banner -loglevel error "$stats" -y -i "$(ff_path "$1")" -map_metadata 0 \
+    -c:v libx264 -crf "$crf" -pix_fmt yuv420p ${vf[@]+"${vf[@]}"} -c:a aac -b:a "$audio_bitrate" -ac 2 \
     -movflags +faststart+use_metadata_tags -f mp4 "$(ff_path "$2")"
 }
 

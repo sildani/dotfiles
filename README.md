@@ -145,7 +145,10 @@ shrink -n a.mov           # print the ffmpeg command instead of running it
 
 Videos (`mov mp4 m4v mkv avi webm`) come out as H.264 `.mp4` at CRF 23, with
 AAC stereo at 128k, the short side capped at 1080, the frame rate capped at 30
-and the metadata kept. `-f` replaces an existing output, and a result that
+and the metadata kept; `--crf`, `--audio-bitrate`, `--max-res` and `--fps`
+change those. On a terminal it shows ffmpeg's progress line. An HDR video (as
+iPhones record) gets a warning: the shrunk copy is standard range and looks
+washed out. `-f` replaces an existing output, and a result that
 isn't smaller is deleted. `shrink -h` lists the options and `shrink --help
 video` every setting. A flag beats a `SHRINK_*` variable, which beats the
 default, so a Mac can set its own defaults in `~/.zshrc.local`, such as
