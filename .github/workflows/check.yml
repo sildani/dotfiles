@@ -27,6 +27,7 @@ jobs:
       - run: test/doctor-warnings.sh
       - run: test/updates.sh
       - run: test/ci-wait.sh
+      - run: test/shrink.sh
 
   fresh-home:
     runs-on: macos-latest

@@ -1,0 +1,265 @@
+#!/usr/bin/env bash
+# shrink: makes a Shrunk copy of each file it's given, next to the original,
+# which stays untouched. install.sh links it to ~/.local/bin/shrink. Runs on
+# stock macOS bash 3.2. test/shrink.sh tests it against a fake ffmpeg.
+set -uo pipefail
+
+# Video settings. A SHRINK_* variable overrides each default, and a flag
+# overrides that.
+DEFAULT_CRF=23
+AUDIO_BITRATE=128k
+MAX_SHORT_SIDE=1080
+MAX_FPS=30
+VIDEO_EXTS="mov mp4 m4v mkv avi webm"
+TYPES="video"
+
+usage() {
+  cat <<EOF
+usage: shrink [options] FILE...
+Makes a smaller copy of each file next to it: a.mov -> a.shrunk.mp4.
+
+  -o PATH       write into folder PATH, or, for one file, to file PATH
+  -f            replace existing outputs; also shrink *.shrunk.* files
+  -n            print the commands instead of running them
+  --crf N       video quality, 0-51, lower is better (\$SHRINK_CRF, default $DEFAULT_CRF)
+  -h            this help
+  --help [TYPE] every setting for TYPE ($TYPES), or for every type
+EOF
+}
+
+help_video() {
+  cat <<EOF
+video: ${VIDEO_EXTS// /, } -> .mp4 (H.264 and AAC)
+  --crf N     quality, 0-51, lower is better and bigger   \$SHRINK_CRF   default $DEFAULT_CRF
+  fixed:      audio AAC stereo at $AUDIO_BITRATE; short side capped at $MAX_SHORT_SIDE;
+              frame rate capped at $MAX_FPS; 8-bit 4:2:0 color; metadata kept; +faststart
+  runs:       ffprobe (size and frame rate), then
+              ffmpeg -i IN -map_metadata 0 -c:v libx264 -crf N -pix_fmt yuv420p [-vf caps]
+                -c:a aac -b:a $AUDIO_BITRATE -ac 2 -movflags +faststart+use_metadata_tags OUT
+EOF
+}
+
+help_type() {
+  case "$1" in
+    video) help_video ;;
+  esac
+}
+
+die_usage() {
+  echo "shrink: $1" >&2
+  echo "run shrink -h for usage" >&2
+  exit 2
+}
+
+crf="${SHRINK_CRF:-$DEFAULT_CRF}" crf_from="SHRINK_CRF"
+[[ -n "${SHRINK_CRF:-}" ]] || crf_from="default"
+output="" force=false dry=false
+files=()
+while (($#)); do
+  case "$1" in
+    -h) usage; exit 0 ;;
+    --help)
+      if [[ $# -gt 1 && "$2" != -* ]]; then
+        case " $TYPES " in
+          *" $2 "*) help_type "$2"; exit 0 ;;
+          *) die_usage "no type $2; types: $TYPES" ;;
+        esac
+      fi
+      for t in $TYPES; do help_type "$t"; done
+      exit 0 ;;
+    -o) (($# > 1)) || die_usage "-o needs a path"; output="$2"; shift ;;
+    -f) force=true ;;
+    -n) dry=true ;;
+    --crf) (($# > 1)) || die_usage "--crf needs a number"; crf="$2" crf_from="--crf"; shift ;;
+    --crf=*) crf="${1#--crf=}" crf_from="--crf" ;;
+    --) shift; files+=("$@"); break ;;
+    -?*) die_usage "unknown option $1" ;;
+    *) files+=("$1") ;;
+  esac
+  shift
+done
+((${#files[@]})) || die_usage "no files given"
+if ! [[ "$crf" =~ ^[0-9]+$ ]] || ((10#$crf > 51)); then
+  die_usage "$crf_from must be a whole number from 0 to 51, not '$crf'"
+fi
+out_dir=""
+if [[ -n "$output" ]]; then
+  if [[ -d "$output" ]]; then
+    out_dir="${output%/}"
+  elif [[ "$output" == */ ]]; then
+    die_usage "-o $output: no such folder"
+  elif ((${#files[@]} > 1)); then
+    die_usage "-o $output isn't a folder; a file name works for one input only"
+  fi
+fi
+
+# human <bytes>: 1.0 MB, 100 kB, 512 B (powers of 1000, as Finder shows them).
+human() {
+  awk -v b="$1" 'BEGIN {
+    if (b >= 1e9) printf "%.1f GB", b / 1e9
+    else if (b >= 1e6) printf "%.1f MB", b / 1e6
+    else if (b >= 1e3) printf "%d kB", b / 1e3
+    else printf "%d B", b
+  }'
+}
+
+lower() { tr '[:upper:]' '[:lower:]' <<<"$1"; }
+
+# A path as ffmpeg should get it: it would read a leading - as an option and
+# anything before a : as a protocol.
+ff_path() {
+  case "$1" in
+    *:*) printf 'file:%s' "$1" ;;
+    -*) printf './%s' "$1" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+# run <command...>: runs it, or with -n prints it, quoted for a shell.
+run() {
+  if $dry; then
+    local a line=""
+    for a in "$@"; do line+="${line:+ }$(printf '%q' "$a")"; done
+    echo "$line"
+  else
+    "$@"
+  fi
+}
+
+# needs <input> <tool>: fails, naming the tool, if it isn't on PATH.
+needs() {
+  command -v "$2" >/dev/null && return 0
+  echo "shrink: $1: needs $2, which isn't installed; run install.sh from the dotfiles repo" >&2
+  return 1
+}
+
+# video_filters <input>: the -vf value capping the short side and frame rate,
+# empty when neither cap applies. ffmpeg rotates phone video upright before
+# the filters, so the scale expression picks the short side after rotation.
+# yuv420p needs even sizes: the cap's -2 keeps them even, and an odd size
+# below the cap loses a pixel.
+video_filters() {
+  local probe width height rate filters=()
+  probe="$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,avg_frame_rate \
+    -of csv=p=0 "$(ff_path "$1")")" || return 1
+  IFS=, read -r width height rate <<<"$probe"
+  [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || { echo "shrink: $1: no video stream found" >&2; return 1; }
+  if (((width < height ? width : height) > MAX_SHORT_SIDE)); then
+    filters+=("scale='if(gt(iw,ih),-2,$MAX_SHORT_SIDE)':'if(gt(iw,ih),$MAX_SHORT_SIDE,-2)'")
+  elif ((width % 2 || height % 2)); then
+    filters+=("scale='trunc(iw/2)*2':'trunc(ih/2)*2'")
+  fi
+  if awk -v r="$rate" -v max="$MAX_FPS" 'BEGIN { split(r, p, "/"); exit !(p[2] > 0 && p[1] / p[2] > max + 0.01) }'; then
+    filters+=("fps=$MAX_FPS")
+  fi
+  local IFS=,
+  echo "${filters[*]-}"
+}
+
+# shrink_video <input> <part file>. use_metadata_tags keeps tags such as
+# Apple's location, which a plain -map_metadata 0 drops. yuv420p turns 10-bit
+# and 4:4:4 input into the 8-bit 4:2:0 H.264 that Apple's players open.
+shrink_video() {
+  local filters vf=()
+  needs "$1" ffmpeg && needs "$1" ffprobe || return 1
+  filters="$(video_filters "$1")" || return 1
+  [[ -z "$filters" ]] || vf=(-vf "$filters")
+  run ffmpeg -nostdin -hide_banner -loglevel error -y -i "$(ff_path "$1")" -map_metadata 0 \
+    -c:v libx264 -crf "$crf" -pix_fmt yuv420p ${vf[@]+"${vf[@]}"} -c:a aac -b:a "$AUDIO_BITRATE" -ac 2 \
+    -movflags +faststart+use_metadata_tags -f mp4 "$(ff_path "$2")"
+}
+
+# shrink_type <type> <input> <part file>
+shrink_type() {
+  case "$1" in
+    video) shrink_video "$2" "$3" ;;
+  esac
+}
+
+# The output being written, removed if shrink is interrupted or the file
+# fails, so no half-written output is left.
+part=""
+drop_part() {
+  [[ -z "$part" ]] || rm -f "$part"
+  part=""
+}
+trap 'drop_part; exit 129' HUP
+trap 'drop_part; exit 130' INT
+trap 'drop_part; exit 143' TERM
+
+# Outputs written in this run, one per line: -f replaces an older copy, not
+# one another input made a moment ago.
+written=""
+
+# shrink_file <input>: makes its Shrunk copy and prints one summary line.
+shrink_file() {
+  local in="$1" name ext type out before after
+  name="$(basename "$in")"
+  ext="$(lower "${name##*.}")"
+  [[ "$name" == *.* ]] || ext=""
+  type=""
+  [[ -n "$ext" && " $VIDEO_EXTS " == *" $ext "* ]] && type=video
+  if [[ -z "$type" ]]; then
+    echo "shrink: $in: unsupported type" >&2
+    return 1
+  fi
+  [[ -f "$in" ]] || { echo "shrink: $in: no such file" >&2; return 1; }
+  if [[ "$name" == *.shrunk.* ]] && ! $force; then
+    echo "$in: skipped, already a Shrunk copy (-f to shrink it again)"
+    return 0
+  fi
+
+  if [[ -n "$output" && -z "$out_dir" ]]; then
+    out="$output"
+    [[ "$(lower "${out##*.}")" == mp4 ]] ||
+      { echo "shrink: $in: -o $output must end in .mp4, the format a $type comes out in" >&2; return 1; }
+  else
+    out="${out_dir:-$(dirname "$in")}/${name%.*}.shrunk.mp4"
+    [[ -n "$out_dir" || "$in" == */* ]] || out="${out#./}"
+  fi
+  if [[ "$out" -ef "$in" ]]; then
+    echo "shrink: $in: the output would replace the original" >&2
+    return 1
+  fi
+  if grep -qxF -- "$out" <<<"$written"; then
+    echo "shrink: $in: $out was just made from another file" >&2
+    return 1
+  fi
+  if [[ -e "$out" ]] && ! $force; then
+    echo "shrink: $in: $out already exists (-f to replace it)" >&2
+    return 1
+  fi
+
+  part="$(dirname "$out")/.$(basename "$out").part"
+  if ! shrink_type "$type" "$in" "$part"; then
+    drop_part
+    echo "shrink: $in: failed" >&2
+    return 1
+  fi
+  if $dry; then
+    run touch -r "$in" "$part"
+    run mv -f "$part" "$out"
+    part=""
+    written+="$out"$'\n'
+    return 0
+  fi
+  before="$(stat -f %z "$in")" after="$(stat -f %z "$part")"
+  if ((after >= before)); then
+    drop_part
+    echo "$in $(human "$before"): the result wasn't smaller ($(human "$after")), so nothing was written"
+    return 0
+  fi
+  if ! { touch -r "$in" "$part" && mv -f "$part" "$out"; }; then
+    drop_part
+    return 1
+  fi
+  part=""
+  written+="$out"$'\n'
+  echo "$in $(human "$before") → $(human "$after") (-$(((before - after) * 100 / before))%) → $out"
+}
+
+status=0
+for file in "${files[@]}"; do
+  shrink_file "$file" || status=1
+done
+exit "$status"

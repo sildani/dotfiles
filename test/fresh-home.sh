@@ -21,7 +21,8 @@
 # brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as
 # the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local can change), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
-# keymap, tmux loads its config and every extra without errors, and every
+# keymap, finds shrink, which makes a real Shrunk copy of a generated video
+# with both caps applied, tmux loads its config and every extra without errors, and every
 # extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
@@ -438,6 +439,27 @@ mv "$HOME/.oh-my-zsh" "$HOME/.oh-my-zsh.away"
 keymap="$(izsh "$PATH" "zsh -i -c 'bindkey -lL main'")"
 mv "$HOME/.oh-my-zsh.away" "$HOME/.oh-my-zsh"
 [[ "$keymap" == *'bindkey -A emacs main' ]] || die "without Oh My Zsh, a nested zsh isn't on the emacs keymap: $keymap"
+
+echo "shrink is on zsh's PATH and makes a real Shrunk copy of a video"
+shrink_path="$(izsh "$PATH" 'whence -p shrink')"
+[[ "$shrink_path" == "$HOME/.local/bin/shrink" ]] || die "zsh finds shrink at '$shrink_path', not ~/.local/bin/shrink"
+video_dir="$HOME/videos"
+mkdir "$video_dir"
+# 1440p at 60 fps, nearly lossless, so both caps apply and the copy is smaller.
+ffmpeg -v error -nostdin -f lavfi -i testsrc2=size=2560x1440:rate=60:duration=1 -f lavfi -i sine=duration=1 \
+  -c:v libx264 -preset ultrafast -crf 5 -c:a pcm_s16le "$video_dir/clip.mov" >>"$LOG" 2>&1 || die "ffmpeg couldn't make a sample video"
+touch -t 202001020304 "$video_dir/clip.mov"
+clip_sum="$(shasum "$video_dir/clip.mov")"
+shrink_out="$(cd "$video_dir" && "$shrink_path" clip.mov 2>&1)" || { echo "$shrink_out" >>"$LOG"; die "shrink clip.mov failed"; }
+echo "$shrink_out" >>"$LOG"
+[[ "$shrink_out" == *"→ clip.shrunk.mp4" ]] || die "shrink didn't report clip.shrunk.mp4: $shrink_out"
+[[ "$(shasum "$video_dir/clip.mov")" == "$clip_sum" ]] || die "shrink changed the original"
+shrunk_stream="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,avg_frame_rate \
+  -of csv=p=0 "$video_dir/clip.shrunk.mp4")"
+[[ "$shrunk_stream" == h264,1920,1080,30/1 ]] || die "the Shrunk copy should be h264,1920,1080,30/1, got $shrunk_stream"
+[[ "$(stat -f %m "$video_dir/clip.shrunk.mp4")" == "$(stat -f %m "$video_dir/clip.mov")" ]] ||
+  die "the Shrunk copy doesn't have the original's modification time"
+rm -rf "$video_dir"
 
 echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"
 # shellcheck disable=SC2016  # literal lines for ~/.zshrc.local

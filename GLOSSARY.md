@@ -28,6 +28,14 @@ _Avoid_: pre-commit hook
 The line a new shell shows when a machine hasn't been updated for a while.
 _Avoid_: update prompt
 
+**Shrunk copy**:
+A smaller copy of an image, video or PDF, made by `shrink` next to the original, which stays untouched.
+_Avoid_: compressed file, compressed version
+
+**Lookalike**:
+A command, function or alias on a machine whose name suggests it already does what `shrink` does, flagged so the installer can remove it by hand.
+_Avoid_: duplicate, conflict
+
 **Lockfile**:
 A machine's own record of the exact version of each nvim plugin, kept outside the repo.
 _Avoid_: lock file

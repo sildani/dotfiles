@@ -31,7 +31,7 @@ else
   test_scripts=(test/*.sh)
 fi
 
-shellcheck -x install.sh doctor.sh update.sh prune-merged.sh ci-wait.sh lib/common.sh \
+shellcheck -x install.sh doctor.sh update.sh prune-merged.sh ci-wait.sh lib/common.sh bin/* \
   ${test_scripts[@]+"${test_scripts[@]}"} hooks/* || err "shellcheck failed"
 
 # One file per call: zsh -n treats any extra files as arguments to the first.
