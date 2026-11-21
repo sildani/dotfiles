@@ -37,7 +37,7 @@ video: ${VIDEO_EXTS// /, } -> .mp4 (H.264 and AAC)
   fixed:      never enlarged; 8-bit 4:2:0 color; metadata kept; +faststart
   HDR:        an HDR input (PQ or HLG, as iPhones record) is warned about and still
               shrunk: the copy is standard range and looks washed out
-  progress:   ffmpeg's progress line, when the output is a terminal
+  progress:   ffmpeg's progress line, when stderr is a terminal
   runs:       ffprobe (size, frame rate and transfer function), then
               ffmpeg -i IN -map_metadata 0 -c:v libx264 -crf N -pix_fmt yuv420p [-vf caps]
                 -c:a aac -b:a R -ac 2 -movflags +faststart+use_metadata_tags OUT
