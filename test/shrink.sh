@@ -459,7 +459,7 @@ reset
 input report.pdf
 shrink report.pdf
 [[ "$rc" == 0 && -f "$TMP/work/report.shrunk.pdf" && "$out" == *"→ report.shrunk.pdf"* ]] || failed "report.pdf wasn't shrunk: rc $rc: $out"
-[[ "$(call gs report)" == "gs -q -dSAFER -sDEVICE=pdfwrite -dPDFSETTINGS=/ebook -o ./.report.shrunk.pdf.part report.pdf" ]] ||
+[[ "$(call gs report)" == "gs -q -dSAFER -dPDFSTOPONERROR -sDEVICE=pdfwrite -dPDFSETTINGS=/ebook -o ./.report.shrunk.pdf.part report.pdf" ]] ||
   failed "gs call: $(call gs report)"
 OUT_BYTES=1000000
 shrink -f report.pdf
@@ -471,6 +471,12 @@ shrink "50%.pdf" "@notes.pdf"
 [[ "$(call gs 50)" == *" -o ./.50%%.shrunk.pdf.part 50%.pdf" && -f "$TMP/work/50%.shrunk.pdf" ]] ||
   failed "a % in the name wasn't doubled for gs's -o: $(call gs 50)"
 [[ "$(call gs notes)" == *" ./@notes.pdf" ]] || failed "an @ at the start, which gs reads as a file of arguments, wasn't guarded: $(call gs notes)"
+input -x.pdf
+input -y.mov
+shrink -- -x.pdf -y.mov
+[[ "$rc" == 0 && -f "$TMP/work/-x.shrunk.pdf" && -f "$TMP/work/-y.shrunk.mp4" ]] ||
+  failed "inputs starting with - weren't shrunk: rc $rc: $out"
+[[ "$(call gs x.pdf)" == *" ./-x.pdf" ]] || failed "gs got -x.pdf unguarded: $(call gs x.pdf)"
 input a.pdf
 shrink -o x.jpg a.pdf
 [[ "$rc" != 0 && "$out" == *".pdf"* ]] || failed "-o x.jpg for a PDF wasn't refused: $out"
@@ -482,7 +488,7 @@ shrink -n --pdf screen a.pdf
 [[ "$out" == *"-dPDFSETTINGS=/screen "* ]] || failed "--pdf screen didn't reach gs: $out"
 setting a.pdf SHRINK_PDF=printer --pdf ebook "/printer"
 shrink -n --pdf huge a.pdf
-[[ "$rc" == 2 && "$out" == *"screen, ebook or printer"* ]] || failed "--pdf huge wasn't refused with the levels: rc $rc: $out"
+[[ "$rc" == 2 && "$out" == *"screen, ebook, printer"* ]] || failed "--pdf huge wasn't refused with the levels: rc $rc: $out"
 rc=0
 out="$(cd "$TMP/work" && "${clean[@]}" SHRINK_PDF=huge /bin/bash "$REPO_DIR/bin/shrink" -n a.pdf 2>&1)" || rc=$?
 [[ "$rc" == 2 && "$out" == *SHRINK_PDF* ]] || failed "SHRINK_PDF=huge wasn't refused by name: rc $rc: $out"

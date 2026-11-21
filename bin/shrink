@@ -13,10 +13,11 @@ DEFAULT_FPS=30
 DEFAULT_AUDIO_BITRATE=128k
 DEFAULT_MAX_EDGE=2560
 DEFAULT_QUALITY=80
-DEFAULT_PDF=ebook
+DEFAULT_PDF_LEVEL=ebook
 PDF_LEVELS="screen ebook printer"
 VIDEO_EXTS="mov mp4 m4v mkv avi webm"
 IMAGE_EXTS="jpg jpeg png heic heif webp tif tiff"
+PDF_EXTS="pdf"
 TYPES="video image pdf"
 
 usage() {
@@ -68,12 +69,13 @@ EOF
 
 help_pdf() {
   cat <<EOF
-pdf: pdf -> .pdf, through Ghostscript
-  --pdf LEVEL         ${PDF_LEVELS// /, }: images at about 72, 150 or     \$SHRINK_PDF            default $DEFAULT_PDF
-                      300 dpi
-  fixed:      metadata as Ghostscript writes it; a PDF that's already small often
-              comes out no smaller, and then nothing is written
-  runs:       gs -q -dSAFER -sDEVICE=pdfwrite -dPDFSETTINGS=/LEVEL -o OUT IN
+pdf: ${PDF_EXTS// /, } -> .pdf, through Ghostscript
+  --pdf LEVEL         ${PDF_LEVELS// /, }: images at about 72, 150 or     \$SHRINK_PDF            default $DEFAULT_PDF_LEVEL
+                      300 dpi (Ghostscript's presets)
+  fixed:      metadata as Ghostscript writes it; a damaged PDF fails rather than
+              coming out incomplete; a PDF that's mostly text often comes out no
+              smaller, and then nothing is written
+  runs:       gs -q -dSAFER -dPDFSTOPONERROR -sDEVICE=pdfwrite -dPDFSETTINGS=/LEVEL -o OUT IN
 EOF
 }
 
@@ -99,7 +101,7 @@ fps="${SHRINK_FPS:-$DEFAULT_FPS}" fps_from="$(from SHRINK_FPS)"
 audio_bitrate="${SHRINK_AUDIO_BITRATE:-$DEFAULT_AUDIO_BITRATE}" audio_bitrate_from="$(from SHRINK_AUDIO_BITRATE)"
 max_edge="${SHRINK_MAX_EDGE:-$DEFAULT_MAX_EDGE}" max_edge_from="$(from SHRINK_MAX_EDGE)"
 quality="${SHRINK_QUALITY:-$DEFAULT_QUALITY}" quality_from="$(from SHRINK_QUALITY)"
-pdf="${SHRINK_PDF:-$DEFAULT_PDF}" pdf_from="$(from SHRINK_PDF)"
+pdf_level="${SHRINK_PDF:-$DEFAULT_PDF_LEVEL}" pdf_level_from="$(from SHRINK_PDF)"
 output="" force=false dry=false
 files=()
 while (($#)); do
@@ -128,7 +130,7 @@ while (($#)); do
         --audio-bitrate) audio_bitrate="$2" audio_bitrate_from="--audio-bitrate" ;;
         --max-edge) max_edge="$2" max_edge_from="--max-edge" ;;
         --quality) quality="$2" quality_from="--quality" ;;
-        --pdf) pdf="$2" pdf_from="--pdf" ;;
+        --pdf) pdf_level="$2" pdf_level_from="--pdf" ;;
       esac
       shift ;;
     --) shift; files+=("$@"); break ;;
@@ -156,7 +158,8 @@ fi
 if ! [[ "$quality" =~ ^[0-9]+$ ]] || ((10#$quality == 0 || 10#$quality > 100)); then
   die_usage "$quality_from must be a whole number from 1 to 100, not '$quality'"
 fi
-[[ " $PDF_LEVELS " == *" $pdf "* ]] || die_usage "$pdf_from must be screen, ebook or printer, not '$pdf'"
+[[ " $PDF_LEVELS " == *" $pdf_level "* ]] ||
+  die_usage "$pdf_level_from must be one of ${PDF_LEVELS// /, }, not '$pdf_level'"
 crf=$((10#$crf)) max_res=$((10#$max_res)) fps=$((10#$fps)) max_edge=$((10#$max_edge)) quality=$((10#$quality))
 out_dir=""
 if [[ -n "$output" ]]; then
@@ -329,10 +332,11 @@ shrink_image() {
 }
 
 # shrink_pdf <input> <part file>. gs reads a % in its -o file as a page
-# number, and %% as a %.
+# number, and %% as a %. Without PDFSTOPONERROR, gs turns a truncated PDF
+# into a blank page and exits 0.
 shrink_pdf() {
   needs "$1" gs "Ghostscript (gs)" || return 1
-  run gs -q -dSAFER -sDEVICE=pdfwrite "-dPDFSETTINGS=/$pdf" -o "$(dash_path "${2//%/%%}")" "$(dash_path "$1")"
+  run gs -q -dSAFER -dPDFSTOPONERROR -sDEVICE=pdfwrite "-dPDFSETTINGS=/$pdf_level" -o "$(dash_path "${2//%/%%}")" "$(dash_path "$1")"
 }
 
 # type_of <name>: video, image, pdf, or nothing for an unsupported type.
@@ -344,7 +348,7 @@ type_of() {
     echo video
   elif [[ " $IMAGE_EXTS " == *" $ext "* ]]; then
     echo image
-  elif [[ "$ext" == pdf ]]; then
+  elif [[ " $PDF_EXTS " == *" $ext "* ]]; then
     echo pdf
   fi
 }
@@ -397,6 +401,8 @@ written=""
 # shrink_file <input>: makes its Shrunk copy and prints one summary line.
 shrink_file() {
   local in="$1" name type format out_ext out before after
+  # basename, stat, touch and mv would read a leading - as an option.
+  [[ "$in" != -* ]] || in="./$in"
   name="$(basename "$in")"
   type="$(type_of "$name")"
   if [[ -z "$type" ]]; then

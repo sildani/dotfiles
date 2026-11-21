@@ -161,8 +161,8 @@ HEIC comes out upright with orientation 1, and a TIFF is turned upright and
 loses its EXIF.
 
 PDFs go through Ghostscript at `/ebook` (images at about 150 dpi); `--pdf
-screen` or `--pdf printer` picks another level. A PDF that's mostly text often
-comes out no smaller, so nothing is written.
+screen` or `--pdf printer` picks another level. A damaged PDF fails rather than coming out incomplete,
+and a PDF that's mostly text often comes out no smaller, so nothing is written.
 
 `-f` replaces an existing output, and a result that
 isn't smaller is deleted. `shrink -h` lists the options and `shrink --help

@@ -506,8 +506,8 @@ shrink_out="$(cd "$pdf_dir" && "$shrink_path" report.pdf 2>&1)" || { echo "$shri
 echo "$shrink_out" >>"$LOG"
 [[ "$shrink_out" == *"→ report.shrunk.pdf" ]] || die "shrink didn't report report.shrunk.pdf: $shrink_out"
 [[ "$(head -c 5 "$pdf_dir/report.shrunk.pdf")" == %PDF- ]] || die "report.shrunk.pdf isn't a PDF"
-[[ "$(cd "$pdf_dir" && gs -q -dNODISPLAY -dNOSAFER -c "(report.shrunk.pdf) (r) file runpdfbegin pdfpagecount = quit" 2>>"$LOG")" == 1 ]] ||
-  die "Ghostscript doesn't read report.shrunk.pdf as one page"
+gs -q -dSAFER -dPDFSTOPONERROR -sDEVICE=nullpage -o /dev/null "$pdf_dir/report.shrunk.pdf" >>"$LOG" 2>&1 ||
+  die "Ghostscript can't read report.shrunk.pdf without errors"
 rm -rf "$pdf_dir"
 
 echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"
