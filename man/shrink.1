@@ -1,0 +1,266 @@
+.\" shrink(1): the reference for bin/shrink. install.sh links it to
+.\" ~/.local/share/man/man1/shrink.1, which man finds through ~/.local/bin on
+.\" PATH. test/lint.sh fails when a flag shrink's help lists is missing here.
+.TH SHRINK 1 2026-11-21 dotfiles "User Commands"
+.SH NAME
+shrink \- make a smaller copy of videos, images and PDFs
+.SH SYNOPSIS
+.B shrink
+.RI [ options ]
+.IR file ...
+.br
+.B shrink \-h
+.br
+.B shrink \-\-help
+.RI [ type ]
+.SH DESCRIPTION
+.B shrink
+makes a
+.I Shrunk copy
+of each
+.I file
+next to it and leaves the original untouched:
+.I a.mov
+becomes
+.IR a.shrunk.mp4 .
+It picks the type from the extension, in any case, and prints one line per
+file: its size, the copy's size and how much smaller it is.
+.PP
+A flag beats its
+.B SHRINK_*
+variable, which beats the default, so a Mac can set its own defaults in
+.IR ~/.zshrc.local ,
+such as
+.BR "export SHRINK_CRF=28" .
+.SH OPTIONS
+A flag that takes a value also takes it after
+.BR = ,
+as in
+.BR \-\-crf=28 .
+.B \-\-
+ends the options, so a file whose name starts with
+.B \-
+can follow it.
+.TP
+.BI \-o " path"
+Write into the folder
+.IR path ,
+or, for one file, to the file
+.IR path ,
+which must end in the format the input comes out in.
+.TP
+.B \-f
+Replace an existing output, and shrink
+.I *.shrunk.*
+files too, which are skipped otherwise.
+.TP
+.B \-n
+Print the commands instead of running them.
+For a video it still runs
+.BR ffprobe ,
+which only reads, since the commands depend on the video's size and frame rate.
+.TP
+.B \-h
+A short usage screen.
+.TP
+.BR \-\-help " [\fItype\fR]"
+Every setting for
+.I type
+.RB ( video ,
+.B image
+or
+.BR pdf ),
+or for every type, with the commands run underneath.
+.SS Video
+.TP
+.BI \-\-crf " n"
+Quality, 0\(en51; lower is better and bigger.
+.BR SHRINK_CRF ,
+default 23.
+.TP
+.BI \-\-max\-res " n"
+Caps the short side at
+.IR n ,
+an even number; never enlarges.
+.BR SHRINK_MAX_RES ,
+default 1080.
+.TP
+.BI \-\-fps " n"
+Caps the frame rate; never raises it.
+.BR SHRINK_FPS ,
+default 30.
+.TP
+.BI \-\-audio\-bitrate " rate"
+AAC stereo bitrate, such as 96k.
+.BR SHRINK_AUDIO_BITRATE ,
+default 128k.
+.SS Image
+.TP
+.BI \-\-max\-edge " n"
+Caps the long edge; never enlarges.
+.BR SHRINK_MAX_EDGE ,
+default 2560.
+.TP
+.BI \-\-quality " n"
+1\(en100: JPEG and WebP quality, and the top of pngquant's quality range for
+a PNG.
+.BR SHRINK_QUALITY ,
+default 80.
+.SS PDF
+.TP
+.BI \-\-pdf " level"
+.BR screen ,
+.B ebook
+or
+.BR printer :
+images at about 72, 150 or 300 dpi (Ghostscript's presets).
+.BR SHRINK_PDF ,
+default ebook.
+.SH TYPES
+.SS Video
+.IR mov ,
+.IR mp4 ,
+.IR m4v ,
+.IR mkv ,
+.IR avi ,
+.I webm
+come out as an H.264 and AAC
+.IR .mp4 ,
+8\-bit 4:2:0, with the metadata kept and +faststart:
+.PP
+.RS
+ffmpeg \-i IN \-map_metadata 0 \-c:v libx264 \-crf N \-pix_fmt yuv420p
+[\-vf caps] \-c:a aac \-b:a R \-ac 2 \-movflags +faststart+use_metadata_tags OUT
+.RE
+.PP
+While stderr is a terminal it shows ffmpeg's progress line.
+.SS Image
+.IR jpg ,
+.IR jpeg ,
+.IR png ,
+.IR heic ,
+.IR heif ,
+.IR webp ,
+.IR tif ,
+.I tiff
+keep their format and extension as written
+.RI ( photo.JPG
+becomes
+.IR photo.shrunk.JPG ),
+except HEIC, HEIF and TIFF, which become
+.I .jpg
+so they open anywhere.
+ImageMagick resizes them and sets the quality:
+.PP
+.RS
+magick IN \-resize NxN\e> \-quality Q OUT
+.RE
+.PP
+A PNG goes through
+.B pngquant
+(a lossy palette) instead of
+.BR magick 's
+.BR \-quality ,
+and its EXIF chunk, which
+pngquant drops on a Mac, is copied back.
+Metadata stays, the EXIF orientation tag included, and pixels aren't rotated,
+with two exceptions: a HEIC comes out upright with orientation 1, and a TIFF is
+turned upright and loses its EXIF.
+.SS PDF
+.I pdf
+comes out as a
+.I .pdf
+through Ghostscript, with metadata as Ghostscript writes it:
+.PP
+.RS
+gs \-q \-dSAFER \-dPDFSTOPONERROR \-sDEVICE=pdfwrite \-dPDFSETTINGS=/LEVEL
+\-o OUT IN
+.RE
+.PP
+A damaged PDF fails rather than coming out incomplete.
+.SH SAFETY
+.IP \(bu 2
+The original is never changed.
+.IP \(bu 2
+The copy is written to a hidden
+.I .part
+file next to it and renamed when done, so an interrupted or failed run leaves
+nothing half written.
+.IP \(bu 2
+A result that isn't smaller is deleted and reported, and the run carries on.
+A PDF that's mostly text often comes out no smaller.
+.IP \(bu 2
+An existing output is refused without
+.BR \-f ,
+and two inputs in one run never write the same output.
+.IP \(bu 2
+.I *.shrunk.*
+inputs are skipped without
+.BR \-f .
+.IP \(bu 2
+The copy keeps the original's modification time.
+.IP \(bu 2
+A missing tool fails only the files that need it, naming the tool and
+.BR install.sh .
+.SH HDR
+iPhones record 10\-bit HDR video.
+When ffprobe reports a PQ (HDR10, Dolby Vision) or HLG transfer function,
+.B shrink
+warns on stderr and shrinks anyway:
+.PP
+.RS
+shrink: a.mov is HDR (HLG); the shrunk copy is standard range and will look
+washed out
+.RE
+.PP
+The warning shows with
+.B \-n
+too and doesn't change the exit status.
+.SH EXIT STATUS
+.TP
+.B 0
+Every file was shrunk, skipped as a Shrunk copy, or left alone because the
+result wasn't smaller.
+.TP
+.B 1
+At least one file failed: an unsupported type, a missing file or tool, a
+refused output, or a tool's error.
+The other files are still shrunk.
+.TP
+.B 2
+A usage error: an unknown option, a bad setting, a bad
+.B \-o
+path or
+.B \-\-help
+type, or no files.
+.TP
+.BR 129 ", " 130 ", " 143
+Interrupted by SIGHUP, SIGINT or SIGTERM.
+.SH EXAMPLES
+.TP
+.B shrink a.mov b.mp4
+Writes
+.I a.shrunk.mp4
+and
+.IR b.shrunk.mp4 .
+.TP
+.B shrink \-o ~/Desktop *.mov
+Puts every copy in
+.IR ~/Desktop .
+.TP
+.B shrink IMG_0042.HEIC
+Writes
+.IR IMG_0042.shrunk.jpg .
+.TP
+.B shrink \-\-pdf screen report.pdf
+Writes a small
+.I report.shrunk.pdf
+for the screen.
+.TP
+.B SHRINK_CRF=28 shrink \-n a.mov
+Prints the ffmpeg command at CRF 28 instead of running it.
+.SH SEE ALSO
+.BR ffmpeg (1),
+.BR magick (1),
+.BR pngquant (1),
+.BR gs (1)

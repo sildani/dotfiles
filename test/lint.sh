@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
 # config link, override file, extra and test script, that CI runs every test
-# script and each has lib/test-guard.sh, that the messages fresh-home.sh greps
-# for are marked, that text avoids the glossary's multi-word _Avoid_ entries,
+# script and each has lib/test-guard.sh, that shrink's man page and completion
+# know every flag its help lists (and the completion its extensions, types and
+# PDF levels), that the messages fresh-home.sh greps for are
+# marked, that text avoids the glossary's multi-word _Avoid_ entries,
 # and that the language recipes agree across doctor.sh, the nvim config and
 # LANGUAGES.md.
 # Run by CI and the commit hook.
@@ -194,6 +196,31 @@ else
     ((n < tpm_line)) || err "tmux/tmux.conf:$n sets the status bar after TPM's run line, wiping continuum's auto-save: $line"
   done < <(grep -nE '^set(-option)? .*status-(left|right) ' tmux/tmux.conf)
 fi
+
+# Every flag shrink's -h and --help list is in its man page and its zsh
+# completion, which are written separately, and the completion offers the
+# extensions, types and PDF levels shrink takes. The man page writes - as \-,
+# and a flag counts only as a whole word there (-f isn't found inside \-\-fps).
+# A completion spec starts '<flag>[ or "<flag>[ or, after an exclusion list,
+# )<flag>[.
+while read -r flag; do
+  man_flag="${flag//-/\\\\-}"
+  grep -Eq -- "(^|[^-])$man_flag([^a-z-]|\$)" man/shrink.1 2>/dev/null ||
+    err "man/shrink.1 doesn't document $flag, which shrink's help lists"
+  grep -qE -- "['\")]$flag\[" zsh/completions/_shrink 2>/dev/null ||
+    err "zsh/completions/_shrink doesn't complete $flag, which shrink's help lists"
+done < <({ /bin/bash bin/shrink -h && /bin/bash bin/shrink --help; } | sed -nE 's/^ *(--?[a-z][a-z-]*)( .*)?$/\1/p' | sort -u)
+# shrink_list <bin/shrink variable regex> <completion array> <what>
+shrink_list() {
+  local want got
+  want="$(sed -nE "s/^($1)=\"(.*)\"\$/\\2/p" bin/shrink | tr ' ' '\n' | sort)"
+  got="$(sed -nE "s/^local -a $2=\\((.*)\\)\$/\\1/p" zsh/completions/_shrink 2>/dev/null | tr ' ' '\n' | sort)"
+  [[ -n "$want" && "$want" == "$got" ]] ||
+    err "zsh/completions/_shrink's $2=() should list shrink's $3: ${want//$'\n'/ }"
+}
+shrink_list 'VIDEO_EXTS|IMAGE_EXTS|PDF_EXTS' exts extensions
+shrink_list TYPES types types
+shrink_list PDF_LEVELS levels 'PDF levels'
 
 # Each [LANG] marker sits in all three nvim config files.
 for marker in JAVA PYTHON GO; do
