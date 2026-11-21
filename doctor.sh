@@ -384,13 +384,14 @@ diff_backups() {
 # nothing is read from a script or deleted.
 LOOKALIKE_NAMES='compress|shrink|squash|small|minify'
 
-# PATH folders that hold what macOS or Homebrew installed on purpose. On Intel
-# Homebrew's prefix is /usr/local, so /usr/local/bin is skipped there only.
+# system_folder <dir> <Homebrew's bin>: a PATH folder holding what macOS or
+# Homebrew installed on purpose. On Intel Homebrew's prefix is /usr/local, so
+# /usr/local/bin is skipped there only.
 system_folder() {
   case "$1" in
     /usr/bin | /bin | /usr/sbin | /sbin | /System/* | /Library/Apple/*) return 0 ;;
   esac
-  [[ -n "$BREW_BIN" && "$1" == "$BREW_BIN" ]]
+  [[ -n "$2" && "$1" == "$2" ]]
 }
 
 lookalike() {
@@ -398,25 +399,24 @@ lookalike() {
   hint "if shrink does its job, remove it by hand"
 }
 
-# A command on PATH: any shrink ahead of the repo's runs instead of it, even
-# one from macOS or Homebrew. Other names count outside those folders.
+# A command on PATH: the first shrink, unless it's the repo's, runs instead of
+# it, even one from macOS or Homebrew. Other names count outside those folders.
 path_lookalikes() {
-  local BREW_BIN="" dirs dir file name seen=":" shadow
-  local repo_shrink="$REPO_DIR/bin/shrink" repo_first=false
-  command -v brew >/dev/null && BREW_BIN="$(brew --prefix)/bin"
+  local brew_bin="" dirs dir file name seen=":" shadow
+  local repo_shrink="$REPO_DIR/bin/shrink" first_seen=false
+  command -v brew >/dev/null && brew_bin="$(brew --prefix)/bin"
   IFS=: read -r -a dirs <<<"$PATH"
   for dir in ${dirs[@]+"${dirs[@]}"}; do
     [[ -n "$dir" && "$seen" != *":$dir:"* ]] || continue
     seen+="$dir:" shadow=""
-    if [[ -f "$dir/shrink" && -x "$dir/shrink" ]] && ! $repo_first; then
-      if [[ "$dir/shrink" -ef "$repo_shrink" ]]; then
-        repo_first=true
-      else
+    if [[ -f "$dir/shrink" && -x "$dir/shrink" ]] && ! $first_seen; then
+      first_seen=true
+      if ! [[ "$dir/shrink" -ef "$repo_shrink" ]]; then
         shadow="$dir/shrink"
         lookalike "another shrink in ${dir/#$HOME/~} runs instead of the repo's"
       fi
     fi
-    system_folder "$dir" && continue
+    system_folder "$dir" "$brew_bin" && continue
     for file in "$dir"/*; do
       name="${file##*/}"
       [[ "$name" =~ $LOOKALIKE_NAMES && "$file" != "$shadow" && -f "$file" && -x "$file" ]] || continue
@@ -426,12 +426,12 @@ path_lookalikes() {
   done
 }
 
-# A function or alias in the per-machine file or Oh My Zsh's custom folder,
+# A function or alias (only an alias line's first name) in the per-machine file or Oh My Zsh's custom folder,
 # found in the text: an interactive zsh would run the Update reminder, which
 # restarts its count, and is slow.
 definition_lookalikes() {
   local file line text kind name
-  local alias_re='^[[:space:]]*alias[[:space:]]+(-[[:alpha:]]+[[:space:]]+)*([^[:space:]=]+)='
+  local alias_re='^[[:space:]]*alias[[:space:]]+(--?[[:alpha:]]*[[:space:]]+)*([^[:space:]=]+)='
   local function_re='^[[:space:]]*function[[:space:]]+([^[:space:]({]+)'
   local paren_re='^[[:space:]]*([^[:space:]=(){}#]+)[[:space:]]*\(\)'
   while IFS=: read -r file line text; do
@@ -452,13 +452,11 @@ definition_lookalikes() {
   )
 }
 
+# Names match in any case, and so does folder matching, as on APFS.
 check_lookalikes() {
   section "Lookalikes of shrink"
-  local found nocase_was=false
-  shopt -q nocasematch && nocase_was=true
-  shopt -s nocasematch
-  found="$(path_lookalikes; definition_lookalikes)"
-  $nocase_was || shopt -u nocasematch
+  local found
+  found="$(shopt -s nocasematch; path_lookalikes; definition_lookalikes)"
   if [[ -n "$found" ]]; then
     printf '%s\n' "$found"
   else

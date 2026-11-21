@@ -218,6 +218,7 @@ expect_lookalikes() {
 }
 
 expect_lookalikes "no Lookalikes"
+[[ "$(look_doctor | sed -n '/Lookalikes of shrink/{n;p;}')" == *"✓"*none ]] || failed "no Lookalikes: no ✓ none"
 
 executable "$TMP/look/bin/vidcompress"
 on_path "$TMP/look/bin"
@@ -242,7 +243,14 @@ expect_lookalikes "the repo's shrink ahead of Homebrew's"
 on_path "$TMP/brew/bin" "$HOME/.local/bin"
 expect_lookalikes "Homebrew's shrink ahead of the repo's" \
   "$LOOKALIKE: another shrink in $TMP/brew/bin runs instead of the repo's"
-rm "$TMP/brew/bin/shrink"
+
+# Only the first one runs; the next is a Lookalike by name.
+executable "$TMP/look/bin/shrink"
+on_path "$TMP/brew/bin" "$TMP/look/bin" "$HOME/.local/bin"
+expect_lookalikes "two other shrinks ahead of the repo's" \
+  "$LOOKALIKE: another shrink in $TMP/brew/bin runs instead of the repo's" \
+  "$LOOKALIKE: command shrink in $TMP/look/bin"
+rm -r "$TMP/brew/bin/shrink" "$TMP/look"
 
 executable "$TMP/look/bin/shrink" "$TMP/look/bin/shrinkpdf"
 on_path "$TMP/look/bin" "$HOME/.local/bin"
@@ -271,6 +279,7 @@ alias ll='ls -l'
 ZSH
 cat >"$HOME/.oh-my-zsh/custom/aliases.zsh" <<'ZSH'
   alias squashpdf='gs -sDEVICE=pdfwrite'
+alias -- smallify='shrink -o ~/Desktop'
 greet() { echo hi; }
 ZSH
 cat >"$HOME/.oh-my-zsh/custom/plugins/vid/vid.plugin.zsh" <<'ZSH'
@@ -281,6 +290,7 @@ ZSH
 expect_lookalikes "a function and aliases in startup files" \
   "$LOOKALIKE: function myshrink in ~/.zshrc.local:2" \
   "$LOOKALIKE: alias squashpdf in ~/.oh-my-zsh/custom/aliases.zsh:1" \
+  "$LOOKALIKE: alias smallify in ~/.oh-my-zsh/custom/aliases.zsh:2" \
   "$LOOKALIKE: function Compress_All in ~/.oh-my-zsh/custom/plugins/vid/vid.plugin.zsh:1"
 [[ "$(stat -f %m "$UPDATE_STAMP")" == "$stamp_was" ]] ||
   failed "doctor.sh restarted the Update reminder's count"
