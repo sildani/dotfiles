@@ -17,7 +17,7 @@ unset $(git rev-parse --local-env-vars)
 # stopped by set -u can still exit 0. Its failures go to stderr.
 passes() { [[ "$("$root/test/$1.sh" | tail -1)" == *": ok" ]]; }
 # shellcheck source=lib/hook-tests.sh
-source "$root/lib/hook-tests.sh"
+source "$root/lib/hook-tests.sh" || exit 1
 for name in "${HOOK_TESTS[@]}"; do
   passes "$name" || exit 1
 done

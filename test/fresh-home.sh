@@ -166,7 +166,10 @@ git -C "$HOOK_CLONE" switch -q -c hook-check
 # must not see git's variables, which would reach their temp repos.
 # shellcheck source=lib/hook-tests.sh
 source "$HOOK_CLONE/lib/hook-tests.sh"
+# An empty list would leave the hook running no tests, and nothing below failing.
+(( ${#HOOK_TESTS[@]} )) || die "lib/hook-tests.sh lists no tests for the commit hook"
 hook_stand_ins() {
+  local name  # the no-verdict loop below calls this inside its own loop over name
   # shellcheck disable=SC2016  # for the stand-ins to expand
   printf '#!/bin/sh\n[ -n "$GIT_INDEX_FILE" ]\n' >"$HOOK_CLONE/test/lint.sh"
   for name in "${HOOK_TESTS[@]}"; do
