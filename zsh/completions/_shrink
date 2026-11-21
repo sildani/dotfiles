@@ -1,22 +1,25 @@
 #compdef shrink
 # zsh completion for bin/shrink: every flag, the types after --help, the levels
 # after --pdf, and only the files shrink takes (and folders, to get to them).
-# The shared zshrc puts this folder on fpath. test/lint.sh fails when a flag or
-# an extension in shrink is missing here.
+# The shared zshrc puts this folder on fpath. test/lint.sh fails when a flag in
+# shrink is missing here, or when exts, types or levels differ from shrink's.
+# Defaults are left to shrink --help, so they live in one place.
 
 local -a exts=(mov mp4 m4v mkv avi webm jpg jpeg png heic heif webp tif tiff pdf)
+local -a types=(video image pdf)
+local -a levels=(screen ebook printer)
 
 _arguments -s -S \
   '-o[write into a folder, or for one file to a file]:path:_files' \
   '-f[replace existing outputs; also shrink *.shrunk.* files]' \
   '-n[print the commands instead of running them]' \
   '(- *)-h[short usage]' \
-  '(- *)--help[every setting for a type]:type:(video image pdf)' \
-  '--crf[video quality, 0-51, lower is better]:crf (default 23):' \
-  '--max-res[cap a video'"'"'s short side]:pixels (default 1080):' \
-  '--fps[cap a video'"'"'s frame rate]:frames per second (default 30):' \
-  '--audio-bitrate[video AAC bitrate]:rate (default 128k):' \
-  '--max-edge[cap an image'"'"'s long edge]:pixels (default 2560):' \
-  '--quality[image quality, 1-100]:quality (default 80):' \
-  '--pdf[PDF level]:level:(screen ebook printer)' \
+  "(- *)--help[every setting for a type]:type:($types)" \
+  '--crf[video quality, 0-51, lower is better]:crf:' \
+  '--max-res[cap a video'"'"'s short side]:pixels:' \
+  '--fps[cap a video'"'"'s frame rate]:frames per second:' \
+  '--audio-bitrate[video AAC bitrate, such as 96k]:rate:' \
+  '--max-edge[cap an image'"'"'s long edge]:pixels:' \
+  '--quality[image quality, 1-100]:quality:' \
+  "--pdf[PDF level]:level:($levels)" \
   "*:file:_files -g '*.(#i)(${(j:|:)exts})(-.)'"

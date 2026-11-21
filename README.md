@@ -220,7 +220,7 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   commit hook: every tracked one, so an untracked script doesn't block an
   unrelated commit), that text avoids the multi-word _Avoid_ entries in
   `GLOSSARY.md`, that `shrink`'s man page and completion know every flag its
-  help lists (and the completion every extension), and that the language
+  help lists (and the completion its extensions, types and PDF levels), and that the language
   recipes agree across `doctor.sh`, the nvim config and `LANGUAGES.md`. A new test script needs a `run:` step in
   `.github/workflows/check.yml` and a bullet here, and must source
   `lib/test-guard.sh`, which names the line that stopped it; sourced helpers go
@@ -234,7 +234,8 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   fresh-home.sh, adds an unmarked grep, breaks the extras rows, drops each test
   script's CI step and bullet here, adds an unlisted test script, blanks the
   glossary's _Avoid_ lines and adds each multi-word entry, drops a flag from
-  `shrink`'s man page and completion and an extension from the completion, one
+  `shrink`'s man page and completion and an extension, a type and a PDF level
+  from the completion, one
   at a time, and
   checks that `test/lint.sh` fails on each. It also runs `lib/test-guard.sh` on a test that
   stops, and checks that lint as the commit hook runs it passes an untracked

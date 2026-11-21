@@ -33,6 +33,14 @@ variable, which beats the default, so a Mac can set its own defaults in
 such as
 .BR "export SHRINK_CRF=28" .
 .SH OPTIONS
+A flag that takes a value also takes it after
+.BR = ,
+as in
+.BR \-\-crf=28 .
+.B \-\-
+ends the options, so a file whose name starts with
+.B \-
+can follow it.
 .TP
 .BI \-o " path"
 Write into the folder
@@ -150,7 +158,10 @@ magick IN \-resize NxN\e> \-quality Q OUT
 .PP
 A PNG goes through
 .B pngquant
-(a lossy palette) instead of a quality setting, and its EXIF chunk, which
+(a lossy palette) instead of
+.BR magick 's
+.BR \-quality ,
+and its EXIF chunk, which
 pngquant drops on a Mac, is copied back.
 Metadata stays, the EXIF orientation tag included, and pixels aren't rotated,
 with two exceptions: a HEIC comes out upright with orientation 1, and a TIFF is
@@ -217,7 +228,11 @@ refused output, or a tool's error.
 The other files are still shrunk.
 .TP
 .B 2
-A usage error: an unknown option, a bad setting, or no files.
+A usage error: an unknown option, a bad setting, a bad
+.B \-o
+path or
+.B \-\-help
+type, or no files.
 .TP
 .BR 129 ", " 130 ", " 143
 Interrupted by SIGHUP, SIGINT or SIGTERM.

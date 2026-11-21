@@ -469,7 +469,8 @@ man_page="$(izsh "$PATH" 'man -w shrink')"
 [[ "$man_page" == "$HOME/.local/share/man/man1/shrink.1" ]] || die "man -w shrink in a new shell gave '$man_page'"
 # shellcheck disable=SC2016  # for the inner zsh
 shrink_completion="$(izsh "$PATH" 'print -r -- $_comps[shrink] ${^fpath}/_shrink(N)')"
-[[ "$shrink_completion" == "_shrink $REPO_DIR/zsh/completions/_shrink" ]] ||
+# fpath has $DOTFILES, which zshrc resolves through symlinks (/var is one).
+[[ "$shrink_completion" == "_shrink $(cd "$REPO_DIR" && pwd -P)/zsh/completions/_shrink" ]] ||
   die "a new shell doesn't complete shrink with the repo's _shrink: $shrink_completion"
 
 echo "shrink makes a real Shrunk copy of a JPEG, a PNG and a HEIC, keeping their EXIF"
