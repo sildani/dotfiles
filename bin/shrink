@@ -13,9 +13,11 @@ DEFAULT_FPS=30
 DEFAULT_AUDIO_BITRATE=128k
 DEFAULT_MAX_EDGE=2560
 DEFAULT_QUALITY=80
+DEFAULT_PDF=ebook
+PDF_LEVELS="screen ebook printer"
 VIDEO_EXTS="mov mp4 m4v mkv avi webm"
 IMAGE_EXTS="jpg jpeg png heic heif webp tif tiff"
-TYPES="video image"
+TYPES="video image pdf"
 
 usage() {
   cat <<EOF
@@ -64,10 +66,22 @@ image: ${IMAGE_EXTS// /, } -> the same format, except HEIC, HEIF and TIFF -> .jp
 EOF
 }
 
+help_pdf() {
+  cat <<EOF
+pdf: pdf -> .pdf, through Ghostscript
+  --pdf LEVEL         ${PDF_LEVELS// /, }: images at about 72, 150 or     \$SHRINK_PDF            default $DEFAULT_PDF
+                      300 dpi
+  fixed:      metadata as Ghostscript writes it; a PDF that's already small often
+              comes out no smaller, and then nothing is written
+  runs:       gs -q -dSAFER -sDEVICE=pdfwrite -dPDFSETTINGS=/LEVEL -o OUT IN
+EOF
+}
+
 help_type() {
   case "$1" in
     video) help_video ;;
     image) help_image ;;
+    pdf) help_pdf ;;
   esac
 }
 
@@ -85,6 +99,7 @@ fps="${SHRINK_FPS:-$DEFAULT_FPS}" fps_from="$(from SHRINK_FPS)"
 audio_bitrate="${SHRINK_AUDIO_BITRATE:-$DEFAULT_AUDIO_BITRATE}" audio_bitrate_from="$(from SHRINK_AUDIO_BITRATE)"
 max_edge="${SHRINK_MAX_EDGE:-$DEFAULT_MAX_EDGE}" max_edge_from="$(from SHRINK_MAX_EDGE)"
 quality="${SHRINK_QUALITY:-$DEFAULT_QUALITY}" quality_from="$(from SHRINK_QUALITY)"
+pdf="${SHRINK_PDF:-$DEFAULT_PDF}" pdf_from="$(from SHRINK_PDF)"
 output="" force=false dry=false
 files=()
 while (($#)); do
@@ -102,9 +117,9 @@ while (($#)); do
     -o) (($# > 1)) || die_usage "-o needs a path"; output="$2"; shift ;;
     -f) force=true ;;
     -n) dry=true ;;
-    --crf=* | --max-res=* | --fps=* | --audio-bitrate=* | --max-edge=* | --quality=*)
+    --crf=* | --max-res=* | --fps=* | --audio-bitrate=* | --max-edge=* | --quality=* | --pdf=*)
       set -- "${1%%=*}" "${1#*=}" "${@:2}"; continue ;;
-    --crf | --max-res | --fps | --audio-bitrate | --max-edge | --quality)
+    --crf | --max-res | --fps | --audio-bitrate | --max-edge | --quality | --pdf)
       (($# > 1)) || die_usage "$1 needs a value"
       case "$1" in
         --crf) crf="$2" crf_from="--crf" ;;
@@ -113,6 +128,7 @@ while (($#)); do
         --audio-bitrate) audio_bitrate="$2" audio_bitrate_from="--audio-bitrate" ;;
         --max-edge) max_edge="$2" max_edge_from="--max-edge" ;;
         --quality) quality="$2" quality_from="--quality" ;;
+        --pdf) pdf="$2" pdf_from="--pdf" ;;
       esac
       shift ;;
     --) shift; files+=("$@"); break ;;
@@ -140,6 +156,7 @@ fi
 if ! [[ "$quality" =~ ^[0-9]+$ ]] || ((10#$quality == 0 || 10#$quality > 100)); then
   die_usage "$quality_from must be a whole number from 1 to 100, not '$quality'"
 fi
+[[ " $PDF_LEVELS " == *" $pdf "* ]] || die_usage "$pdf_from must be screen, ebook or printer, not '$pdf'"
 crf=$((10#$crf)) max_res=$((10#$max_res)) fps=$((10#$fps)) max_edge=$((10#$max_edge)) quality=$((10#$quality))
 out_dir=""
 if [[ -n "$output" ]]; then
@@ -174,11 +191,12 @@ ff_path() {
   esac
 }
 
-# A path as magick, pngquant or touch should get it: they read a leading - as
-# an option. magick reads an existing file's name as is, even with a : or [.
+# A path as magick, pngquant or gs should get it: they read a leading - as an
+# option, and magick and gs a leading @ as a file of arguments. magick reads an
+# existing file's name as is, even with a : or [.
 dash_path() {
   case "$1" in
-    -*) printf './%s' "$1" ;;
+    -* | @*) printf './%s' "$1" ;;
     *) printf '%s' "$1" ;;
   esac
 }
@@ -194,10 +212,10 @@ run() {
   fi
 }
 
-# needs <input> <tool>: fails, naming the tool, if it isn't on PATH.
+# needs <input> <tool> [its name]: fails, naming the tool, if it isn't on PATH.
 needs() {
   command -v "$2" >/dev/null && return 0
-  echo "shrink: $1: needs $2, which isn't installed; run install.sh from the dotfiles repo" >&2
+  echo "shrink: $1: needs ${3:-$2}, which isn't installed; run install.sh from the dotfiles repo" >&2
   return 1
 }
 
@@ -310,7 +328,14 @@ shrink_image() {
   run magick "$(dash_path "$1")" ${orient[@]+"${orient[@]}"} "${resize[@]}" -quality "$quality" "$3:$2"
 }
 
-# type_of <name>: video, image, or nothing for an unsupported type.
+# shrink_pdf <input> <part file>. gs reads a % in its -o file as a page
+# number, and %% as a %.
+shrink_pdf() {
+  needs "$1" gs "Ghostscript (gs)" || return 1
+  run gs -q -dSAFER -sDEVICE=pdfwrite "-dPDFSETTINGS=/$pdf" -o "$(dash_path "${2//%/%%}")" "$(dash_path "$1")"
+}
+
+# type_of <name>: video, image, pdf, or nothing for an unsupported type.
 type_of() {
   local ext
   [[ "$1" == *.* ]] || return 0
@@ -319,15 +344,17 @@ type_of() {
     echo video
   elif [[ " $IMAGE_EXTS " == *" $ext "* ]]; then
     echo image
+  elif [[ "$ext" == pdf ]]; then
+    echo pdf
   fi
 }
 
 # ext_format <name>: the format its extension names, when shrink writes that
-# format: jpg, png, webp or mp4.
+# format: jpg, png, webp, mp4 or pdf.
 ext_format() {
   case "$(lower "${1##*.}")" in
     jpg | jpeg) echo jpg ;;
-    png | webp | mp4) lower "${1##*.}" ;;
+    png | webp | mp4 | pdf) lower "${1##*.}" ;;
   esac
 }
 
@@ -339,6 +366,7 @@ format_of() {
   case "$1" in
     video) echo mp4 ;;
     image) format="$(ext_format "$2")"; echo "${format:-jpg}" ;;
+    pdf) echo pdf ;;
   esac
 }
 
@@ -347,6 +375,7 @@ shrink_type() {
   case "$1" in
     video) shrink_video "$2" "$3" ;;
     image) shrink_image "$2" "$3" "$4" ;;
+    pdf) shrink_pdf "$2" "$3" ;;
   esac
 }
 

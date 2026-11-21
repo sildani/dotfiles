@@ -71,6 +71,7 @@ FORMULAE=(
   "ffmpeg:ffmpeg:" # shrink
   "imagemagick:magick:" # shrink
   "pngquant:pngquant:" # shrink
+  "ghostscript:gs:" # shrink
 )
 
 if [[ -t 1 ]]; then
