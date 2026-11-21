@@ -174,6 +174,117 @@ rm "$HOME/.zshrc.local"
 expect_ssh_agent .zprofile "agent line in ~/.zprofile"
 rm "$HOME/.zprofile"
 
+LOOKALIKE='Lookalike of shrink'
+# Folders a case puts on PATH ahead of $TMP/bin, set with on_path.
+LOOK_PATH=""
+on_path() { LOOK_PATH="$(printf '%s:' "$@")"; }
+# look_doctor: doctor.sh with LOOK_PATH, then its exit status on a last line.
+# Only a fake Homebrew and system folders follow LOOK_PATH, so this Mac's own
+# commands stay out. The fake brew gives $TMP/brew as its prefix and passes
+# everything else to the real one.
+real_brew="$(command -v brew || echo /opt/homebrew/bin/brew)"
+mkdir -p "$TMP/brew/bin"
+# shellcheck disable=SC2016  # $1, $# and $@ are the fake's own
+printf '#!/bin/sh\n[ "$1" = --prefix ] && [ $# = 1 ] && { echo %s; exit; }\nexec %s "$@"\n' "$TMP/brew" "$real_brew" >"$TMP/brew/bin/brew"
+chmod +x "$TMP/brew/bin/brew"
+look_doctor() {
+  local rc=0
+  PATH="$LOOK_PATH$TMP/bin:$TMP/brew/bin:/usr/bin:/bin:/usr/sbin:/sbin" "$TMP/repo/doctor.sh" 2>&1 || rc=$?
+  echo "exit $rc"
+}
+# executable <path>...: empty scripts.
+executable() {
+  local f
+  for f in "$@"; do
+    mkdir -p "$(dirname "$f")"
+    printf '#!/bin/sh\n' >"$f"
+    chmod +x "$f"
+  done
+}
+
+# expect_lookalikes <case> <warning line>...: the Lookalike warnings are those
+# lines exactly, and they don't change doctor.sh's exit status or problem count.
+take_baseline() { baseline="$(look_doctor | grep -E 'problem|^exit')"; }
+take_baseline
+expect_lookalikes() {
+  local name="$1" out got want
+  shift
+  out="$(look_doctor)"
+  got="$(grep -F "$LOOKALIKE" <<<"$out" | sed 's/^[^!]*! //' || true)"
+  want="$(printf '%s\n' "$@" | sed '/^$/d')"
+  [[ "$got" == "$want" ]] || failed "$name: Lookalike warnings were:"$'\n'"$got"$'\n'"expected:"$'\n'"$want"
+  [[ "$(grep -E 'problem|^exit' <<<"$out")" == "$baseline" ]] ||
+    failed "$name: changed doctor.sh's result:"$'\n'"$(grep -E 'problem|^exit' <<<"$out")"$'\n'"was:"$'\n'"$baseline"
+}
+
+expect_lookalikes "no Lookalikes"
+
+executable "$TMP/look/bin/vidcompress"
+on_path "$TMP/look/bin"
+expect_lookalikes "vidcompress on PATH" \
+  "$LOOKALIKE: command vidcompress in $TMP/look/bin"
+
+# /usr/bin/compress, on every Mac, stays quiet in all of these.
+executable "$TMP/brew/bin/squashfs" "$TMP/look/bin/MP4Small"
+expect_lookalikes "MP4Small on PATH, squashfs in Homebrew's bin" \
+  "$LOOKALIKE: command MP4Small in $TMP/look/bin" \
+  "$LOOKALIKE: command vidcompress in $TMP/look/bin"
+rm -r "$TMP/look" "$TMP/brew/bin/squashfs"
+
+# The repo's shrink, linked where install.sh links it.
+mkdir -p "$HOME/.local/bin"
+ln -s "$TMP/repo/bin/shrink" "$HOME/.local/bin/shrink"
+take_baseline # the link is one doctor.sh checks
+executable "$TMP/brew/bin/shrink"
+on_path "$HOME/.local/bin"
+expect_lookalikes "the repo's shrink ahead of Homebrew's"
+
+on_path "$TMP/brew/bin" "$HOME/.local/bin"
+expect_lookalikes "Homebrew's shrink ahead of the repo's" \
+  "$LOOKALIKE: another shrink in $TMP/brew/bin runs instead of the repo's"
+rm "$TMP/brew/bin/shrink"
+
+executable "$TMP/look/bin/shrink" "$TMP/look/bin/shrinkpdf"
+on_path "$TMP/look/bin" "$HOME/.local/bin"
+expect_lookalikes "another shrink ahead of the repo's, next to shrinkpdf" \
+  "$LOOKALIKE: another shrink in $TMP/look/bin runs instead of the repo's" \
+  "$LOOKALIKE: command shrinkpdf in $TMP/look/bin"
+rm -r "$TMP/look"
+on_path
+
+# Definitions in the per-machine file and Oh My Zsh's custom folder; comments,
+# calls and other names stay quiet.
+# The repo's ~/.zshrc and an overdue Update reminder, which an interactive zsh
+# would show and restart.
+mkdir -p "$HOME/.oh-my-zsh/custom/plugins/vid" "$(dirname "$UPDATE_STAMP")"
+ln -s "$TMP/repo/zsh/zshrc" "$HOME/.zshrc"
+touch -t 202001010000 "$UPDATE_STAMP"
+stamp_was="$(stat -f %m "$UPDATE_STAMP")"
+take_baseline # Oh My Zsh's folder and ~/.zshrc are ones doctor.sh checks
+cat >"$HOME/.zshrc.local" <<'ZSH'
+# alias minifyjs='terser'
+myshrink() {
+  ffmpeg -i "$1" "small-$1"
+}
+myshrink a.mov
+alias ll='ls -l'
+ZSH
+cat >"$HOME/.oh-my-zsh/custom/aliases.zsh" <<'ZSH'
+  alias squashpdf='gs -sDEVICE=pdfwrite'
+greet() { echo hi; }
+ZSH
+cat >"$HOME/.oh-my-zsh/custom/plugins/vid/vid.plugin.zsh" <<'ZSH'
+function Compress_All {
+  :
+}
+ZSH
+expect_lookalikes "a function and aliases in startup files" \
+  "$LOOKALIKE: function myshrink in ~/.zshrc.local:2" \
+  "$LOOKALIKE: alias squashpdf in ~/.oh-my-zsh/custom/aliases.zsh:1" \
+  "$LOOKALIKE: function Compress_All in ~/.oh-my-zsh/custom/plugins/vid/vid.plugin.zsh:1"
+[[ "$(stat -f %m "$UPDATE_STAMP")" == "$stamp_was" ]] ||
+  failed "doctor.sh restarted the Update reminder's count"
+
 if ((failures)); then
   echo "doctor-warnings: $failures failed" >&2
   exit 1

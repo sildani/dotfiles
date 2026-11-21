@@ -379,6 +379,93 @@ diff_backups() {
   fi
 }
 
+# Lookalikes: commands, functions and aliases whose names suggest they already
+# do what shrink does, so the installer can remove them by hand. Names only;
+# nothing is read from a script or deleted.
+LOOKALIKE_NAMES='compress|shrink|squash|small|minify'
+
+# PATH folders that hold what macOS or Homebrew installed on purpose. On Intel
+# Homebrew's prefix is /usr/local, so /usr/local/bin is skipped there only.
+system_folder() {
+  case "$1" in
+    /usr/bin | /bin | /usr/sbin | /sbin | /System/* | /Library/Apple/*) return 0 ;;
+  esac
+  [[ -n "$BREW_BIN" && "$1" == "$BREW_BIN" ]]
+}
+
+lookalike() {
+  warn "Lookalike of shrink: $1"  # doctor-warnings.sh greps for "Lookalike of shrink"
+  hint "if shrink does its job, remove it by hand"
+}
+
+# A command on PATH: any shrink ahead of the repo's runs instead of it, even
+# one from macOS or Homebrew. Other names count outside those folders.
+path_lookalikes() {
+  local BREW_BIN="" dirs dir file name seen=":" shadow
+  local repo_shrink="$REPO_DIR/bin/shrink" repo_first=false
+  command -v brew >/dev/null && BREW_BIN="$(brew --prefix)/bin"
+  IFS=: read -r -a dirs <<<"$PATH"
+  for dir in ${dirs[@]+"${dirs[@]}"}; do
+    [[ -n "$dir" && "$seen" != *":$dir:"* ]] || continue
+    seen+="$dir:" shadow=""
+    if [[ -f "$dir/shrink" && -x "$dir/shrink" ]] && ! $repo_first; then
+      if [[ "$dir/shrink" -ef "$repo_shrink" ]]; then
+        repo_first=true
+      else
+        shadow="$dir/shrink"
+        lookalike "another shrink in ${dir/#$HOME/~} runs instead of the repo's"
+      fi
+    fi
+    system_folder "$dir" && continue
+    for file in "$dir"/*; do
+      name="${file##*/}"
+      [[ "$name" =~ $LOOKALIKE_NAMES && "$file" != "$shadow" && -f "$file" && -x "$file" ]] || continue
+      [[ "$file" -ef "$repo_shrink" ]] && continue
+      lookalike "command $name in ${dir/#$HOME/~}"
+    done
+  done
+}
+
+# A function or alias in the per-machine file or Oh My Zsh's custom folder,
+# found in the text: an interactive zsh would run the Update reminder, which
+# restarts its count, and is slow.
+definition_lookalikes() {
+  local file line text kind name
+  local alias_re='^[[:space:]]*alias[[:space:]]+(-[[:alpha:]]+[[:space:]]+)*([^[:space:]=]+)='
+  local function_re='^[[:space:]]*function[[:space:]]+([^[:space:]({]+)'
+  local paren_re='^[[:space:]]*([^[:space:]=(){}#]+)[[:space:]]*\(\)'
+  while IFS=: read -r file line text; do
+    if [[ "$text" =~ $alias_re ]]; then
+      kind=alias name="${BASH_REMATCH[2]}"
+    elif [[ "$text" =~ $function_re || "$text" =~ $paren_re ]]; then
+      kind=function name="${BASH_REMATCH[1]}"
+    else
+      continue
+    fi
+    [[ "$name" =~ $LOOKALIKE_NAMES ]] || continue
+    lookalike "$kind $name in ${file/#$HOME/~}:$line"
+  done < <(
+    {
+      [[ -f "$HOME/.zshrc.local" ]] && grep -nIiHE "$LOOKALIKE_NAMES" "$HOME/.zshrc.local"
+      [[ -d "$ZSH_DIR/custom" ]] && grep -rnIiE --exclude-dir=.git "$LOOKALIKE_NAMES" "$ZSH_DIR/custom" | sort -t: -k1,1 -k2,2n
+    } 2>/dev/null
+  )
+}
+
+check_lookalikes() {
+  section "Lookalikes of shrink"
+  local found nocase_was=false
+  shopt -q nocasematch && nocase_was=true
+  shopt -s nocasematch
+  found="$(path_lookalikes; definition_lookalikes)"
+  $nocase_was || shopt -u nocasematch
+  if [[ -n "$found" ]]; then
+    printf '%s\n' "$found"
+  else
+    ok "none"
+  fi
+}
+
 mason_has()   { [[ -d "$MASON_PKGS/$1" ]]; }
 parser_has()  { [[ -e "$TS_PARSERS/$1.so" ]]; }
 lsp_enabled() { grep -Eq "^[[:space:]]*\"$1\"," "$REPO_DIR/nvim/lua/configs/lspconfig.lua"; }
@@ -440,6 +527,7 @@ check_ctrl_space
 check_links
 check_origin
 check_plugins
+check_lookalikes
 check_languages
 
 echo

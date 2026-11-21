@@ -284,7 +284,7 @@ start_update_clock() {
 next_steps() {
   section "Done. Next steps"
   info "restart Ghostty, tmux (tmux kill-server), and open a new shell to pick everything up"
-  info "check this machine anytime:   $REPO_DIR/doctor.sh"
+  info "check this machine anytime:   $REPO_DIR/doctor.sh (it also lists Lookalikes of shrink to remove by hand)"
   info "update this machine:          $REPO_DIR/update.sh"
   info "get changes to the repo:       cd $REPO_DIR && git pull && ./install.sh"
   info "nvim comes set up with NvChad. Press Space c h in nvim for a cheatsheet of the keyboard shortcuts."  # fresh-home.sh greps for "Press Space c h in nvim"
