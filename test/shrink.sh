@@ -83,6 +83,7 @@ cat >"$TMP/bin/pngquant" <<'FAKE'
 #!/bin/sh
 echo "pngquant $*" >>"$CALLS"
 while [ $# -gt 0 ]; do [ "$1" = --output ] && out="$2"; shift; done
+[ "${PNGQUANT_FAILS:-}" = 1 ] && exit 1
 cp "$QUANTIZED" "$out"
 FAKE
 chmod +x "$TMP/bin/ffprobe" "$TMP/bin/ffmpeg" "$TMP/bin/magick" "$TMP/bin/pngquant"
@@ -302,20 +303,20 @@ reset
 input a.mov
 shrink -n --audio-bitrate 96k a.mov
 [[ "$out" == *"-b:a 96k "* ]] || failed "--audio-bitrate 96k didn't reach ffmpeg: $out"
-# setting <variable=value> <flag> <value> <want>: the variable alone gives
-# want; with the flag too, the flag's value wins.
+# setting <input> <variable=value> <flag> <value> <want>: the variable alone
+# gives want; with the flag too, the flag's value wins.
 setting() {
-  out="$(cd "$TMP/work" && "${clean[@]}" "$1" /bin/bash "$REPO_DIR/bin/shrink" -n a.mov 2>&1)"
+  out="$(cd "$TMP/work" && "${clean[@]}" "$2" /bin/bash "$REPO_DIR/bin/shrink" -n "$1" 2>&1)"
   out="${out//\\/}"
-  [[ "$out" == *"$4"* ]] || failed "$1 didn't give $4: $out"
-  out="$(cd "$TMP/work" && "${clean[@]}" "$1" /bin/bash "$REPO_DIR/bin/shrink" -n "$2" "$3" a.mov 2>&1)"
+  [[ "$out" == *"$5"* ]] || failed "$2 didn't give $5: $out"
+  out="$(cd "$TMP/work" && "${clean[@]}" "$2" /bin/bash "$REPO_DIR/bin/shrink" -n "$3" "$4" "$1" 2>&1)"
   out="${out//\\/}"
-  [[ "$out" != *"$4"* ]] || failed "$2 $3 didn't beat $1: $out"
+  [[ "$out" != *"$5"* ]] || failed "$3 $4 didn't beat $2: $out"
 }
 PROBE="3840,2160,60/1"
-setting SHRINK_MAX_RES=720 --max-res 480 "-2,720)"
-setting SHRINK_FPS=24 --fps 25 "fps=24"
-setting SHRINK_AUDIO_BITRATE=96k --audio-bitrate 64k "-b:a 96k "
+setting a.mov SHRINK_MAX_RES=720 --max-res 480 "-2,720)"
+setting a.mov SHRINK_FPS=24 --fps 25 "fps=24"
+setting a.mov SHRINK_AUDIO_BITRATE=96k --audio-bitrate 64k "-b:a 96k "
 for bad in "--max-res 0" "--max-res big" "--fps 0" "--fps x" "--audio-bitrate loud" "--audio-bitrate 96"; do
   # shellcheck disable=SC2086  # flag and value
   shrink -n $bad a.mov
@@ -385,6 +386,17 @@ done
 input photo.JPG
 shrink photo.JPG
 [[ -f "$TMP/work/photo.shrunk.JPG" ]] || failed "photo.JPG didn't become photo.shrunk.JPG: $out"
+reset
+input b.png
+rc=0
+out="$(cd "$TMP/work" && "${clean[@]}" QUANTIZED="$WITH_EXIF" /bin/bash "$REPO_DIR/bin/shrink" b.png 2>&1)" || rc=$?
+[[ "$rc" == 0 && "$(LC_ALL=C grep -ao eXIf "$TMP/work/b.shrunk.png" | wc -l | tr -d ' ')" == 1 ]] ||
+  failed "a pngquant that keeps the EXIF chunk got a second one: rc $rc: $out"
+reset
+input b.png
+rc=0
+out="$(cd "$TMP/work" && "${clean[@]}" PNGQUANT_FAILS=1 /bin/bash "$REPO_DIR/bin/shrink" b.png 2>&1)" || rc=$?
+[[ "$rc" != 0 && "$(ls -A "$TMP/work")" == b.png ]] || failed "a failing pngquant left files: rc $rc: $(ls -A "$TMP/work")"
 
 echo "images: -o follows the output format"
 reset
@@ -405,15 +417,8 @@ shrink -n --quality 60 --max-edge 1000 a.jpg b.png
 [[ "$out" == *"-resize 1000x1000\\> -quality 60 jpg:"* ]] || failed "--quality 60 --max-edge 1000 didn't reach magick: $out"
 [[ "$out" == *"--quality=0-60 "* && "$out" == *"-resize 1000x1000\\> png:"* ]] ||
   failed "--quality 60 --max-edge 1000 didn't reach the PNG commands: $out"
-# image_setting <variable=value> <flag> <value> <want>, as setting does for video.
-image_setting() {
-  out="$(cd "$TMP/work" && "${clean[@]}" "$1" /bin/bash "$REPO_DIR/bin/shrink" -n a.jpg 2>&1)"
-  [[ "$out" == *"$4"* ]] || failed "$1 didn't give $4: $out"
-  out="$(cd "$TMP/work" && "${clean[@]}" "$1" /bin/bash "$REPO_DIR/bin/shrink" -n "$2" "$3" a.jpg 2>&1)"
-  [[ "$out" != *"$4"* ]] || failed "$2 $3 didn't beat $1: $out"
-}
-image_setting SHRINK_QUALITY=70 --quality 75 "-quality 70 "
-image_setting SHRINK_MAX_EDGE=1200 --max-edge 900 "1200x1200"
+setting a.jpg SHRINK_QUALITY=70 --quality 75 "-quality 70 "
+setting a.jpg SHRINK_MAX_EDGE=1200 --max-edge 900 "1200x1200"
 for bad in "--quality 0" "--quality 101" "--quality x" "--max-edge 0" "--max-edge big"; do
   # shellcheck disable=SC2086  # flag and value
   shrink -n $bad a.jpg

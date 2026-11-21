@@ -155,7 +155,9 @@ Images (`jpg jpeg png heic heif webp tif tiff`) keep their format, except HEIC,
 HEIF and TIFF, which become `.jpg`. ImageMagick resizes them so the long edge is
 at most 2560 (never enlarging) at quality 80, and PNGs go through `pngquant`;
 `--max-edge` and `--quality` change those. Metadata stays, the EXIF
-orientation tag included, and pixels aren't rotated.
+orientation tag included, and pixels aren't rotated, with two exceptions: a
+HEIC comes out upright with orientation 1, and a TIFF is turned upright and
+loses its EXIF.
 
 `-f` replaces an existing output, and a result that
 isn't smaller is deleted. `shrink -h` lists the options and `shrink --help

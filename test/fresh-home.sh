@@ -22,7 +22,7 @@
 # the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local can change), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, finds shrink, which makes a real Shrunk copy of a generated video
-# with both caps applied and of a generated JPEG and PNG, tmux loads its config and every extra without errors, and every
+# with both caps applied and of a generated JPEG, PNG and HEIC, EXIF kept, tmux loads its config and every extra without errors, and every
 # extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
@@ -461,20 +461,36 @@ shrunk_stream="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec
   die "the Shrunk copy doesn't have the original's modification time"
 rm -rf "$video_dir"
 
-echo "shrink makes a real Shrunk copy of a JPEG and a PNG"
+echo "shrink makes a real Shrunk copy of a JPEG, a PNG and a HEIC, keeping their EXIF"
 image_dir="$HOME/images"
 mkdir "$image_dir"
-# Noise at top quality and in full color, so both copies come out smaller; the
-# JPEG is big enough for the long-edge cap.
-magick -size 3000x2000 plasma: -quality 98 "$image_dir/photo.jpg" >>"$LOG" 2>&1 || die "magick couldn't make a sample JPEG"
-magick -size 600x400 plasma: "$image_dir/chart.png" >>"$LOG" 2>&1 || die "magick couldn't make a sample PNG"
-shrink_out="$(cd "$image_dir" && "$shrink_path" photo.jpg chart.png 2>&1)" || { echo "$shrink_out" >>"$LOG"; die "shrink photo.jpg chart.png failed"; }
+# Noise at top quality, so every copy comes out smaller, and big enough for the
+# long-edge cap. EXIF_APP1 is a JPEG EXIF segment with orientation 6 (turn
+# right) and DateTimeOriginal 2021:05:06 07:08:09: magick can't write one.
+EXIF_APP1='\377\341\000\124\105\170\151\146\000\000\115\115\000\052\000\000\000\010\000\002\001\022\000\003\000\000\000\001\000\006\000\000\207\151\000\004\000\000\000\001\000\000\000\046\000\000\000\000\000\001\220\003\000\002\000\000\000\024\000\000\000\070\000\000\000\000\062\060\062\061\072\060\065\072\060\066\040\060\067\072\060\070\072\060\071\000'
+magick -size 3000x2000 plasma: -quality 98 "$image_dir/plain.jpg" >>"$LOG" 2>&1 || die "magick couldn't make a sample JPEG"
+{ head -c 2 "$image_dir/plain.jpg" && printf '%b' "$EXIF_APP1" && tail -c +3 "$image_dir/plain.jpg"; } >"$image_dir/photo.jpg"
+rm "$image_dir/plain.jpg"
+# magick keeps the EXIF in a PNG's eXIf chunk, which pngquant drops and shrink
+# copies back. sips keeps it in a HEIC and stores the turn as the HEIC's own.
+magick "$image_dir/photo.jpg" -resize 600x400 "$image_dir/chart.png" >>"$LOG" 2>&1 || die "magick couldn't make a sample PNG"
+sips -s format heic "$image_dir/photo.jpg" --out "$image_dir/phone.heic" >>"$LOG" 2>&1 || die "sips couldn't make a sample HEIC"
+shrink_out="$(cd "$image_dir" && "$shrink_path" photo.jpg chart.png phone.heic 2>&1)" ||
+  { echo "$shrink_out" >>"$LOG"; die "shrink photo.jpg chart.png phone.heic failed"; }
 echo "$shrink_out" >>"$LOG"
-[[ "$shrink_out" == *"→ photo.shrunk.jpg"* && "$shrink_out" == *"→ chart.shrunk.png"* ]] ||
-  die "shrink didn't report both image copies: $shrink_out"
-shrunk_images="$(magick identify -format '%m %wx%h %[type]\n' "$image_dir/photo.shrunk.jpg" "$image_dir/chart.shrunk.png")"
-[[ "$shrunk_images" == $'JPEG 2560x1707 TrueColor\nPNG 600x400 Palette' ]] ||
-  die "the image copies should be a 2560x1707 JPEG and a 600x400 palette PNG, got: $shrunk_images"
+for copy in photo.shrunk.jpg chart.shrunk.png phone.shrunk.jpg; do
+  [[ "$shrink_out" == *"→ $copy"* ]] || die "shrink didn't report $copy: $shrink_out"
+done
+shrunk_images="$(cd "$image_dir" && magick identify \
+  -format '%f %m %wx%h %[type] %[EXIF:Orientation] %[EXIF:DateTimeOriginal]\n' \
+  photo.shrunk.jpg chart.shrunk.png phone.shrunk.jpg 2>>"$LOG")"
+# The JPEG and PNG keep orientation 6 with their pixels unturned; the HEIC's
+# turn is applied as it's read, so its copy is upright with orientation 1.
+want_images="photo.shrunk.jpg JPEG 2560x1707 TrueColor 6 2021:05:06 07:08:09
+chart.shrunk.png PNG 600x400 Palette 6 2021:05:06 07:08:09
+phone.shrunk.jpg JPEG 1707x2560 TrueColor 1 2021:05:06 07:08:09"
+[[ "$shrunk_images" == "$want_images" ]] ||
+  die "the image copies should be:"$'\n'"$want_images"$'\n'"got:"$'\n'"$shrunk_images"
 rm -rf "$image_dir"
 
 echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"

@@ -55,8 +55,8 @@ image: ${IMAGE_EXTS// /, } -> the same format, except HEIC, HEIF and TIFF -> .jp
   --quality N         1-100: JPEG and WebP quality, PNG's top    \$SHRINK_QUALITY        default $DEFAULT_QUALITY
                       quality for pngquant
   fixed:      metadata kept, the EXIF orientation tag included, and pixels not
-              rotated; a TIFF's orientation is a tag a JPEG can't carry, so it's
-              turned upright
+              rotated; except a HEIC comes out upright with orientation 1, and a
+              TIFF is turned upright and loses its EXIF (a JPEG can't carry its tags)
   runs:       JPEG, WebP, HEIC, TIFF: magick IN -resize NxN\> -quality Q OUT
               PNG: magick IN -resize NxN\> TMP.png, then
                 pngquant --quality=0-Q --output OUT TMP.png, then copies TMP's
@@ -255,32 +255,44 @@ shrink_video() {
     -movflags +faststart+use_metadata_tags -f mp4 "$(ff_path "$2")"
 }
 
-# copy_exif <from.png> <to.png>: copies from's eXIf chunk (its EXIF, with the
-# orientation tag) into to, after IHDR, since pngquant drops it on a Mac. The
-# chunk goes over as is, CRC and all. Chunks are walked up to the image data,
-# where the EXIF has to come before.
-# shellcheck disable=SC2329  # called through run
-copy_exif() {
+# exif_chunk <png>: prints the offset and data length of its eXIf chunk (its
+# EXIF, with the orientation tag), or nothing. Chunks are walked up to the
+# image data, which the EXIF has to come before.
+# shellcheck disable=SC2329  # called from copy_exif
+exif_chunk() {
   local at=8 size len type
   size="$(stat -f %z "$1")" || return 1
   while ((at + 8 <= size)); do
     read -r len type < <(od -An -tu1 -j "$at" -N8 "$1" |
       awk '{ printf "%d %c%c%c%c\n", (($1 * 256 + $2) * 256 + $3) * 256 + $4, $5, $6, $7, $8 }')
     case "$type" in
-      eXIf)
-        # 33 bytes: the signature and IHDR, always first. dd, since a head
-        # closing a pipe early fails it under pipefail.
-        { head -c 33 "$2" && dd if="$1" bs=1 skip="$at" count=$((len + 12)) 2>/dev/null && tail -c +34 "$2"; } >"$2.exif" &&
-          mv -f "$2.exif" "$2"
-        return ;;
+      eXIf) echo "$at $len"; return ;;
       IDAT | IEND) return 0 ;;
     esac
     at=$((at + len + 12))
   done
 }
 
+# copy_exif <from.png> <to.png>: copies from's eXIf chunk into to, after IHDR,
+# since pngquant drops it on a Mac; a to that kept its own is left alone. The
+# chunk goes over as is, CRC and all.
+# shellcheck disable=SC2329  # called through run
+copy_exif() {
+  local chunk at len
+  chunk="$(exif_chunk "$1")" && [[ -n "$chunk" ]] || return 0
+  [[ -z "$(exif_chunk "$2")" ]] || return 0
+  read -r at len <<<"$chunk"
+  # 33 bytes: the signature and IHDR, always first. dd, since a head closing a
+  # pipe early fails it under pipefail.
+  { head -c 33 "$2" && dd if="$1" bs=1 skip="$at" count=$((len + 12)) 2>/dev/null && tail -c +34 "$2"; } >"$2.exif" &&
+    mv -f "$2.exif" "$2"
+}
+
 # shrink_image <input> <part file> <output format: jpg, png or webp>. magick
-# keeps metadata and doesn't rotate pixels unless asked to.
+# keeps metadata and doesn't rotate pixels unless asked to, with two
+# exceptions: a HEIC's own rotation is applied as it's read, and the EXIF
+# orientation becomes 1 to match; a TIFF's orientation is a tag a JPEG can't
+# carry, so it's turned upright here, and its EXIF is lost.
 shrink_image() {
   local resize=(-resize "${max_edge}x${max_edge}>") orient=()
   needs "$1" magick || return 1
@@ -310,13 +322,23 @@ type_of() {
   fi
 }
 
-# format_of <type> <name>: the format its Shrunk copy comes out in.
+# ext_format <name>: the format its extension names, when shrink writes that
+# format: jpg, png, webp or mp4.
+ext_format() {
+  case "$(lower "${1##*.}")" in
+    jpg | jpeg) echo jpg ;;
+    png | webp | mp4) lower "${1##*.}" ;;
+  esac
+}
+
+# format_of <type> <name>: the format its Shrunk copy comes out in. An image
+# keeps its format if shrink writes it, and becomes a JPEG otherwise (HEIC,
+# HEIF, TIFF).
 format_of() {
-  case "$1:$(lower "${2##*.}")" in
-    video:*) echo mp4 ;;
-    image:jpeg) echo jpg ;;
-    image:heic | image:heif | image:tif | image:tiff) echo jpg ;;
-    image:*) lower "${2##*.}" ;;
+  local format
+  case "$1" in
+    video) echo mp4 ;;
+    image) format="$(ext_format "$2")"; echo "${format:-jpg}" ;;
   esac
 }
 
@@ -362,15 +384,11 @@ shrink_file() {
   # A copy in the input's own format keeps its extension as written: a.JPEG
   # becomes a.shrunk.JPEG.
   out_ext="$format"
-  case "$type:$(lower "${name##*.}")" in
-    image:jpg | image:jpeg | image:png | image:webp) out_ext="${name##*.}" ;;
-  esac
+  [[ "$type" != image || "$(ext_format "$name")" != "$format" ]] || out_ext="${name##*.}"
   if [[ -n "$output" && -z "$out_dir" ]]; then
     out="$output"
-    case "$format:$(lower "${out##*.}")" in
-      mp4:mp4 | jpg:jpg | jpg:jpeg | png:png | webp:webp) ;;
-      *) echo "shrink: $in: -o $output must end in .$format, the format $name comes out in" >&2; return 1 ;;
-    esac
+    [[ "$(ext_format "$out")" == "$format" ]] ||
+      { echo "shrink: $in: -o $output must end in .$format, the format $name comes out in" >&2; return 1; }
   else
     out="${out_dir:-$(dirname "$in")}/${name%.*}.shrunk.$out_ext"
     [[ -n "$out_dir" || "$in" == */* ]] || out="${out#./}"
