@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Fast checks: shellcheck, zsh syntax, secret scan, that the docs list every
 # config link, override file, extra and test script, that CI runs every test
-# script and each has lib/test-guard.sh, that the messages fresh-home.sh greps
-# for are marked, that text avoids the glossary's multi-word _Avoid_ entries,
+# script and each has lib/test-guard.sh, that shrink's man page and completion
+# know every flag its help lists, that the messages fresh-home.sh greps for are
+# marked, that text avoids the glossary's multi-word _Avoid_ entries,
 # and that the language recipes agree across doctor.sh, the nvim config and
 # LANGUAGES.md.
 # Run by CI and the commit hook.
@@ -194,6 +195,23 @@ else
     ((n < tpm_line)) || err "tmux/tmux.conf:$n sets the status bar after TPM's run line, wiping continuum's auto-save: $line"
   done < <(grep -nE '^set(-option)? .*status-(left|right) ' tmux/tmux.conf)
 fi
+
+# Every flag shrink's -h and --help list is in its man page and its zsh
+# completion, which are written separately, and the completion offers the
+# extensions shrink takes. The man page writes - as \-, and a flag counts only
+# as a whole word there (-f isn't found inside \-\-fps). A completion spec
+# starts '<flag>[ or, after an exclusion list, )<flag>[.
+while read -r flag; do
+  man_flag="${flag//-/\\\\-}"
+  grep -Eq -- "(^|[^-])$man_flag([^a-z-]|\$)" man/shrink.1 2>/dev/null ||
+    err "man/shrink.1 doesn't document $flag, which shrink's help lists"
+  grep -qE -- "['\)]$flag\[" zsh/completions/_shrink 2>/dev/null ||
+    err "zsh/completions/_shrink doesn't complete $flag, which shrink's help lists"
+done < <({ /bin/bash bin/shrink -h && /bin/bash bin/shrink --help; } | sed -nE 's/^ *(--?[a-z][a-z-]*)( .*)?$/\1/p' | sort -u)
+shrink_exts="$(sed -nE 's/^(VIDEO|IMAGE|PDF)_EXTS="(.*)"$/\2/p' bin/shrink | tr ' ' '\n' | sort)"
+completion_exts="$(sed -nE 's/^local -a exts=\((.*)\)$/\1/p' zsh/completions/_shrink | tr ' ' '\n' | sort)"
+[[ -n "$shrink_exts" && "$shrink_exts" == "$completion_exts" ]] ||
+  err "zsh/completions/_shrink's exts=() should list shrink's extensions: ${shrink_exts//$'\n'/ }"
 
 # Each [LANG] marker sits in all three nvim config files.
 for marker in JAVA PYTHON GO; do

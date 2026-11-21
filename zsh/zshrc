@@ -29,6 +29,8 @@ HIST_STAMPS="yyyy-mm-dd"
 # update.sh does this, and the reminder below replaces Oh My Zsh's prompt.
 zstyle ':omz:update' mode disabled
 plugins=(git tmux)
+# The repo's completions, such as shrink's, before Oh My Zsh runs compinit.
+fpath=("$DOTFILES/zsh/completions" $fpath)
 
 if [[ -f $ZSH/oh-my-zsh.sh ]]; then
   source $ZSH/oh-my-zsh.sh

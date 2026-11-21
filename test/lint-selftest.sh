@@ -5,8 +5,9 @@
 # drops one piece of a <placeholder> marker from test/fresh-home.sh, adds an
 # unmarked grep there, empties or drops each extras row's cells, drops each
 # test script's CI step and README "Checks" bullet, and adds an unlisted test
-# script, one mutation at a time, and expects lint to fail naming the mutated
-# text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
+# script, drops a flag from shrink's man page or completion and an extension
+# from the completion, one mutation at a time, and expects lint to fail naming
+# the mutated text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
 # adds each multi-word _Avoid_ entry from GLOSSARY.md, and checks that lint as
 # the commit hook runs it passes an untracked test script it isn't committing.
 # Passes when every mutation is caught. Run by CI after test/lint.sh.
@@ -185,6 +186,16 @@ while IFS= read -r phrase; do
   expect_caught "_Avoid_ entry: $phrase" "$phrase"
   cp "$SNAP/README.md" "$COPY/README.md"
 done < <(avoid_phrases "$SNAP/GLOSSARY.md")
+
+# A flag shrink's help lists, dropped from its man page or its completion:
+# --fps, and -f, which lint mustn't find inside \-\-fps. Then an extension
+# dropped from the completion.
+for flag in --fps -f; do
+  man_flag="$(sed_literal "${flag//-/\\-}")"
+  mutate man/shrink.1 "/(^|[^-])$man_flag([^a-z-]|\$)/d" "man page without $flag" "doesn't document $flag,"
+  mutate zsh/completions/_shrink "/[')]$(sed_literal "$flag")\[/d" "completion without $flag" "doesn't complete $flag,"
+done
+mutate zsh/completions/_shrink 's/ heic / /' "completion without heic" "should list shrink's extensions"
 
 # A test script in neither list.
 runs=$((runs + 1))

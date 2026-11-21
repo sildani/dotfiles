@@ -62,6 +62,7 @@ cd "$DOTFILES" && git pull && ./install.sh
   | `ghostty/config`  | `~/.config/ghostty/config`  |
   | `ghostty/extras/` | `~/.config/ghostty/extras`  |
   | `bin/shrink`      | `~/.local/bin/shrink`       |
+  | `man/shrink.1`    | `~/.local/share/man/man1/shrink.1` |
 
   It also moves away Ghostty's `~/Library/Application Support/com.mitchellh.ghostty/config*`,
   which would otherwise override the repo's file. A machine's own `~/.zshrc` is
@@ -165,8 +166,10 @@ screen` or `--pdf printer` picks another level. A damaged PDF fails rather than 
 and a PDF that's mostly text often comes out no smaller, so nothing is written.
 
 `-f` replaces an existing output, and a result that
-isn't smaller is deleted. `shrink -h` lists the options and `shrink --help
-TYPE` every setting for `video`, `image` or `pdf`. A flag beats a `SHRINK_*` variable, which beats the
+isn't smaller is deleted. `shrink -h` lists the options, `shrink --help
+TYPE` every setting for `video`, `image` or `pdf`, and `man shrink` the full
+reference. Tab completes its flags, the types after `--help`, the levels after
+`--pdf`, and only the files it takes. A flag beats a `SHRINK_*` variable, which beats the
 default, so a Mac can set its own defaults in `~/.zshrc.local`, such as
 `export SHRINK_CRF=28`.
 
@@ -216,8 +219,9 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   documented, that CI runs every `test/*.sh` and this list names it (from the
   commit hook: every tracked one, so an untracked script doesn't block an
   unrelated commit), that text avoids the multi-word _Avoid_ entries in
-  `GLOSSARY.md`, and that the language recipes agree across `doctor.sh`, the
-  nvim config and `LANGUAGES.md`. A new test script needs a `run:` step in
+  `GLOSSARY.md`, that `shrink`'s man page and completion know every flag its
+  help lists (and the completion every extension), and that the language
+  recipes agree across `doctor.sh`, the nvim config and `LANGUAGES.md`. A new test script needs a `run:` step in
   `.github/workflows/check.yml` and a bullet here, and must source
   `lib/test-guard.sh`, which names the line that stopped it; sourced helpers go
   in `lib/`. Runs before each commit through the hook `install.sh` turns on,
@@ -229,7 +233,9 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   fresh-home.sh markers, malforms one, drops one marker's text from
   fresh-home.sh, adds an unmarked grep, breaks the extras rows, drops each test
   script's CI step and bullet here, adds an unlisted test script, blanks the
-  glossary's _Avoid_ lines and adds each multi-word entry, one at a time, and
+  glossary's _Avoid_ lines and adds each multi-word entry, drops a flag from
+  `shrink`'s man page and completion and an extension from the completion, one
+  at a time, and
   checks that `test/lint.sh` fails on each. It also runs `lib/test-guard.sh` on a test that
   stops, and checks that lint as the commit hook runs it passes an untracked
   test script. Takes minutes.
@@ -243,7 +249,8 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   `pngquant` and `gs`, and
   checks the commands it builds, its outputs and its errors.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then
-  doctor, then a real `shrink` of a small generated video, JPEG, PNG, HEIC and PDF.
+  doctor, then `man -w shrink` and shrink's completion in a new shell, and a
+  real `shrink` of a small generated video, JPEG, PNG, HEIC and PDF.
 
 After pushing to a PR, `./ci-wait.sh <full-sha>` waits for that commit's CI run
 and prints one line with its result. After merging a PR, `./prune-merged.sh`
