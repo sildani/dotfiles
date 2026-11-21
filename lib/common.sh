@@ -69,6 +69,8 @@ FORMULAE=(
   "tmux:tmux:$MIN_TMUX"
   "neovim:nvim:$MIN_NVIM"
   "ffmpeg:ffmpeg:" # shrink
+  "imagemagick:magick:" # shrink
+  "pngquant:pngquant:" # shrink
 )
 
 if [[ -t 1 ]]; then
