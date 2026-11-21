@@ -22,7 +22,8 @@
 # the repo and EDITOR and VISUAL as nvim (which ~/.zshrc.local can change), keeps
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, finds shrink, which makes a real Shrunk copy of a generated video
-# with both caps applied and of a generated JPEG, PNG and HEIC, EXIF kept, tmux loads its config and every extra without errors, and every
+# with both caps applied, of a generated JPEG, PNG and HEIC, EXIF kept, and of
+# a generated PDF, tmux loads its config and every extra without errors, and every
 # extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
@@ -492,6 +493,22 @@ phone.shrunk.jpg JPEG 1707x2560 TrueColor 1 2021:05:06 07:08:09"
 [[ "$shrunk_images" == "$want_images" ]] ||
   die "the image copies should be:"$'\n'"$want_images"$'\n'"got:"$'\n'"$shrunk_images"
 rm -rf "$image_dir"
+
+echo "shrink makes a real Shrunk copy of a PDF"
+pdf_dir="$HOME/pdfs"
+mkdir "$pdf_dir"
+# A page holding a 300 dpi photo, so /ebook's 150 dpi makes it smaller: a PDF
+# of text alone often isn't.
+magick -size 1200x1600 plasma: -quality 95 -density 300 -units PixelsPerInch "$pdf_dir/page.jpg" >>"$LOG" 2>&1 ||
+  die "magick couldn't make a sample photo"
+magick "$pdf_dir/page.jpg" "$pdf_dir/report.pdf" >>"$LOG" 2>&1 || die "magick couldn't make a sample PDF"
+shrink_out="$(cd "$pdf_dir" && "$shrink_path" report.pdf 2>&1)" || { echo "$shrink_out" >>"$LOG"; die "shrink report.pdf failed"; }
+echo "$shrink_out" >>"$LOG"
+[[ "$shrink_out" == *"→ report.shrunk.pdf" ]] || die "shrink didn't report report.shrunk.pdf: $shrink_out"
+[[ "$(head -c 5 "$pdf_dir/report.shrunk.pdf")" == %PDF- ]] || die "report.shrunk.pdf isn't a PDF"
+gs -q -dSAFER -dPDFSTOPONERROR -sDEVICE=nullpage -o /dev/null "$pdf_dir/report.shrunk.pdf" >>"$LOG" 2>&1 ||
+  die "Ghostscript can't read report.shrunk.pdf without errors"
+rm -rf "$pdf_dir"
 
 echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"
 # shellcheck disable=SC2016  # literal lines for ~/.zshrc.local
