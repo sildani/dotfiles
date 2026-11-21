@@ -95,6 +95,15 @@ shrink big.mov -f
 [[ "$(ffmpeg_call)" == *"-vf scale='if(gt(iw,ih),-2,1080)':'if(gt(iw,ih),1080,-2)',fps=30 "* ]] ||
   failed "a 4K 60 fps clip didn't get both caps: $(ffmpeg_call)"
 
+echo "pixel format: 8-bit 4:2:0, so Apple's players open it, at even sizes"
+reset
+video odd.mov
+PROBE="1281,721,30/1"
+shrink odd.mov
+[[ "$(ffmpeg_call)" == *"-pix_fmt yuv420p "* ]] || failed "ffmpeg wasn't given -pix_fmt yuv420p: $(ffmpeg_call)"
+[[ "$(ffmpeg_call)" == *"-vf scale='trunc(iw/2)*2':'trunc(ih/2)*2' "* ]] ||
+  failed "an odd-sized clip wasn't scaled to even sizes: $(ffmpeg_call)"
+
 echo "the shrunk copy keeps the original's modification time, and no .part file is left"
 reset
 video clip.mov
@@ -143,6 +152,17 @@ shrink -o two.mp4 a.mov b.mov
 video a.mp4
 shrink -o a.mp4 a.mp4 -f
 [[ "$rc" != 0 && "$(stat -f %z "$TMP/work/a.mp4")" == 1000000 ]] || failed "-o onto the input wasn't refused: $out"
+
+shrink -o newdir/ a.mov
+[[ "$rc" != 0 && "$out" == *"no such folder"* ]] || failed "-o newdir/ didn't say there's no such folder: $out"
+
+echo "two inputs with one output: the second is refused, even with -f"
+reset
+video a.mov
+video a.mp4
+shrink -f a.mov a.mp4
+[[ "$rc" != 0 && "$out" == *"a.mov 1.0 MB → "* && "$out" == *"a.mp4: a.shrunk.mp4 was just made from another file"* ]] ||
+  failed "a.mp4 replaced a.mov's copy in the same run: $out"
 
 echo "-f: an existing output is refused without it and replaced with it"
 reset
