@@ -109,6 +109,13 @@ here, missing plugins/parsers, and which languages are set up, with a fix-it hin
 on every problem. It also warns if macOS would take Ctrl-Space, the tmux prefix,
 to switch input sources, and if the clone is behind `origin`.
 
+It also warns about each Lookalike of `shrink`: a command on `PATH`, or a
+function or alias in `~/.zshrc.local` or `~/.oh-my-zsh/custom/`, whose name has
+`compress`, `shrink`, `squash`, `small` or `minify` in it, in any case, and any
+other `shrink` that runs instead of the repo's. It goes by name only, and
+leaves commands from macOS's folders and Homebrew's `bin` alone. Nothing is
+removed: if `shrink` does the job, remove the Lookalike by hand.
+
 Before installing on a machine that already has its own config, see what
 `install.sh` would replace:
 
@@ -208,7 +215,7 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   stops, and checks that lint as the commit hook runs it passes an untracked
   test script. Takes minutes.
 - `test/doctor-warnings.sh`: runs `doctor.sh` in an empty temporary HOME with a
-  fake `defaults`, and checks when it warns.
+  fake `defaults` and Homebrew prefix, and checks when it warns.
 - `test/updates.sh`: runs `update.sh` against a fake Homebrew and nvim and local
   repos, and checks brew upgrades below a minimum and the update reminder.
 - `test/ci-wait.sh`: runs `ci-wait.sh` against a fake `gh`: a short SHA
