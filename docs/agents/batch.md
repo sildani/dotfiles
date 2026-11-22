@@ -5,7 +5,7 @@ Several issues implemented in one session, one branch and PR each, after a separ
 The user runs `/mattpocock-skills:implement <n> <n> …` once. Apply it per issue: finish the whole loop for one issue before starting the next.
 
 1. Branch off the updated `main`.
-2. `tdd` at the seam the handoff pre-agreed: red, then green. Stop and ask only when a seam doesn't work.
+2. `tdd` at the seam the handoff pre-agreed (with no handoff, one you pick and name in the report): red, then green. Stop and ask only when a seam doesn't work.
 3. Commit and `code-review` as AGENTS.md "Writing code" says.
 4. Push and open a PR whose body follows `mattpocock-skills:pr` and ends `Closes #N`. A batch doesn't stop for the user's `/pr` the way a single change does.
 5. Watch CI, then merge and prune or stop, as AGENTS.md "Writing code" step 5 says.
