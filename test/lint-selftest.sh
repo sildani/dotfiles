@@ -10,8 +10,8 @@
 # adds an unlisted test script, drops a flag from shrink's man page or
 # completion, and drops an extension, a type and a PDF level from the
 # completion. It makes one mutation at a time and expects lint to fail naming
-# the mutated text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
-# adds each multi-word _Avoid_ entry from GLOSSARY.md, checks that lint passes a
+# the mutated text. Also drops each test script's lib/test-guard.sh, runs the guard itself
+# (also as CI on a bash other than /bin/bash), adds each multi-word _Avoid_ entry from GLOSSARY.md, checks that lint passes a
 # CI step ending in a comment, and checks that lint as
 # the commit hook runs it passes an untracked test script it isn't committing.
 # Passes when every mutation is caught and every other check passes. Run by CI
@@ -264,6 +264,25 @@ GUARD
 }
 queue check check_guard top "guard-check.sh: died at line 10: false"
 queue check check_guard function "guard-check.sh: died in stops, called from line 11: false"
+
+# The guard in CI, on a bash other than stock /bin/bash: it stops the test
+# before it runs, so CI can't pass on a newer bash than a new Mac has.
+check_guard_ci() {
+  local out rc=0 want="guard-ci.sh: runs on /opt/homebrew/bin/bash, not stock /bin/bash; CI puts /bin first on PATH"
+  cat >"$COPY/guard-ci.sh" <<GUARD
+set -euo pipefail
+BASH=/opt/homebrew/bin/bash
+source "$SNAP/lib/test-guard.sh"
+echo ran
+GUARD
+  out="$(CI=true /bin/bash "$COPY/guard-ci.sh" 2>&1)" || rc=$?
+  rm "${COPY:?}/guard-ci.sh"
+  if ((rc == 0)) || [[ "$out" != "$want" ]]; then
+    echo "FAIL: the guard in CI on another bash printed '$out' (exit $rc), not '$want'"
+    return 1
+  fi
+}
+queue check check_guard_ci
 
 # Each multi-word _Avoid_ entry, split over a commented line break, as wrapped
 # text splits one. No entries would leave the check empty.
