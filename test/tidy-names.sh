@@ -78,13 +78,11 @@ for flag in "" -n; do
   [[ "$out" == $'C D.txt -> c-d.txt\na b.txt -> a-b.txt' ]] || failed "two files tidying to one name ($flag) printed: $out"
   [[ "$errout" == *"a_b.txt"* ]] || failed "the skipped a_b.txt isn't named on stderr ($flag): $errout"
   [[ $rc != 0 ]] || failed "exit 0 after two files tidying to one name ($flag)"
+  if [[ -z "$flag" ]]; then
+    [[ "$(listing)" == $'a-b.txt\na_b.txt\nc-d.txt' && "$(cat "$W/a-b.txt")" == first ]] ||
+      failed "two files tidying to one name left:"$'\n'"$(listing)"
+  fi
 done
-fresh
-echo first >"$W/a b.txt"
-echo second >"$W/a_b.txt"
-run
-[[ "$(listing)" == $'a-b.txt\na_b.txt' && "$(cat "$W/a-b.txt")" == first ]] ||
-  failed "two files tidying to one name left:"$'\n'"$(listing)"
 
 echo "names that tidy to nothing are skipped and reported"
 fresh
@@ -118,12 +116,14 @@ echo "a file argument is tidied; a hidden file, a symlink or a missing path is n
 fresh
 touch "$W/One File.txt" "$W/Two File.txt" "$W/.Hidden File" "$W/.hidden" "$W/target.txt"
 ln -s target.txt "$W/Link Name"
+mkdir "$W/real"
+ln -s real "$W/dir-link"
 run "One File.txt"
 [[ "$out" == "One File.txt -> one-file.txt" && -e "$W/Two File.txt" && $rc == 0 ]] ||
   failed "file argument: out=[$out] rc=$rc listing=$(listing)"
-for arg in ".Hidden File" .hidden "Link Name" "No Such File"; do
+for arg in ".Hidden File" .hidden "Link Name" dir-link/ "No Such File"; do
   run "$arg" "Two File.txt"
-  [[ -e "$W/$arg" || "$arg" == "No Such File" ]] || failed "$arg was renamed"
+  [[ -e "$W/$arg" || -L "$W/$arg" || "$arg" == "No Such File" ]] || failed "$arg was renamed"
   [[ "$errout" == *"$arg"* ]] || failed "$arg isn't named on stderr: $errout"
   [[ $rc != 0 ]] || failed "exit 0 after $arg"
   [[ -e "$W/two-file.txt" ]] || failed "Two File.txt wasn't tidied alongside $arg"
@@ -133,7 +133,7 @@ done
 echo "-h prints the usage"
 fresh
 run -h
-[[ "$out" == "usage: tidy-names [-n] [PATH...]"* && $rc == 0 ]] || failed "-h: out=[$out] rc=$rc"
+[[ "$out" == "usage: tidy-names [-n] [-h] [PATH...]"* && $rc == 0 ]] || failed "-h: out=[$out] rc=$rc"
 run -x
 [[ "$errout" == *"usage: tidy-names"* && $rc == 2 ]] || failed "-x: err=[$errout] rc=$rc"
 

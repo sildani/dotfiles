@@ -53,7 +53,7 @@ shown() { echo "${1#./}"; }
 
 usage() {
   cat <<USAGE
-usage: tidy-names [-n] [PATH...]
+usage: tidy-names [-n] [-h] [PATH...]
 Renames files to their Tidy name: lower case, dashes for spaces and
 underscores, accents removed, and only letters, digits, dots and dashes left.
   My Report (Final) v2.PDF -> my-report-final-v2.pdf
@@ -80,7 +80,8 @@ shift $((OPTIND - 1))
 (($#)) || set -- .
 
 for arg in "$@"; do
-  if [[ -L "$arg" ]]; then
+  # A symlink named with a trailing slash (dl/) reads as its target.
+  if [[ -L "$arg" || -L "${arg%/}" ]]; then
     skip "$arg: a symlink"
   elif [[ -d "$arg" ]]; then
     for entry in "${arg%/}"/*; do
