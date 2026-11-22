@@ -23,6 +23,8 @@ jobs:
           fetch-depth: 0 # gitleaks scans the full history
       - run: brew install shellcheck gitleaks
       - run: test/lint.sh
+      # Nothing else runs on the runner, so the selftest takes all its cores.
+      - run: echo "LINT_SELFTEST_JOBS=$(sysctl -n hw.ncpu)" >>"$GITHUB_ENV"
       - run: test/lint-selftest.sh
       - run: test/doctor-warnings.sh
       - run: test/updates.sh
