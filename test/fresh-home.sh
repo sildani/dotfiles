@@ -12,8 +12,8 @@
 # real run backed up the seeded files, copied only the old ~/.zshrc's own lines
 # to ~/.zshrc.local (warning about its plugins the shared zshrc lacks), linked
 # ~/.zshrc.example to Oh My Zsh's template and ~/.tmux/resurrect to resurrect's
-# saves, wrote this machine's nvim lockfile outside the repo (nvim then loads
-# render-markdown and maps Space m r for markdown buffers only) and started the
+# saves, wrote this machine's nvim lockfile outside the repo (test/nvim.sh then
+# passes without skipping) and started the
 # update reminder's clock, the second changed nothing (not even a real
 # ~/.tmux/resurrect or that clock), doctor exits 0, fails naming a missing nvim
 # plugin and warns about a stray tmux server only while one runs and about
@@ -295,21 +295,12 @@ for name in lazy.nvim NvChad base46 render-markdown.nvim; do
   grep -q "^  \"$name\": " "$nvim_lock" || die "the nvim lockfile has no $name"
 done
 
-echo "nvim renders markdown, with Space m r in markdown buffers only"
-printf '# Notes\n\n| a | b |\n| - | - |\n| 1 | 2 |\n' >"$HOME/notes.md"
-echo 'return {}' >"$HOME/notes.lua"
-md_check="$HOME/md-check.out"
-nvim --headless "$HOME/notes.md" \
-  "+lua local function buffer_mapped() return vim.fn.maparg('<leader>mr', 'n', false, true).buffer == 1 end
-    local function any_mapping() return vim.fn.maparg('<leader>mr', 'n') ~= '' end
-    local out = { 'loaded=' .. tostring(package.loaded['render-markdown'] ~= nil), 'md_map=' .. tostring(buffer_mapped()) }
-    vim.cmd.edit(vim.fn.expand '~/notes.lua')
-    out[#out + 1] = 'lua_map=' .. tostring(any_mapping())
-    vim.fn.writefile(out, '$md_check')" +qa >>"$LOG" 2>&1 || die "nvim exited non-zero opening a markdown file"
-# A Lua error still exits 0, but then the file isn't written and this fails.
-md_result="$(tr '\n' ' ' <"$md_check" 2>/dev/null || true)"
-[[ "$md_result" == 'loaded=true md_map=true lua_map=false ' ]] ||
-  die "nvim should load render-markdown and map Space m r for markdown buffers only, got: $md_result"
+echo "test/nvim.sh against the installed config (it may not skip here)"
+nvim_rc=0
+nvim_out="$("$REPO_DIR/test/nvim.sh" 2>&1)" || nvim_rc=$?
+echo "$nvim_out" >>"$LOG"
+((nvim_rc == 0)) || die "test/nvim.sh failed: $nvim_out"
+[[ "$nvim_out" != *"test/nvim.sh: skipped"* ]] || die "test/nvim.sh skipped after the install: $nvim_out"
 [[ -f "$HOME/.local/state/dotfiles/last-update" ]] || die "first run didn't start the update reminder's clock"
 touch -t 202001010000 "$HOME/.local/state/dotfiles/last-update"
 resurrect_saves="$HOME/.local/share/tmux/resurrect"

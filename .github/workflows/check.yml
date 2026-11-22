@@ -29,6 +29,8 @@ jobs:
       - run: test/ci-wait.sh
       - run: test/shrink.sh
       - run: test/tidy-names.sh
+      # Skips: there is no installed nvim config in this job.
+      - run: test/nvim.sh
 
   fresh-home:
     runs-on: macos-latest
