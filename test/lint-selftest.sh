@@ -39,9 +39,9 @@ lint() { (cd "$COPY" && LINT_SKIP_SECRETS=1 test/lint.sh 2>&1); }
 
 lint >/dev/null || { lint >&2 || true; echo "FAIL: lint fails on the unmutated copy" >&2; exit 1; }
 
-# Mutations lint must catch, and the other checks (the guard's own behaviour,
-# lint passing where it should), counted apart so the summary names each.
-runs=0 survived=0 checks=0 failed=0
+# The checks that aren't mutations: the guard's own behaviour, and lint passing
+# where it should.
+mutations=0 survived=0 checks=0 failed=0
 # expect_caught <description> <needle>...: expects lint to fail on the copy
 # as it is now, naming one of the needles.
 expect_caught() {
@@ -66,7 +66,7 @@ expect_caught() {
 mutate() {
   local file="$1" program="$2" desc="$3"
   shift 3
-  runs=$((runs + 1))
+  mutations=$((mutations + 1))
   sed -i '' -E "$program" "$COPY/$file"
   if cmp -s "$SNAP/$file" "$COPY/$file"; then
     echo "FAIL: mutation didn't change $file: $desc" >&2
@@ -114,8 +114,8 @@ if [[ -n "$piece" ]]; then
   mutate test/fresh-home.sh "s/$(sed_literal "$piece")/ lint-selftest piece /g" \
     "one piece of a <placeholder> marker gone from test/fresh-home.sh" "no longer greps for \"$piece\""
 else
-  runs=$((runs + 1)) survived=$((survived + 1))
   echo "FAIL: no <placeholder> marker in ${MARKER_FILES[*]} to drop a piece of from test/fresh-home.sh" >&2
+  exit 1
 fi
 
 mutate test/fresh-home.sh "\$a\\
@@ -184,7 +184,7 @@ rm "$COPY/guard-check.sh"
 mutate GLOSSARY.md 's/^_Avoid_: .*//' "no _Avoid_ entries" "no multi-word _Avoid_ entries"
 line_break=$'\n# '
 while IFS= read -r phrase; do
-  runs=$((runs + 1))
+  mutations=$((mutations + 1))
   printf '%s\n' "${phrase/ /$line_break}" >>"$COPY/README.md"
   expect_caught "_Avoid_ entry: $phrase" "$phrase"
   cp "$SNAP/README.md" "$COPY/README.md"
@@ -203,7 +203,7 @@ mutate zsh/completions/_shrink 's/ image pdf\)$/ image)/' "completion without th
 mutate zsh/completions/_shrink 's/ ebook / /' "completion without the ebook level" "should list shrink's PDF levels"
 
 # A test script in neither list.
-runs=$((runs + 1))
+mutations=$((mutations + 1))
 printf '#!/usr/bin/env bash\ntrue\n' >"$COPY/test/lint-selftest-new.sh"
 chmod +x "$COPY/test/lint-selftest-new.sh"
 expect_caught "unlisted test/lint-selftest-new.sh" test/lint-selftest-new.sh
@@ -221,9 +221,9 @@ fi
 rm "$COPY/test/lint-selftest-new.sh"
 
 if ((survived || failed)); then
-  echo "lint-selftest: $survived of $runs mutation(s) not caught, $failed of $checks check(s) failed" >&2
+  echo "lint-selftest: $survived of $mutations mutation(s) not caught, $failed of $checks check(s) failed" >&2
   exit 1
 fi
-echo "lint-selftest: ok ($runs mutations caught, $checks checks passed)"
+echo "lint-selftest: ok ($mutations mutations caught, $checks checks passed)"
 exit
 }
