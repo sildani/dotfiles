@@ -1,6 +1,6 @@
 # Batch sessions
 
-Several issues implemented in one session, one branch and PR each, after a separate triage session. The triage session leaves its decisions (labels, spec amendments, order, seams, merge policy) in `.scratch/handoffs/handoff.md`, and the issue comments amend the specs: read both.
+Several issues implemented in one session, one branch and PR each, after a separate triage session. The triage session leaves its decisions (labels, spec amendments, order, seams, merge policy) in `.scratch/handoffs/handoff.md`, and the issue comments amend the specs: read both. With no handoff, the issues and their agent briefs are the contract, and the implement session starts `.scratch/handoffs/handoff.md` for its progress and friction notes.
 
 The user runs `/mattpocock-skills:implement <n> <n> …` once. Apply it per issue: finish the whole loop for one issue before starting the next.
 
