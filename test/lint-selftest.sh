@@ -4,9 +4,9 @@
 # `# fresh-home.sh greps for "<text>"` marker, rewords one, rewords a message
 # under its marker, malforms one twice, drops one piece of a <placeholder>
 # marker from test/fresh-home.sh, adds an unmarked grep and a negated [[ ]]
-# test of script output there, adds a marker
-# outside MARKER_FILES, empties or drops each extras row's cells, drops each
-# test script's CI step and README "Checks" bullet, glues a # to a CI step,
+# test of script output there, adds a marker outside MARKER_FILES, empties or
+# drops each extras row's cells, drops each test script's CI step and README
+# "Checks" bullet, glues a # to a CI step,
 # adds an unlisted test script, drops a flag from shrink's man page or
 # completion, and drops an extension, a type and a PDF level from the
 # completion. It makes one mutation at a time and expects lint to fail naming

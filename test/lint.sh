@@ -185,12 +185,12 @@ grep_texts() {
   }'
   { grep -oE '"[^"]*"' <<<"$1" || true; } | sed -E 's/^"//; s/"$//; s/\$\{[^}]*\}|\$[A-Za-z_][A-Za-z_0-9]*/\n/g'
 }
-# The script outputs fresh-home.sh checks, as an ERE alternation.
+# The variables holding the script output that fresh-home.sh checks, as an ERE
+# alternation.
 fresh_outputs='first|second|diff_out|doctor_out|nvim_out'
-# Only one-line greps on these five outputs are scanned. Texts of 2 characters
+# Only one-line greps on these outputs are scanned. Texts of 2 characters
 # or fewer (left between $variables) are skipped. A grep on something else
 # (diff's own output, a seeded line) ends in `# not a script message`.
-# shellcheck disable=SC2016  # a literal $ in the pattern
 while IFS=: read -r n line; do
   [[ "$line" == *"# not a script message"* ]] && continue
   grep_args="${line#*grep }"
@@ -206,9 +206,11 @@ while IFS=: read -r n line; do
 done < <(grep -nE "grep .*<<<\"\\\$($fresh_outputs)\"" test/fresh-home.sh)
 
 # A negated [[ ]] test on those outputs passes quietly once the message it
-# looks for is reworded, and the scan above doesn't read it. Positive ones
-# fail loudly and can stay.
-negated_re='!=|\[\[[[:space:]]*!|![[:space:]]*\[\['
+# looks for is reworded, and the scan above doesn't read it: `!=`, a `!` in
+# or before the test, or a match followed by `&& die`. Positive ones fail
+# loudly and can stay. Only one-line tests naming one of the outputs count,
+# not a variable set from one.
+negated_re='!=|\[\[[[:space:]]*!|![[:space:]]*\[\[|(&&|\|\|)[[:space:]]*![[:space:]]|\]\][[:space:]]*&&[[:space:]]*die'
 while IFS=: read -r n line; do
   if [[ "$line" =~ $negated_re ]]; then
     err "test/fresh-home.sh:$n negates a [[ ]] test of script output, which passes once the message is reworded: write grep … <<<\"\$<output>\" && die instead"
