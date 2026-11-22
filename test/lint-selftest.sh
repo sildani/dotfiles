@@ -377,7 +377,7 @@ for ((i = 0; i < ${#items[@]}; i++)); do
 done
 
 # For CI's log: how the run was split, and how long it took.
-echo "lint-selftest: $workers workers, ${#items[@]} items, ${SECONDS}s"
+echo "lint-selftest: $workers worker(s), ${#items[@]} items, ${SECONDS}s"
 if ((survived || failed)); then
   echo "lint-selftest: $survived of $mutations mutation(s) not caught, $failed of $checks check(s) failed" >&2
   exit 1
