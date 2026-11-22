@@ -21,6 +21,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # gitleaks scans the full history
+      # Tests run on stock /bin/bash, as on a new Mac, not on a newer bash the
+      # runner may have earlier on PATH. lib/test-guard.sh checks.
+      - run: echo /bin >>"$GITHUB_PATH"
       - run: brew install shellcheck gitleaks
       - run: test/lint.sh
       # Nothing else runs on the runner, so the selftest takes all its cores.
@@ -38,4 +41,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+      # Tests run on stock /bin/bash, as on a new Mac, not on a newer bash the
+      # runner may have earlier on PATH. lib/test-guard.sh checks.
+      - run: echo /bin >>"$GITHUB_PATH"
       - run: test/fresh-home.sh

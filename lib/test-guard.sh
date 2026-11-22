@@ -6,6 +6,14 @@
 # the line holding the $(...). A bare ( ... ) that fails stays silent.
 set -E
 
+# Scripts must run on stock macOS bash 3.2, and a test's `env bash` shebang
+# takes the first bash on PATH, which on the CI runner may be a newer one. So in
+# CI (GitHub sets CI) a test refuses any bash but /bin/bash.
+if [[ -n "${CI:-}" && "$BASH" != /bin/bash ]]; then
+  echo "${0##*/}: runs on $BASH, not stock /bin/bash; CI puts /bin first on PATH" >&2
+  exit 1
+fi
+
 # test_stopped <command> <line>: inside a function, stock bash's $LINENO is the
 # function's first line, so name the function and its caller instead. Inside an
 # `if` or a loop it's that block's last line.
