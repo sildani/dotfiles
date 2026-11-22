@@ -11,8 +11,7 @@
 # completion, and drops an extension, a type and a PDF level from the
 # completion. It makes one mutation at a time and expects lint to fail naming
 # the mutated text. Also drops each test script's lib/test-guard.sh, runs the guard itself
-# (also as CI on a bash other than /bin/bash),
-# adds each multi-word _Avoid_ entry from GLOSSARY.md, checks that lint passes a
+# (also as CI on a bash other than /bin/bash), adds each multi-word _Avoid_ entry from GLOSSARY.md, checks that lint passes a
 # CI step ending in a comment, and checks that lint as
 # the commit hook runs it passes an untracked test script it isn't committing.
 # Passes when every mutation is caught and every other check passes. Run by CI

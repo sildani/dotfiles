@@ -3,7 +3,8 @@
 # there prints nothing of its own, so the output can pass for a good run: this
 # names where it stopped. -E carries the ERR trap into functions. Failures inside
 # $(...) stay quiet because the test may expect them, and one that matters stops
-# the line holding the $(...). A bare ( ... ) that fails stays silent.
+# the line holding the $(...). A bare ( ... ) that fails stays silent. In CI it
+# also stops a test running on any bash but stock /bin/bash.
 set -E
 
 # Scripts must run on stock macOS bash 3.2, and a test's `env bash` shebang
