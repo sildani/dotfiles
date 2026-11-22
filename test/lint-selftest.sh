@@ -10,7 +10,8 @@
 # the mutated text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
 # adds each multi-word _Avoid_ entry from GLOSSARY.md, and checks that lint as
 # the commit hook runs it passes an untracked test script it isn't committing.
-# Passes when every mutation is caught. Run by CI after test/lint.sh.
+# Passes when every mutation is caught and every other check passes. Run by CI
+# after test/lint.sh.
 
 # One group, ended by exit: bash reads all of it before running any, so an
 # edit to this file mid-run can't change the run.
@@ -38,7 +39,9 @@ lint() { (cd "$COPY" && LINT_SKIP_SECRETS=1 test/lint.sh 2>&1); }
 
 lint >/dev/null || { lint >&2 || true; echo "FAIL: lint fails on the unmutated copy" >&2; exit 1; }
 
-runs=0 survived=0
+# The checks that aren't mutations: the guard's own behaviour, and lint passing
+# where it should.
+mutations=0 survived=0 checks=0 failed=0
 # expect_caught <description> <needle>...: expects lint to fail on the copy
 # as it is now, naming one of the needles.
 expect_caught() {
@@ -63,7 +66,7 @@ expect_caught() {
 mutate() {
   local file="$1" program="$2" desc="$3"
   shift 3
-  runs=$((runs + 1))
+  mutations=$((mutations + 1))
   sed -i '' -E "$program" "$COPY/$file"
   if cmp -s "$SNAP/$file" "$COPY/$file"; then
     echo "FAIL: mutation didn't change $file: $desc" >&2
@@ -111,8 +114,8 @@ if [[ -n "$piece" ]]; then
   mutate test/fresh-home.sh "s/$(sed_literal "$piece")/ lint-selftest piece /g" \
     "one piece of a <placeholder> marker gone from test/fresh-home.sh" "no longer greps for \"$piece\""
 else
-  runs=$((runs + 1)) survived=$((survived + 1))
   echo "FAIL: no <placeholder> marker in ${MARKER_FILES[*]} to drop a piece of from test/fresh-home.sh" >&2
+  exit 1
 fi
 
 mutate test/fresh-home.sh "\$a\\
@@ -165,11 +168,11 @@ GUARD
 # expect_guard <argument> <message>
 expect_guard() {
   local out rc=0
-  runs=$((runs + 1))
+  checks=$((checks + 1))
   out="$(/bin/bash "$COPY/guard-check.sh" "$1" 2>&1)" || rc=$?
   if ((rc == 0)) || [[ "$out" != "$2" ]]; then
     echo "FAIL: the guard printed '$out' (exit $rc), not '$2'" >&2
-    survived=$((survived + 1))
+    failed=$((failed + 1))
   fi
 }
 expect_guard top "guard-check.sh: died at line 10: false"
@@ -181,7 +184,7 @@ rm "$COPY/guard-check.sh"
 mutate GLOSSARY.md 's/^_Avoid_: .*//' "no _Avoid_ entries" "no multi-word _Avoid_ entries"
 line_break=$'\n# '
 while IFS= read -r phrase; do
-  runs=$((runs + 1))
+  mutations=$((mutations + 1))
   printf '%s\n' "${phrase/ /$line_break}" >>"$COPY/README.md"
   expect_caught "_Avoid_ entry: $phrase" "$phrase"
   cp "$SNAP/README.md" "$COPY/README.md"
@@ -200,27 +203,27 @@ mutate zsh/completions/_shrink 's/ image pdf\)$/ image)/' "completion without th
 mutate zsh/completions/_shrink 's/ ebook / /' "completion without the ebook level" "should list shrink's PDF levels"
 
 # A test script in neither list.
-runs=$((runs + 1))
+mutations=$((mutations + 1))
 printf '#!/usr/bin/env bash\ntrue\n' >"$COPY/test/lint-selftest-new.sh"
 chmod +x "$COPY/test/lint-selftest-new.sh"
 expect_caught "unlisted test/lint-selftest-new.sh" test/lint-selftest-new.sh
 # The commit hook's lint lists test scripts from the index, so the same
 # untracked script doesn't block a commit it isn't part of, even one that
 # fails shellcheck.
-runs=$((runs + 1))
+checks=$((checks + 1))
 # shellcheck disable=SC2016  # the error is for lint's shellcheck to find
 printf '[ $lint_selftest_unset = x ]\n' >>"$COPY/test/lint-selftest-new.sh"
 if ! out="$(LINT_STAGED=1 lint)"; then
   echo "FAIL: lint with LINT_STAGED=1 failed on an untracked test/lint-selftest-new.sh:" >&2
   echo "$out" >&2
-  survived=$((survived + 1))
+  failed=$((failed + 1))
 fi
 rm "$COPY/test/lint-selftest-new.sh"
 
-if ((survived)); then
-  echo "lint-selftest: $survived of $runs mutation(s) not caught" >&2
+if ((survived || failed)); then
+  echo "lint-selftest: $survived of $mutations mutation(s) not caught, $failed of $checks check(s) failed" >&2
   exit 1
 fi
-echo "lint-selftest: ok ($runs mutations caught)"
+echo "lint-selftest: ok ($mutations mutations caught, $checks checks passed)"
 exit
 }
