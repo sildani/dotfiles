@@ -372,9 +372,11 @@ diff_backups() {
   if ((count == 0)); then
     ok "none"
   elif ! $full; then
-    local differ="originals differ"
-    ((count == 1)) && differ="original differs"
-    info "$count backed-up $differ from the repo (newest: ${newest##*/})"  # fresh-home.sh greps for "backed-up originals differ from the repo (newest: "
+    if ((count == 1)); then
+      info "1 backed-up original differs from the repo (newest: ${newest##*/})"
+    else
+      info "$count backed-up originals differ from the repo (newest: ${newest##*/})"  # fresh-home.sh greps for "backed-up originals differ from the repo (newest: "
+    fi
     hint "see the diffs: ./doctor.sh --diff --backups"
   fi
 }

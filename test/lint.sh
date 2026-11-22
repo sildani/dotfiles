@@ -132,16 +132,26 @@ done < <(git grep -Il '' -- . ':!GLOSSARY.md')
 
 # Messages test/fresh-home.sh greps for carry a `# fresh-home.sh greps for
 # "<text>"` marker where they're printed, so whoever rewords one updates the
-# test: each marker is still in the test, each script line with a marker's
-# text carries one, and each grep on script output is covered by a marker.
+# test: each marker is still in the test, each marked line still prints its
+# text, each script line with a marker's text carries one, and each grep on
+# script output is covered by a marker.
 markers=()
 while IFS= read -r marker; do markers+=("$marker"); done < <(marker_texts | sort -u)
 # A marker not in that exact end-of-line form would be skipped silently.
 while IFS=: read -r file n code; do
-  [[ "$code" =~ $MARKER_RE ]] ||
+  if [[ "$code" =~ $MARKER_RE ]]; then
+    marker="${BASH_REMATCH[1]}"
+    while IFS= read -r piece; do
+      [[ "${code%%# fresh-home.sh greps for*}" == *"$piece"* ]] ||
+        err "$file:$n no longer prints \"$piece\", from its marker \"$marker\""
+    done < <(marker_pieces "$marker")
+  else
     err "$file:$n has a malformed marker; end the line with: # fresh-home.sh greps for \"<text>\""
+  fi
 done < <(grep -nF 'fresh-home.sh greps for' "${MARKER_FILES[@]}" || true)
-# A marker in a file outside MARKER_FILES would be ignored.
+# A marker in a file outside MARKER_FILES would be ignored. Only the exact
+# end-of-line form counts here: a looser match would flag the docs and lint's
+# own comments, which quote the marker.
 unlisted=()
 for f in "${MARKER_FILES[@]}"; do unlisted+=(":!$f"); done
 while IFS=: read -r file n _; do

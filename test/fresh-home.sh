@@ -299,7 +299,7 @@ nvim_rc=0
 nvim_out="$("$REPO_DIR/test/nvim.sh" 2>&1)" || nvim_rc=$?
 echo "$nvim_out" >>"$LOG"
 ((nvim_rc == 0)) || die "test/nvim.sh failed: $nvim_out"
-if grep -qF 'test/nvim.sh: skipped' <<<"$nvim_out"; then die "test/nvim.sh skipped after the install: $nvim_out"; fi
+grep -qF 'test/nvim.sh: skipped' <<<"$nvim_out" && die "test/nvim.sh skipped after the install: $nvim_out"
 [[ -f "$HOME/.local/state/dotfiles/last-update" ]] || die "first run didn't start the update reminder's clock"
 touch -t 202001010000 "$HOME/.local/state/dotfiles/last-update"
 resurrect_saves="$HOME/.local/share/tmux/resurrect"
