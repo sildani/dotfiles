@@ -13,9 +13,8 @@
 # to ~/.zshrc.local (warning about its plugins the shared zshrc lacks), linked
 # ~/.zshrc.example to Oh My Zsh's template and ~/.tmux/resurrect to resurrect's
 # saves, wrote this machine's nvim lockfile outside the repo (test/nvim.sh then
-# passes without skipping) and started the
-# update reminder's clock, the second changed nothing (not even a real
-# ~/.tmux/resurrect or that clock), doctor exits 0, fails naming a missing nvim
+# passes without skipping) and started the update reminder's clock, the second
+# changed nothing (not even a real ~/.tmux/resurrect or that clock), doctor exits 0, fails naming a missing nvim
 # plugin and warns about a stray tmux server only while one runs and about
 # ssh-agent in ~/.zprofile without failing, update.sh runs for real, apart from
 # brew upgrades, and leaves doctor healthy, zsh starts without errors and exports DOTFILES as

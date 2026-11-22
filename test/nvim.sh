@@ -13,7 +13,7 @@ link="$HOME/.config/nvim"
 config=""
 [[ -L "$link" ]] && config="$(cd -P "$link" 2>/dev/null && pwd)" || true
 if [[ -z "$config" || "${config##*/}" != nvim || ! -f "$config/../install.sh" || ! -f "$config/../lib/common.sh" ]]; then
-  echo "test/nvim.sh: skipped, nvim config not installed in $HOME" >&2
+  echo "test/nvim.sh: skipped, nvim config not installed in $HOME" >&2  # fresh-home.sh greps for "test/nvim.sh: skipped"
   exit 0
 fi
 

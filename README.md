@@ -273,7 +273,8 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   is mapped in markdown buffers only. Takes seconds. Skips, saying so on stderr,
   when `~/.config/nvim` isn't linked to a dotfiles checkout's `nvim/` (as in
   CI's lint job); `test/fresh-home.sh` runs it after the install, where a skip
-  fails.
+  fails. From a worktree it checks the config `~/.config/nvim` links to, not
+  the worktree's `nvim/`.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then
   doctor, then `man -w shrink` and shrink's completion in a new shell, and a
   real `shrink` of a small generated video, JPEG, PNG, HEIC and PDF, and
