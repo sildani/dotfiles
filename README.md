@@ -63,6 +63,7 @@ cd "$DOTFILES" && git pull && ./install.sh
   | `ghostty/extras/` | `~/.config/ghostty/extras`  |
   | `bin/shrink`      | `~/.local/bin/shrink`       |
   | `man/shrink.1`    | `~/.local/share/man/man1/shrink.1` |
+  | `bin/tidy-names`  | `~/.local/bin/tidy-names`   |
 
   It also moves away Ghostty's `~/Library/Application Support/com.mitchellh.ghostty/config*`,
   which would otherwise override the repo's file. A machine's own `~/.zshrc` is
@@ -173,6 +174,22 @@ reference. Tab completes its flags, the types after `--help`, the levels after
 default, so a Mac can set its own defaults in `~/.zshrc.local`, such as
 `export SHRINK_CRF=28`.
 
+### tidy-names
+
+Renames files to their Tidy name: lower case, dashes for spaces and
+underscores, accents removed, and only letters, digits, dots and dashes left.
+
+```sh
+tidy-names                 # every file in this folder: My Report (Final).PDF -> my-report-final.pdf
+tidy-names -n ~/Downloads  # print the renames without making them
+tidy-names "Café menu.txt" # one file: -> cafe-menu.txt
+```
+
+It takes files, and folders for their top-level files, leaving hidden files,
+symlinks and subfolders alone. It never overwrites: a file whose Tidy name is
+taken, or that tidies to nothing (`日本.txt`), is skipped and named, and the
+exit status is then 1. `tidy-names -h` lists the options.
+
 ## Languages (Java, Python, Go)
 
 **Not installed by the script, on purpose.** When you need one, follow
@@ -249,9 +266,12 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
 - `test/shrink.sh`: runs `shrink` against a fake `ffmpeg`, `ffprobe`, `magick`,
   `pngquant` and `gs`, and
   checks the commands it builds, its outputs and its errors.
+- `test/tidy-names.sh`: runs `tidy-names` in temporary folders, and checks the
+  renames, `-n`, collisions, names that tidy to nothing and what it leaves alone.
 - `test/fresh-home.sh`: full install in a temporary empty HOME, run twice, then
   doctor, then `man -w shrink` and shrink's completion in a new shell, and a
-  real `shrink` of a small generated video, JPEG, PNG, HEIC and PDF.
+  real `shrink` of a small generated video, JPEG, PNG, HEIC and PDF, and
+  finds `tidy-names` on `PATH`.
 
 After pushing to a PR, `./ci-wait.sh <full-sha>` waits for that commit's CI run
 and prints one line with its result. After merging a PR, `./prune-merged.sh`

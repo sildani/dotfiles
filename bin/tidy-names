@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# tidy-names: renames files to their Tidy name, never overwriting. install.sh
+# links it to ~/.local/bin/tidy-names. Runs on stock macOS bash 3.2.
+# test/tidy-names.sh tests it.
+set -uo pipefail
+shopt -s nullglob
+# Byte order for the glob, so which of two colliding files is skipped doesn't
+# depend on the locale. LC_ALL, since a set LC_ALL overrides LC_COLLATE. perl
+# reads and writes UTF-8 through -CS whatever the locale.
+export LC_ALL=C
+
+# tidy <name>: the Tidy name of <name>. NFD splits each accent off its letter
+# (a decomposed name already is), and the rule for other characters drops it.
+tidy() {
+  printf '%s' "$1" | /usr/bin/perl -CS -MUnicode::Normalize -e '
+    local $/; $_ = NFD(<STDIN>); $_ = lc;
+    tr/ _/--/; s/[^a-z0-9.-]//g; s/-+/-/g;
+    my ($stem, $ext) = /^(.*?)((?:\.[^.]*)?)$/s;
+    $stem =~ s/^-+|-+$//g; print $stem . $ext;'
+}
+
+status=0
+skip() { echo "tidy-names: skipped $1" >&2; status=1; }
+
+# The paths renamed to in this run, one per line, so -n sees the collisions a
+# real run would.
+claimed=$'\n'
+
+# tidy_file <path>: renames <path> to its Tidy name.
+tidy_file() {
+  local path="$1" dir base new dest
+  dir="$(dirname "$path")" base="$(basename "$path")"
+  new="$(tidy "$base")"
+  [[ "$new" == "$base" ]] && return 0
+  if [[ -z "$new" || "$new" == .* ]]; then
+    skip "$(shown "$path"): its name tidies to nothing"
+    return
+  fi
+  dest="$dir/$new"
+  # A change only in case finds the file itself on macOS's file system.
+  if [[ "$claimed" == *$'\n'"$dest"$'\n'* ]] || { [[ -e "$dest" || -L "$dest" ]] && ! [[ "$dest" -ef "$path" ]]; }; then
+    skip "$(shown "$path"): $(shown "$dest") already exists"
+    return
+  fi
+  if ! $dry_run; then
+    mv "$path" "$dest" || { skip "$(shown "$path"): mv failed"; return; }
+  fi
+  claimed+="$dest"$'\n'
+  echo "$(shown "$path") -> $(shown "$dest")"
+}
+
+# shown <path>: <path> without a leading ./
+shown() { echo "${1#./}"; }
+
+usage() {
+  cat <<USAGE
+usage: tidy-names [-n] [-h] [PATH...]
+Renames files to their Tidy name: lower case, dashes for spaces and
+underscores, accents removed, and only letters, digits, dots and dashes left.
+  My Report (Final) v2.PDF -> my-report-final-v2.pdf
+
+  PATH   a file, or a directory for its top-level files (not hidden ones,
+         symlinks or subdirectories); none means .
+  -n     print the renames without making them
+  -h     this help
+
+Never overwrites: a file whose Tidy name is taken, or that tidies to nothing,
+is skipped and named on stderr, and the exit status is then 1.
+USAGE
+}
+
+dry_run=false
+while getopts nh opt; do
+  case "$opt" in
+    n) dry_run=true ;;
+    h) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+(($#)) || set -- .
+
+for arg in "$@"; do
+  # A symlink named with a trailing slash (dl/) reads as its target.
+  if [[ -L "$arg" || -L "${arg%/}" ]]; then
+    skip "$arg: a symlink"
+  elif [[ -d "$arg" ]]; then
+    for entry in "${arg%/}"/*; do
+      [[ -f "$entry" && ! -L "$entry" ]] || continue
+      tidy_file "$entry"
+    done
+  elif [[ ! -e "$arg" ]]; then
+    skip "$arg: no such file or directory"
+  elif [[ "$(basename "$arg")" == .* ]]; then
+    skip "$arg: a hidden file"
+  elif [[ ! -f "$arg" ]]; then
+    skip "$arg: not a regular file"
+  else
+    tidy_file "$arg"
+  fi
+done
+exit "$status"

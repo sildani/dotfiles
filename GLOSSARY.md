@@ -32,6 +32,10 @@ _Avoid_: update prompt
 A smaller copy of an image, video or PDF, made by `shrink` next to the original, which stays untouched.
 _Avoid_: compressed file, compressed version
 
+**Tidy name**:
+A file name in lower case, with dashes for spaces and underscores, accents removed, and only letters, digits, dots and dashes left, as `tidy-names` renames files to.
+_Avoid_: normalised name, slug, clean name
+
 **Lookalike**:
 A command, function or alias on a machine whose name suggests it already does what `shrink` does, flagged so the installer can remove it by hand.
 _Avoid_: duplicate, conflict
