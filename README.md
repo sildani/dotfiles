@@ -235,7 +235,9 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   at a time, and
   checks that `test/lint.sh` fails on each. It also runs `lib/test-guard.sh` on a test that
   stops, and checks that lint as the commit hook runs it passes an untracked
-  test script. Takes minutes.
+  test script. It runs them in parallel, each worker in its own copy:
+  `LINT_SELFTEST_JOBS` workers, by default half the Mac's cores, which takes
+  about 2 minutes on a 10-core Mac.
 - `test/doctor-warnings.sh`: runs `doctor.sh` in an empty temporary HOME with a
   fake `defaults` and Homebrew prefix, and checks when it warns.
 - `test/updates.sh`: runs `update.sh` against a fake Homebrew and nvim and local
