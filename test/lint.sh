@@ -77,7 +77,8 @@ done
 # Sourced helpers go in lib/, not test/, so every test/*.sh is a script CI runs.
 for f in ${test_scripts[@]+"${test_scripts[@]}"}; do
   path_re="${f//./\\.}"
-  grep -Eq "^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${path_re}[[:space:]]*\$" .github/workflows/check.yml ||
+  # A step may end in a YAML comment, which needs a space before its #.
+  grep -Eq "^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${path_re}([[:space:]]+#.*|[[:space:]]*)\$" .github/workflows/check.yml ||
     err ".github/workflows/check.yml doesn't run $f"
   grep -q "^- \`${path_re}\`:" README.md || err "README.md \"Checks\" list is missing \`$f\`"
   grep -q '^source .*lib/test-guard\.sh"$' "$f" || err "$f doesn't source lib/test-guard.sh, so a stop under set -e could print nothing"
@@ -140,6 +141,12 @@ while IFS=: read -r file n code; do
   [[ "$code" =~ $MARKER_RE ]] ||
     err "$file:$n has a malformed marker; end the line with: # fresh-home.sh greps for \"<text>\""
 done < <(grep -nF 'fresh-home.sh greps for' "${MARKER_FILES[@]}" || true)
+# A marker in a file outside MARKER_FILES would be ignored.
+unlisted=()
+for f in "${MARKER_FILES[@]}"; do unlisted+=(":!$f"); done
+while IFS=: read -r file n _; do
+  err "$file:$n has a marker, but $file isn't in MARKER_FILES (lib/common.sh), so lint ignores it"
+done < <(git grep -nE '# fresh-home\.sh greps for "[^"]*"$' -- . "${unlisted[@]}" || true)
 for marker in ${markers[@]+"${markers[@]}"}; do
   # <placeholders> are gaps: each fixed piece must appear.
   while IFS= read -r piece; do
@@ -168,7 +175,7 @@ grep_texts() {
   }'
   { grep -oE '"[^"]*"' <<<"$1" || true; } | sed -E 's/^"//; s/"$//; s/\$\{[^}]*\}|\$[A-Za-z_][A-Za-z_0-9]*/\n/g'
 }
-# Only one-line greps on these four outputs are scanned. Texts of 2 characters
+# Only one-line greps on these five outputs are scanned. Texts of 2 characters
 # or fewer (left between $variables) are skipped. A grep on something else
 # (diff's own output, a seeded line) ends in `# not a script message`.
 # shellcheck disable=SC2016  # a literal $ in the pattern
@@ -184,7 +191,7 @@ while IFS=: read -r n line; do
     done
     $covered || err "test/fresh-home.sh:$n greps script output for '$text', but no script marks a message with it (# fresh-home.sh greps for \"...\")"
   done < <(grep_texts "$grep_args")
-done < <(grep -nE 'grep .*<<<"\$(first|second|diff_out|doctor_out)"' test/fresh-home.sh)
+done < <(grep -nE 'grep .*<<<"\$(first|second|diff_out|doctor_out|nvim_out)"' test/fresh-home.sh)
 
 # tmux-continuum auto-saves from a hook it adds to status-right when TPM loads
 # it, so status-left/right must be set before TPM's run line, not after.

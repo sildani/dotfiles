@@ -3,12 +3,14 @@
 # what they exist for: in a copy of the working tree, it removes each
 # `# fresh-home.sh greps for "<text>"` marker, rewords one, malforms one twice,
 # drops one piece of a <placeholder> marker from test/fresh-home.sh, adds an
-# unmarked grep there, empties or drops each extras row's cells, drops each
-# test script's CI step and README "Checks" bullet, and adds an unlisted test
+# unmarked grep there, adds a marker outside MARKER_FILES, empties or drops each
+# extras row's cells, drops each test script's CI step and README "Checks"
+# bullet, glues a # to a CI step, and adds an unlisted test
 # script, drops a flag from shrink's man page or completion and an extension,
 # a type and a PDF level from the completion, one mutation at a time, and expects lint to fail naming
 # the mutated text. Also drops each test script's lib/test-guard.sh, runs the guard itself,
-# adds each multi-word _Avoid_ entry from GLOSSARY.md, and checks that lint as
+# adds each multi-word _Avoid_ entry from GLOSSARY.md, checks that lint passes a
+# CI step ending in a comment, and checks that lint as
 # the commit hook runs it passes an untracked test script it isn't committing.
 # Passes when every mutation is caught and every other check passes. Run by CI
 # after test/lint.sh.
@@ -139,10 +141,30 @@ for f in "$SNAP"/test/*.sh; do
   f="test/${f##*/}"
   path_re="${f//./\\.}"
   path_re="${path_re//\//\\/}"
-  mutate .github/workflows/check.yml "/^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${path_re}[[:space:]]*\$/d" \
+  mutate .github/workflows/check.yml "/^[[:space:]]*-?[[:space:]]*run:[[:space:]]*${path_re}([[:space:]]+#.*|[[:space:]]*)\$/d" \
     "check.yml step dropped for $f" "$f"
   mutate README.md "/^- \`${path_re}\`:/d" "README Checks bullet dropped for $f" "$f"
 done
+
+# A CI step may end in a YAML comment, but # without a space before it is part
+# of the command, so that step doesn't run the script.
+step='^([[:space:]]*-?[[:space:]]*run:[[:space:]]*test/lint\.sh)[[:space:]]*$'
+checks=$((checks + 1))
+sed -i '' -E "s,$step,\\1  # lint-selftest comment," "$COPY/.github/workflows/check.yml"
+if cmp -s "$SNAP/.github/workflows/check.yml" "$COPY/.github/workflows/check.yml" || ! out="$(lint)"; then
+  echo "FAIL: lint didn't pass a check.yml step that ends in a comment:" >&2
+  echo "${out-}" >&2
+  failed=$((failed + 1))
+fi
+cp "$SNAP/.github/workflows/check.yml" "$COPY/.github/workflows/check.yml"
+mutate .github/workflows/check.yml "s,$step,\\1#lint-selftest," \
+  "check.yml step with # straight after the script" "doesn't run test/lint.sh"
+
+# A marker in a file outside MARKER_FILES, which lint's other marker checks
+# don't read.
+mutate README.md "\$a\\
+x  # fresh-home.sh greps for \"lint-selftest unlisted\"
+" "marker outside MARKER_FILES" "isn't in MARKER_FILES"
 
 # A test script without the guard, which would otherwise stop silently.
 for f in "$SNAP"/test/*.sh; do

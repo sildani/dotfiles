@@ -246,7 +246,7 @@ nvim_lock_plugins() {
 # in these files, in the form MARKER_RE matches; the text in quotes can have
 # <placeholders>. test/lint.sh checks the markers, and test/lint-selftest.sh
 # mutates them.
-MARKER_FILES=(install.sh doctor.sh lib/common.sh)
+MARKER_FILES=(install.sh doctor.sh lib/common.sh test/nvim.sh)
 MARKER_RE='# fresh-home\.sh greps for "(.*)"$'
 MARKER_PLACEHOLDER_RE='<[^>]+>'
 
