@@ -333,7 +333,9 @@ for ((k = 0; k < workers; k++)); do
   run_worker "$k" &
   pids+=("$!")
 done
-for pid in "${pids[@]}"; do wait "$pid" || true; done
+for pid in ${pids[@]+"${pids[@]}"}; do wait "$pid" || true; done
+# Reaped, so cleanup mustn't kill their PIDs, which may belong to others now.
+pids=()
 
 mutations=0 survived=0 checks=0 failed=0
 for ((i = 0; i < ${#items[@]}; i++)); do
