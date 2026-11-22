@@ -23,7 +23,8 @@
 # PATH free of duplicates and in order, nested too, and stays on the emacs
 # keymap, finds shrink, which makes a real Shrunk copy of a generated video
 # with both caps applied, of a generated JPEG, PNG and HEIC, EXIF kept, and of
-# a generated PDF, tmux loads its config and every extra without errors, and every
+# a generated PDF, finds tidy-names, which tidies a real file name, tmux loads
+# its config and every extra without errors, and every
 # extra turns on from its README line, pasted as is
 # (and doctor flags a missing one), Ghostty accepts its config and every extra,
 # reads the shared config's window settings and ghostty/extras/window-frame.conf
@@ -526,6 +527,17 @@ echo "$shrink_out" >>"$LOG"
 gs -q -dSAFER -dPDFSTOPONERROR -sDEVICE=nullpage -o /dev/null "$pdf_dir/report.shrunk.pdf" >>"$LOG" 2>&1 ||
   die "Ghostscript can't read report.shrunk.pdf without errors"
 rm -rf "$pdf_dir"
+
+echo "tidy-names is on zsh's PATH and tidies a real file name"
+tidy_path="$(izsh "$PATH" 'whence -p tidy-names')"
+[[ "$tidy_path" == "$HOME/.local/bin/tidy-names" ]] || die "zsh finds tidy-names at '$tidy_path', not ~/.local/bin/tidy-names"
+tidy_dir="$HOME/tidy"
+mkdir "$tidy_dir"
+touch "$tidy_dir/Café Menu.TXT"
+tidy_out="$(cd "$tidy_dir" && "$tidy_path" 2>&1)" || { echo "$tidy_out" >>"$LOG"; die "tidy-names failed"; }
+[[ "$tidy_out" == "Café Menu.TXT -> cafe-menu.txt" && -f "$tidy_dir/cafe-menu.txt" ]] ||
+  die "tidy-names didn't rename Café Menu.TXT to cafe-menu.txt: $tidy_out"
+rm -rf "$tidy_dir"
 
 echo "the per-machine file overrides EDITOR and VISUAL, and its PATH entries stay unique"
 # shellcheck disable=SC2016  # literal lines for ~/.zshrc.local

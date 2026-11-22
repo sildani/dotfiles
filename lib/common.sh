@@ -34,6 +34,7 @@ LINKS=(
   "ghostty/extras:$HOME/.config/ghostty/extras"
   "bin/shrink:$HOME/.local/bin/shrink"
   "man/shrink.1:$HOME/.local/share/man/man1/shrink.1"
+  "bin/tidy-names:$HOME/.local/bin/tidy-names"
 )
 
 # Per-machine overrides the shared configs load if present. Not in git.

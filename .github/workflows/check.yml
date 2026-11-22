@@ -28,6 +28,7 @@ jobs:
       - run: test/updates.sh
       - run: test/ci-wait.sh
       - run: test/shrink.sh
+      - run: test/tidy-names.sh
 
   fresh-home:
     runs-on: macos-latest
