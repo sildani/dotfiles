@@ -185,6 +185,8 @@ grep_texts() {
   }'
   { grep -oE '"[^"]*"' <<<"$1" || true; } | sed -E 's/^"//; s/"$//; s/\$\{[^}]*\}|\$[A-Za-z_][A-Za-z_0-9]*/\n/g'
 }
+# The script outputs fresh-home.sh checks, as an ERE alternation.
+fresh_outputs='first|second|diff_out|doctor_out|nvim_out'
 # Only one-line greps on these five outputs are scanned. Texts of 2 characters
 # or fewer (left between $variables) are skipped. A grep on something else
 # (diff's own output, a seeded line) ends in `# not a script message`.
@@ -201,7 +203,17 @@ while IFS=: read -r n line; do
     done
     $covered || err "test/fresh-home.sh:$n greps script output for '$text', but no script marks a message with it (# fresh-home.sh greps for \"...\")"
   done < <(grep_texts "$grep_args")
-done < <(grep -nE 'grep .*<<<"\$(first|second|diff_out|doctor_out|nvim_out)"' test/fresh-home.sh)
+done < <(grep -nE "grep .*<<<\"\\\$($fresh_outputs)\"" test/fresh-home.sh)
+
+# A negated [[ ]] test on those outputs passes quietly once the message it
+# looks for is reworded, and the scan above doesn't read it. Positive ones
+# fail loudly and can stay.
+negated_re='!=|\[\[[[:space:]]*!|![[:space:]]*\[\['
+while IFS=: read -r n line; do
+  if [[ "$line" =~ $negated_re ]]; then
+    err "test/fresh-home.sh:$n negates a [[ ]] test of script output, which passes once the message is reworded: write grep … <<<\"\$<output>\" && die instead"
+  fi
+done < <(grep -nE "\[\[.*\\\$\{?($fresh_outputs)([^A-Za-z0-9_]|\$)" test/fresh-home.sh)
 
 # tmux-continuum auto-saves from a hook it adds to status-right when TPM loads
 # it, so status-left/right must be set before TPM's run line, not after.

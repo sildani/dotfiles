@@ -227,7 +227,7 @@ Checks (also run by CI on every PR, on pushes to `main` and weekly):
   changes go through a PR.
 - `test/lint-selftest.sh`: in a copy of the repo, removes or rewords the
   fresh-home.sh markers, malforms one, drops one marker's text from
-  fresh-home.sh, adds an unmarked grep, breaks the extras rows, drops each test
+  fresh-home.sh, adds an unmarked grep and a negated `[[ ]]` check, breaks the extras rows, drops each test
   script's CI step and bullet here, adds an unlisted test script, blanks the
   glossary's _Avoid_ lines and adds each multi-word entry, drops a flag from
   `shrink`'s man page and completion and an extension, a type and a PDF level

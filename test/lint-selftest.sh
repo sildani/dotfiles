@@ -3,7 +3,8 @@
 # what they exist for: in a copy of the working tree, it removes each
 # `# fresh-home.sh greps for "<text>"` marker, rewords one, rewords a message
 # under its marker, malforms one twice, drops one piece of a <placeholder>
-# marker from test/fresh-home.sh, adds an unmarked grep there, adds a marker
+# marker from test/fresh-home.sh, adds an unmarked grep and a negated [[ ]]
+# test of script output there, adds a marker
 # outside MARKER_FILES, empties or drops each extras row's cells, drops each
 # test script's CI step and README "Checks" bullet, glues a # to a CI step,
 # adds an unlisted test script, drops a flag from shrink's man page or
@@ -175,6 +176,11 @@ fi
 mutate test/fresh-home.sh "\$a\\
 grep -q 'lint-selftest unmarked' <<<\"\$doctor_out\" || die x
 " "unmarked grep added to test/fresh-home.sh" "lint-selftest unmarked"
+# The check test/nvim.sh's skip line had before #128, which passed quietly
+# once the message was reworded.
+mutate test/fresh-home.sh "\$a\\
+[[ \"\$nvim_out\" != *\"test/nvim.sh: skipped\"* ]] || die \"nvim test skipped\"
+" "negated [[ ]] test of script output in test/fresh-home.sh" "negates a [[ ]] test of script output"
 
 # Each extras row: its line cell emptied, its file cell emptied, its last cell
 # dropped.
