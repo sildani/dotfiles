@@ -147,32 +147,11 @@ shrink report.pdf         # writes report.shrunk.pdf
 shrink -n a.mov           # print the ffmpeg command instead of running it
 ```
 
-Videos (`mov mp4 m4v mkv avi webm`) come out as H.264 `.mp4` at CRF 23, with
-AAC stereo at 128k, the short side capped at 1080, the frame rate capped at 30
-and the metadata kept; `--crf`, `--audio-bitrate`, `--max-res` and `--fps`
-change those. On a terminal it shows ffmpeg's progress line. An HDR video (as
-iPhones record) gets a warning: the shrunk copy is standard range and looks
-washed out.
-
-Images (`jpg jpeg png heic heif webp tif tiff`) keep their format, except HEIC,
-HEIF and TIFF, which become `.jpg`. ImageMagick resizes them so the long edge is
-at most 2560 (never enlarging) at quality 80, and PNGs go through `pngquant`;
-`--max-edge` and `--quality` change those. Metadata stays, the EXIF
-orientation tag included, and pixels aren't rotated, with two exceptions: a
-HEIC comes out upright with orientation 1, and a TIFF is turned upright and
-loses its EXIF.
-
-PDFs go through Ghostscript at `/ebook` (images at about 150 dpi); `--pdf
-screen` or `--pdf printer` picks another level. A damaged PDF fails rather than coming out incomplete,
-and a PDF that's mostly text often comes out no smaller, so nothing is written.
-
-`-f` replaces an existing output, and a result that
-isn't smaller is deleted. `shrink -h` lists the options, `shrink --help
-TYPE` every setting for `video`, `image` or `pdf`, and `man shrink` the full
-reference. Tab completes its flags, the types after `--help`, the levels after
-`--pdf`, and only the files it takes. A flag beats a `SHRINK_*` variable, which beats the
-default, so a Mac can set its own defaults in `~/.zshrc.local`, such as
-`export SHRINK_CRF=28`.
+`shrink -h` lists the main options, `shrink --help TYPE` shows every setting
+for `video`, `image` or `pdf`, and `man shrink` is the full reference. A Mac can
+set its own defaults with `SHRINK_*` variables in `~/.zshrc.local`, such as
+`export SHRINK_CRF=28`. Tab completes `shrink`'s flags, the types after
+`--help`, the levels after `--pdf`, and only the files it takes.
 
 ### tidy-names
 
