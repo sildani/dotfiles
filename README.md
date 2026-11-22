@@ -147,11 +147,11 @@ shrink report.pdf         # writes report.shrunk.pdf
 shrink -n a.mov           # print the ffmpeg command instead of running it
 ```
 
-`shrink -h` lists the options, `shrink --help TYPE` shows every setting for
-`video`, `image` or `pdf`, and `man shrink` is the full reference. A Mac can
+`shrink -h` lists the main options, `shrink --help TYPE` shows every setting
+for `video`, `image` or `pdf`, and `man shrink` is the full reference. A Mac can
 set its own defaults with `SHRINK_*` variables in `~/.zshrc.local`, such as
-`export SHRINK_CRF=28`. Tab completes its flags, the types after `--help`, the
-levels after `--pdf`, and only the files it takes.
+`export SHRINK_CRF=28`. Tab completes `shrink`'s flags, the types after
+`--help`, the levels after `--pdf`, and only the files it takes.
 
 ### tidy-names
 
