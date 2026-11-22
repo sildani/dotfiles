@@ -5,8 +5,9 @@
 set -uo pipefail
 shopt -s nullglob
 # Byte order for the glob, so which of two colliding files is skipped doesn't
-# depend on the locale.
-export LC_COLLATE=C
+# depend on the locale. LC_ALL, since a set LC_ALL overrides LC_COLLATE. perl
+# reads and writes UTF-8 through -CS whatever the locale.
+export LC_ALL=C
 
 # tidy <name>: the Tidy name of <name>. NFD splits each accent off its letter
 # (a decomposed name already is), and the rule for other characters drops it.

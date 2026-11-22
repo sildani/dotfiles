@@ -16,10 +16,11 @@ failed() { echo "FAIL: $1" >&2; failures=$((failures + 1)); }
 
 # fresh: an empty work directory, as $W.
 fresh() { rm -rf "$TMP/w"; mkdir "$TMP/w"; W="$TMP/w"; }
-# run [args...]: runs tidy-names in $W; sets out, errout and rc.
+# run [args...]: runs tidy-names in $W; sets out, errout and rc. LC_ALL is set
+# as on a CI runner, where it once overrode the script's own collation.
 run() {
   rc=0
-  (cd "$W" && /bin/bash "$TIDY" "$@") >"$TMP/out" 2>"$TMP/err" || rc=$?
+  (cd "$W" && LC_ALL=en_US.UTF-8 /bin/bash "$TIDY" "$@") >"$TMP/out" 2>"$TMP/err" || rc=$?
   out="$(cat "$TMP/out")" errout="$(cat "$TMP/err")"
 }
 # listing [dir]: the names in dir (default $W), hidden ones too, one per line, sorted.
